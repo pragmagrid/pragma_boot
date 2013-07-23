@@ -1,7 +1,12 @@
-Pragma_boot script
+pragma_boot script
 ==================
 
 
 This is the first draft version of the prgma boot script.
+
+Some docs are available at 
+`this wiki <http://rocks-210.sdsc.edu/wiki/index.php/Auto-deploy_VC_on_Rocks>`_
+and at `this other wiki
+<http://goc.pragma-grid.net/wiki/index.php/Virtualization#VC_Sharing>`_.
 
 
