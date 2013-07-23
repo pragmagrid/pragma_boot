@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# vc-new creates a new vc and give user access to the disk image file
+# It should be only sudo-run by vc-deploy
+#
+# V1.0 - 2/14/13, Cindy Zheng, zhengc@sdsc.edu
+#
+
+#
+# vc-new $vmip $ncompute $cnmemory $cncpu $fename $availableip 
+#
+
+if [ $# != 6 ];
+then
+  exit 1
+fi
+vmip=$1
+ncompute=$2
+cnmemory=$3
+cncpu=$4
+fename=$5
+availableip=$6
+
+#
+# Create a new VC
+#
+echo "/opt/rocks/bin/rocks add cluster $vmip $ncompute mem-per-ccompute=$cnmemory cpus-per-compute=$cncpu fe-name=$fename"
+/opt/rocks/bin/rocks add cluster $vmip $ncompute mem-per-ccompute=$cnmemory cpus-per-compute=$cncpu fe-name=$fename
+if [ $? -ne 0 ];
+then
+  exit 1
+fi
+
+#
+# New VC is created successfully
+# Mark the ip# used in Availableip
+#
+sed -i "s/$vmip/#$vmip/" $availableip
+
+exit 0

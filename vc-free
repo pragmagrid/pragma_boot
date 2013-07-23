@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# vc-free <vc-name> <availableip>
+# Should run as root. Should only run by vm-remove
+#
+# V0 - 2/26/13, Cindy Zheng, zhengc@sdsc.edu
+#
+
+if [ $# -ne 2 ];
+then
+  echo "Usage: vc-fee <vc-name> <availableip>"
+  exit 1
+fi
+vcname=$1
+availableip=$2
+
+#
+# Get info needed
+#
+cnlist=( $(/opt/rocks/bin/rocks list cluster $vcname | grep hosted-vm- | sort | awk '{print $2}') )
+ncompute=$(/opt/rocks/bin/rocks list cluster $vcname | grep hosted-vm- | wc -l)
+ip=$(/opt/rocks/bin/rocks list host interface $vcname | grep public | awk '{print $4}');
+declare -a container
+declare -a cnvmpath
+for (( i=0; i<$ncompute; i++ ))
+do
+  info=$(/opt/rocks/bin/rocks list host vm ${cnlist[$i]} showdisks=yes | tail -1);
+  container[$i]=$(echo $info | awk '{print $5}');
+  cnvmpath[$i]=$(echo $info | awk '{print $7}' | cut -d':' -f2 | cut -d',' -f1);
+done
+
+#
+# Remove the new VC and unmark the ip# used in AvailableIP
+#
+/opt/rocks/bin/rocks stop host vm $vcname;
+echo "/opt/rocks/bin/rocks remove host $vcname";
+/opt/rocks/bin/rocks remove host $vcname;
+if [ $? -ne 0 ];
+then
+  echo "Failed to remove $vcname and free IP#";
+  echo "Please cleanup manually";
+o exit 3
+fi
+for (( i=0; i<$ncompute; i++ ))
+do
+  /opt/rocks/bin/rocks stop host vm ${cnlist[$i]};
+  echo "/opt/rocks/bin/rocks remove host ${cnlist[$i]}"
+  /opt/rocks/bin/rocks remove host ${cnlist[$i]}
+  if [ $? -ne 0 ];
+  then
+    echo "Failed to remove ${cnlist[$i]}";
+    echo "Please cleanup manually";
+o   exit 4
+  fi
+done
+sed -i "s/#$ip/$ip/" $availableip
+echo "Freed ip# $ip in $availableip"
+
+#
+# Remove the frontend image file
+#
+fevmpath=$(/opt/rocks/bin/rocks list host vm $vcname showdisks=y | grep $vcname | awk '{print $7}' | cut -d':' -f2 | cut -d',' -f1);
+echo "rm -f $fevmpath"
+rm -f $fevmpath
+
+#
+# Remove the compute node image file
+#
+for (( i=0; i<$ncompute; i++ ))
+do
+  # debugging echo
+  echo "/usr/bin/ssh ${container[$i]} rm -f ${cnvmpath[$i]}"
+  /usr/bin/ssh ${container[$i]} "rm -f ${cnvmpath[$i]}"
+done
+
+exit 0

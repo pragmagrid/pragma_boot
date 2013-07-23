@@ -1,0 +1,323 @@
+#!/bin/bash
+#
+# fe-makeover <mntpoint> <diskpath> <fename> <ifpublic> <ifprivate> <ippublic> <ipprivate> <privatemask> <fehostname> <gateway> <userkeyfile> <ncompute> <vcxmlhomepath> <resolv> <logfile>
+#
+# Modify frontend image file.
+#
+# Should only be sudo run by pragma_boot
+#
+# V0 - 2/18/13, Cindy Zheng, zhengc@sdsc.edu
+#
+
+if [ $# -ne 15 ];
+then
+  echo "fe-makeover number of arguments don't match. Quit." | tee -a $log;
+  exit 1
+fi
+mntpoint=$1
+diskpath=$2
+fename=$3
+ifpublic=$4
+ifprivate=$5
+ippublic=$6
+ipprivate=$7
+privatemask=$8
+fehostname=$9
+gateway=${10}
+userkeyfile=${11}
+ncompute=${12}
+vcxmlhomepath=${13}
+resolv=${14}
+log=${15}
+
+#
+# Mount the disk image
+#
+rocksversion=$(/opt/rocks/bin/rocks report version)
+if [ "$rocksversion" == "5.4.3" ] || [ "$rocksversion" == "5.5" ];
+then
+  /usr/bin/lomount -diskimage $diskpath -partition 1 $mntpoint
+  if [ $? -ne 0 ];
+  then
+    echo "Failed mounting frontend VM image (/usr/bin/lomount -diskimage $diskpath -partition 1 $mntpoint returned $?), cannot continue." | tee -a $log;
+    echo "Please investigate, then manually remove all host vm's in cluster $fename" | tee -a $log;
+    exit 2
+  fi
+else
+  loopdev=$( /sbin/kpartx -av $diskpath | head -n 1 | cut -d' ' -f3 );
+  mount /dev/mapper/$loopdev $mntpoint;
+  if [ $? -ne 0 ];
+  then
+    echo "Failed mounting frontend VM image (mount /dev/mapper/$loopdev returned $?), cannot continue." | tee -a $log;
+    echo "Please investigate, then manually remove all host vm's in cluster $fename" | tee -a $log;
+    /sbin/kpartx -dv $diskpath
+    exit 3
+  fi
+  # debugging echo
+  echo "mount /dev/mapper/$loopdev $mntpoint successful"
+fi
+
+# Save original network interface files
+cp $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifpublic $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifpublic.sav
+cp $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifprivate $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifprivate.sav
+
+# Create new network interface files
+/opt/rocks/bin/rocks set host interface ip $fename eth0 $ipprivate
+/opt/rocks/bin/rocks report host interface $fename iface=eth0 > $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifprivate
+/opt/rocks/bin/rocks report host interface $fename iface=eth1 > $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifpublic
+
+# Modify the interface files
+/bin/sed -i "s/eth0/$ifprivate/" $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifprivate
+/bin/sed -i "s/^NETMASK.*/NETMASK=$privatemask/" $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifprivate
+/bin/sed -i '/^VLAN/d' $mntpoint/etc/sysconfig/network;
+/bin/sed -i "s/eth1/$ifpublic/" $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifpublic
+#debugging echo
+/bin/cat $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifprivate
+/bin/cat $mntpoint/etc/sysconfig/network-scripts/ifcfg-$ifpublic
+
+# Get old and new hostnames 
+vminfo=$(/bin/grep "^HOSTNAME" $mntpoint/etc/sysconfig/network)
+if [ -z "$vminfo" ];
+then
+  echo "Cannot find the original hostname in /etc/sysconfig/network" | tee -a $log;
+# This condition need to do more...
+  exit 4
+else
+  oldhostfull=$(/bin/echo $vminfo | /bin/cut -d'=' -f2);
+  oldhostshort=$(/bin/echo $oldhostfull | /bin/cut -d'.' -f1)
+fi
+
+# Get short new hostname
+newhostshort=$(/bin/echo $fehostname | /bin/cut -d'.' -f1)
+#debugging echo
+echo "oldhostfull=$oldhostfull; oldhostshort=$oldhostshort; newhostshort=$newhostshort"
+
+#
+# Modify network file
+#
+/bin/sed -i 's/HOSTNAME/#HOSTNAME/' $mntpoint/etc/sysconfig/network
+/bin/echo "HOSTNAME=$fehostname" >> $mntpoint/etc/sysconfig/network
+/bin/sed -i 's/GATEWAY/#GATEWAY/' $mntpoint/etc/sysconfig/network
+/bin/echo "GATEWAY=$gateway" >> $mntpoint/etc/sysconfig/network
+# debugging echo
+/bin/cat $mntpoint/etc/sysconfig/network
+
+# Modify static-route file
+/bin/cp /$mntpoint/etc/sysconfig/static-routes $mntpoint/etc/sysconfig/static-routes.sav
+/bin/echo "any host $fepublicip gw $feprivateip" > /$mntpoint/etc/sysconfig/static-routes
+/bin/echo "any net 224.0.0.0 netmask 255.255.255.0 dev $feprivate" >> /$mntpoint/etc/sysconfig/static-routes
+/bin/echo "any host 255.255.255.255 dev $feprivate" >> /$mntpoint/etc/sysconfig/static-routes
+#debugging echo
+/bin/cat /$mntpoint/etc/sysconfig/static-routes
+
+# Modify resolv.conf
+  /bin/cp $resolv $mntpoint/etc/resolv.conf
+  /bin/chmod 644 $mntpoint/etc/resolv.conf
+# debuggin echo
+/bin/cat $mntpoint/etc/resolv.conf
+
+# Add root and user ssh public keys
+if [ -d $mntpoint/root/.ssh ];
+then
+  if [ -e $mntpoint/root/.ssh/authorized_keys ];
+  then
+    /bin/cat $userkeyfile >> $mntpoint/root/.ssh/authorized_keys
+  else
+    /bin/cat $userkeyfile > $mntpoint/root/.ssh/authorized_keys;
+    /bin/chown root:root $mntpoint/root/.ssh/authorized_keys;
+    /bin/chmod 600 $mntpoint/root/.ssh/authorized_keys
+  fi
+else
+  mkdir $mntpoint/root/.ssh;
+  /bin/chmod 755 $mntpoint/root/.ssh;
+  /bin/cat $userkeyfile > $mntpoint/root/.ssh/authorized_keys;
+  /bin/chown root:root $mntpoint/root/.ssh/authorized_keys;
+  /bin/chmod 600 $mntpoint/root/.ssh/authorized_keys
+fi
+# debugging echo
+/bin/cat $mntpoint/root/.ssh/authorized_keys
+
+# Modify hosts file
+let "cnt=0"
+if [ -n "$oldhostfull" ];
+then
+  for (( ; ; ))
+  do
+    line=$(/bin/grep -v "#" $mntpoint/etc/hosts | grep $oldhostfull | head -1);
+    if [ -n "$line" ];
+    then
+      /bin/sed -i "s/$line/$ippublic $fehostname/" $mntpoint/etc/hosts
+      # debugging echo
+      echo "line is $line; oldhostfull=$oldhostfull";
+      if [ $cnt -gt 5 ];
+      then
+        if [ $oldhostfull = $fehostname ];
+        then
+          break
+        fi
+        echo "Possible infinite loop in fe-makeover, exit" | tee -a $log;
+        echo "Please contact system administrator to investigate" | tee -a $log;
+        exit 5
+      fi
+      let "cnt+=1"
+    else
+      break
+    fi
+  done
+fi
+if [ -n "$oldhostshort" ];
+then
+  /bin/sed -i "s/$oldhostshort/$newhostshort/g" $mntpoint/etc/hosts
+fi
+info=$( /bin/grep -v "#" $mntpoint/etc/hosts | grep $fehostname )
+if [ -z "$info" ];
+then
+  echo "$ippublic $fehostname" >> $mntpoint/etc/hosts
+fi
+# debugging echo
+/bin/cat $mntpoint/etc/hosts
+
+# Find existing host entries for compute nodes and get ip#s
+declare -a cniplist
+for (( i=0; ; i++ ))
+do
+  info=$( /bin/grep -v "#" $mntpoint/etc/hosts | grep compute-0-$i )
+  if [ -n "$info" ];
+  then
+    if [ $i -ge $ncompute ];
+    then
+      /bin/sed '/$info/d' $mntpoint/etc/hosts;
+      #debugging echo
+      echo "removed the line: $info";
+      continue
+    fi
+    cniplist[$i]=$( echo $info | cut -d' ' -f1 )
+    # debugging echo
+    echo "compute-0-$i already exist in /etc/hosts, cniplist[$i]=${cniplist[$i]}"
+  else
+    break
+  fi
+done
+
+# Got all the ip# for compute nodes?
+prefixip=${ipprivate%%$(echo $ipprivate | cut -d'.' -f4)}
+for (( i=0; i<$ncompute; i++ ))
+do
+  echo "i=$i";
+  if [ -z ${cniplist[$i]} ];
+  then
+    for (( n=254; n>1; n-- ))
+    do
+      echo "n=$n";
+      newip=$prefixip$n;
+      match=0
+      if [ $newip = $ipprivate ];
+      then
+        continue
+      fi
+      for (( m=0; m<$ncompute; m++ ))
+      do
+        echo "m=$m";
+        if [ $i -eq $m ];
+        then
+          continue
+        fi
+        # debugging echo
+        echo "newip=$newip, cniplist[$m]=${cniplist[$m]}"
+        if [ $newip = ${cniplist[$m]} ];
+        then
+          # debugging echo
+          echo "match=1";
+          match=1
+          break
+        fi
+      done
+      #debugging echo
+      echo "match=$match";
+      if [ $match -eq 0 ];
+      then
+        cniplist[$i]=$newip;
+        echo "$newip compute-0-$i.local compute-0-$i" >> $mntpoint/etc/hosts
+        # debugging echo
+        echo "Found an unique ip $newip for compute-0-$i"
+        break;
+      fi
+    done
+  fi
+done
+# debuggin echo
+/bin/cat $mntpoint/etc/hosts
+
+# Modify auto.home
+if [ -e $mntpoint/etc/auto.home ];
+then
+  /bin/sed -i "s/$oldhostshort/$newhostshort/g" $mntpoint/etc/auto.home;
+# debuggin echo
+  /bin/cat $mntpoint/etc/auto.home
+fi
+
+# create vc-out.xml
+cat $vcxmlhomepath | head -2 > $mntpoint/root/vc-out.xml
+echo "  <frontend name='$fename' fqdn='$fehostname' private_ip='$ipprivate' public_ip='$ippublic'/>" >> $mntpoint/root/vc-out.xml
+echo "  <compute count='$ncompute'>" >> $mntpoint/root/vc-out.xml
+cnlist=( $(/opt/rocks/bin/rocks list cluster $fename | grep hosted-vm- | sort | awk '{ print $2}') )
+for (( i=0; i<$ncompute; i++ ))
+do
+  #debugging echo
+  echo "/opt/rocks/bin/rocks set host interface ip ${cnlist[$i]} eth0 ${cniplist[$i]}";
+  /opt/rocks/bin/rocks set host interface ip ${cnlist[$i]} eth0 ${cniplist[$i]};
+  mac=$( /opt/rocks/bin/rocks list host interface ${cnlist[$i]} iface=eth0 | grep ${cnlist[$i]} | awk '{print $3}');
+  echo "    <node name='${cnlist[$i]}' mac='$mac' private_ip='${cniplist[$i]}'/>" >> $mntpoint/root/vc-out.xml
+done
+echo "  </compute>" >> $mntpoint/root/vc-out.xml
+echo "  <network>" >> $mntpoint/root/vc-out.xml
+dnsip=''
+search=''
+domain=''
+while read -r line
+do
+  if [[ $line == nameserver* ]];
+  then
+    dnsip=$dnsip${line##nameserver}
+  elif [[ $line == search* ]];
+  then
+    search=$search${line##search}
+  elif [[ $line == domain* ]]
+  then
+    domain=$domain${line##domain}
+  fi
+done < <( grep -v "#" $resolv | grep -v "127.0.0.1" )
+dnsip=$(echo $dnsip | sed 's/^ *//g')
+search=$(echo $search | sed 's/^ *//g')
+domain=$(echo $domain | sed 's/^ *//g')
+if [ -z $domain ]
+then
+  domain=$search
+elif [ -z $search ]
+then
+  search=$domain
+fi
+echo "    <dns ip='$dnsip' search='$search' domain='$domain'/>" >> $mntpoint/root/vc-out.xml
+echo "    <gw ip='$gateway'/>" >> $mntpoint/root/vc-out.xml
+echo "  </network>" >> $mntpoint/root/vc-out.xml
+echo "</vc>" >> $mntpoint/root/vc-out.xml
+# debugging echo
+/bin/cat $mntpoint/root/vc-out.xml
+  
+# Done with modify frontend image
+/bin/umount $mntpoint
+if [ $? -ne 0 ];
+then
+  echo "/bin/umount $mntpoint returned $?, exit" | tee -a $log;
+  echo "Please report to system administrator to investigate" | tee -a $log;
+  exit 6
+fi
+/sbin/kpartx -dv $diskpath
+if [ $? -ne 0 ];
+then
+  echo "/sbin/kpartx -dv $diskpath returned $?, exit" | tee -a $log;
+  echo "Please report to system administrator to investigate" | tee -a $log;
+  exit 7
+fi
+
+exit 0

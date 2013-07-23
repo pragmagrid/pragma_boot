@@ -1,0 +1,11 @@
+#
+# V0 - 2/27/13, Cindy Zheng, zhengc@sdsc.edu
+#
+# This file is used by vm-deploy, pragma_boot, vc-new and vm-new.
+# Uncommented lines are taken as available ip/name.
+# vm-new script will comment-out the ip/name it uses to create a new VM.
+# Please add available ip#s and hostnames
+# Comment-out the example lines below and add your own
+#
+#101.102.103.104 vm1.ucsd.edu
+#201.202.203.204 vm2.ucsd.edu

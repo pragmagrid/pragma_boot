@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# vc-start <fename> <ncompute> <bootorder> <bootwait>
+#
+# It should be only sudo-run by pragma_boot
+#
+# V0 - 2/21/11, Cindy Zheng, zhengc@sdsc.edu
+#
+
+if [ $# -ne 4 ];
+then
+  exit 1
+fi
+fename=$1
+ncompute=$2
+bootorder=$3
+bootwait=$4
+
+#
+# Start frontend
+#
+echo "Starting the frontend $fename..."
+/opt/rocks/bin/rocks set host boot action=os $fename
+if [ $? -ne 0 ];
+then
+  echo "/opt/rocks/bin/rocks set host boot action=os $fename returned $?";
+  exit 2
+fi
+
+/opt/rocks/bin/rocks start host vm $fename
+if [ $? -ne 0 ];
+then
+  echo "/opt/rocks/bin/rocks start host vm $fename returned $?";
+  exit 3
+fi
+sleep 1
+festatus=$(/opt/rocks/bin/rocks list host vm status=yes | grep $fename | head -1 | awk '{print $8}')
+if [ $festatus = "active" ];
+then
+  echo "Frontend $fename started up successfully"
+else
+  echo "Failed to start frontend $fename";
+  exit 4
+fi
+
+# boot compute nodes
+cnlist=( $(/opt/rocks/bin/rocks list cluster $fename | grep hosted-vm- | sort | awk '{ print $2}') )
+if [ $bootorder -gt 2 ];
+then
+  echo "The case of $bootorder > 2 has not been implemented. Please report to your system administrator."
+  exit 5
+else
+  echo "Wait for $bootwait seconds before start compute nodes..."
+  sleep $bootwait;
+  for (( i=0; i<$ncompute; i++ ))
+  do
+    /opt/rocks/bin/rocks set host boot action=os ${cnlist[$i]}
+    /opt/rocks/bin/rocks start host vm ${cnlist[$i]};
+    sleep 1;
+    cnstatus=$(/opt/rocks/bin/rocks list host vm status=yes | grep ${cnlist[$i]} | head -1 | awk '{print $8}');
+    if [ $cnstatus = "active" ];
+    then
+      echo "${cnlist[$i]} started up successfully"
+    else
+      echo "Failed to start ${cnlist[$i]}. Please check and restart manually"
+    fi
+  done
+fi
+
+exit 0

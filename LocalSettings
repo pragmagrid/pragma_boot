@@ -1,0 +1,37 @@
+# V0 - 2/27/13, Cindy Zheng, zhengc@sdsc.edu
+#
+# This file is used by vm-deploy and pragma_boot script to get local settings.
+ 
+#
+# Gfarm VM disk images directory and database 
+#
+gfarmvmdir=/vm-images
+vcdb=vcdb.txt
+
+#
+# What type of kernel to boot VM with
+#
+bootk=kvm
+
+#
+# network, netmask and gateway settings for new VMs
+#
+nettype=public
+netmask=255.255.255.0
+gateway=198.202.88.1
+
+#
+# Reminder of other local settings need to be done on all your installations:
+# (Best to finish settings before copy the directory to other local systems)
+#
+# 1. Set the "scriptdir" in vm-deploy to the scripts installation path
+# 2. Add all IP# allocated for vm-deploy script to the AvailableIP file
+# 3. Adjust resolv.conf for your VM
+# 4. Create vmdisks group and give it rwx access to VM disk image 
+#    directory path on all vm-containers
+#    $ ls -ld /state/partition1/xen 
+#    drwxr-x--- 4 root vmdisks 4096 Jan  7  2011 /state/partition1/xen
+#    $ ls -ld /state/partition1/xen/disks
+#    drwxrwx--- 2 root vmdisks 4096 Oct  5 00:05 /state/partition1/xen/disks
+# 5. Add the following line in /etc/sudoers on all vm-containers
+#    %vmdisks ALL=NOPASSWD:/opt/vm-scripts/vm-new, /opt/vc-scripts/vc-new, /opt/vm-scripts/vm-makeover, /opt/vc-scripts/fe-makeover, /opt/vc-scripts/cn-makeover, /opt/vm-scripts/vm-start, /opt/vc-scripts/vc-start, /opt/vm-scripts/vm-cleanup, /opt/vc-scripts/vc-cleanup, /opt/vm-scripts/vm-free, /opt/vc-scripts/vc-free, /opt/rocks/bin/rocks, /bin/sh
