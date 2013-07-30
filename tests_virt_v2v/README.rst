@@ -60,44 +60,44 @@ vc-in.xml file example
 ::
 
  <vc type='Local Beowulf'>
-  <virtualization engine='kvm' type='hvm' arch='x86_64'/>
-  <frontend memory='1048576' vcpu='1'>
-    <devices>
-      <disk format='raw' bus='virtio'>
-        <source file='calit2-119-222.img.gz'/>
-      </disk>
-      <interface name='eth0'>
-        <subnet name='private'/>
-        <mac address='7a:77:6e:40:00:07'/>
-        <model type='virtio'/>
-      </interface>
-      <interface name='eth1'>
-        <subnet name='public'/>
-        <mac address='7a:77:6e:40:00:08'/>
-        <model type='virtio'/>
-      </interface>
-    </devices>
-  </frontend>
-  <compute memory='1048576' vcpu='1'>
-    <boot_dependency parent='frontend'>
-      <wait type='clock' value='300'/>
-    </boot_dependency>
-    <devices>
-      <disk format='raw' bus='virtio'>
-        <source file='hosted-vm-0-0-1.img.gz'/>
-      </disk>
-      <interface name='eth0'>
-        <subnet name='private'/>
-        <mac address='7a:77:6e:40:00:0a'/>
-        <model type='virtio'/>
-      </interface>
-    </devices>
-  </compute>
-  <networks>
-    <network name='private'>
-        <ip address='10.1.1.1' netmask='255.255.0.0'/>
-    </network>
-  </networks>
+   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
+   <frontend memory='1048576' vcpu='1'>
+     <devices>
+       <disk format='raw' bus='virtio'>
+         <source file='calit2-119-222.img.gz'/>
+       </disk>
+       <interface name='eth0'>
+         <subnet name='private'/>
+         <mac address='7a:77:6e:40:00:07'/>
+         <model type='virtio'/>
+       </interface>
+       <interface name='eth1'>
+         <subnet name='public'/>
+         <mac address='7a:77:6e:40:00:08'/>
+         <model type='virtio'/>
+       </interface>
+     </devices>
+   </frontend>
+   <compute memory='1048576' vcpu='1'>
+     <boot_dependency parent='frontend'>
+       <wait type='clock' value='300'/>
+     </boot_dependency>
+     <devices>
+       <disk format='raw' bus='virtio'>
+         <source file='hosted-vm-0-0-1.img.gz'/>
+       </disk>
+       <interface name='eth0'>
+         <subnet name='private'/>
+         <mac address='7a:77:6e:40:00:0a'/>
+         <model type='virtio'/>
+       </interface>
+     </devices>
+   </compute>
+   <networks>
+     <network name='private'>
+       <ip address='10.1.1.1' netmask='255.255.0.0'/>
+     </network>
+   </networks>
  </vc>
 
 
@@ -107,12 +107,16 @@ vc-out.xml file example
 ::
 
  <vc type='Local Beowulf'>
-  <virtualization engine='kvm' type='hvm' arch='x86_64'/>
-  <compute count='3'>
-    <node name='hosted-vm-0-0-0' mac='7a:77:6e:40:00:04' private_ip='10.1.255.254' public_ip=''/>
-    <node name='hosted-vm-0-1-0' mac='7a:77:6e:40:00:05' private_ip='10.1.255.253' public_ip=''/>
-    <node name='hosted-vm-0-2-0' mac='7a:77:6e:40:00:06' private_ip='10.1.255.252' public_ip=''/>
-  </compute>
+   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
+   <frontend name='calit2-119-225' fqdn='calit2-119-225.ucsd.edu' ip='137.110.119.225'/>
+   <compute count='3'>
+     <node name='hosted-vm-0-0' mac='7a:77:6e:40:00:09' ip='10.1.255.254'/>
+     <node name='hosted-vm-0-1' mac='7a:77:6e:40:00:0a' ip='10.1.255.253'/>
+     <node name='hosted-vm-0-2' mac='7a:77:6e:40:00:0b' ip='10.1.255.252'/>
+   </compute>
+   <network>
+     <dns ip='8.8.8.8' search='local ucsd.edu' domain=''/>
+     <gw ip='137.110.119.1'/>
+   </network>
  </vc>
-
 
