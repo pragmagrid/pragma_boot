@@ -26,19 +26,30 @@ pragma_boot is divided into several subscripts which will be called by the pragm
 invocation as described below. If the command is called `vc_driver/command_name` pragma_boot
 will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.xml 
 file (each virtual machine will be able to choose its own vc_driver).
-:
+If the command starts with ve_driver it will be replaced with the local Virtual Engine (VE) 
+driver which can be configured in the file (specify a file)
 
 
 
+* **vc_driver/pre_fix_driver** it prepares the current machine for the execution of 
+  the fix_driver script which will follow. Input args are:
 
-* **driver/prepare_machine** (use virt-v2v) prepare the given VM image to be run 
+  * vm_disk_path=path
+
+* **ve_driver/fix_driver** (use virt-v2v) prepare the given VM image to be run 
   on the current system (fix kernel, drivers, boot options, for 
   current platform, etc.). It's input argumets are:
-  
+
+  * vm_disk_path=path
+  * interfaces=eth0,eth1
+
+* **vc_driver/post_fix_driver** it restore the machine state (if needed) after the 
+  execution of the fix_driver script. t's input argumets are:
+
   * vm_disk_path=path
 
 
-* **pre_boot** it takes care of fixing networking and other stuffs, it 
+* **vc_driver/pre_boot** it takes care of fixing networking and other stuffs, it 
   depends on the source VM type (if UCSD VM run rocks/pre_boot, etc.)
   probably this script should be in the source folder where the VM 
   images are.
@@ -49,7 +60,7 @@ file (each virtual machine will be able to choose its own vc_driver).
   * gateway=123.123.123.1
   * dns=1.1.1.1
 
-* **boot** it takes care of starting the VM on the local virtualization 
+* **ve_driver/boot** it takes care of starting the VM on the local virtualization 
   engine. Its input parameters are:
   
   * cpu=3
