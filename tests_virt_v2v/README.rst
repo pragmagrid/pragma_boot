@@ -1,22 +1,37 @@
-
-
-
 The pragma_boot script
 ----------------------
 
+**pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
+It accepts the following agruments:
 
-pragma_boot is the main program to instantiate Virtual 
-Machine in Pragma. Input:
-
-- VM name 
-- base path for VM images
-- number of compute (default to 0)
-- public IP address
-
-pragma_boot is divided into several subscripts as described below:
+--vm vmname        the name of the vm machine to fetch from the database
+--base_path path   the base path of the VM database 
+--num_compute N    the number of compute node to start up (default to 0)
+--net_conf file    a filename containing the network configuration for 
+                   the new cluster frontend.
 
 
-* **prepare_machine** (use virt-v2v) prepare the given VM image to be run 
+The network configuration file will contains the self explicative elements:
+
+::
+
+ public_ip=123.123.123.123
+ netmask=255.255.255.0
+ gw=123.123.123.1
+ dns=8.8.8.8
+ fqdn=fqdn_of_pubblic_ip.somehost.com
+
+
+pragma_boot is divided into several subscripts which will be called by the pragma_boot 
+invocation as described below. If the command is called `vc_driver/command_name` pragma_boot
+will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.xml 
+file (each virtual machine will be able to choose its own vc_driver).
+:
+
+
+
+
+* **driver/prepare_machine** (use virt-v2v) prepare the given VM image to be run 
   on the current system (fix kernel, drivers, boot options, for 
   current platform, etc.). It's input argumets are:
   
@@ -61,6 +76,7 @@ vc-in.xml file example
 
  <vc type='Local Beowulf'>
    <virtualization engine='kvm' type='hvm' arch='x86_64'/>
+   <distro name="rocks" version="6.1" driver="rocks6"/>
    <frontend memory='1048576' vcpu='1'>
      <devices>
        <disk format='raw' bus='virtio'>
@@ -109,6 +125,7 @@ vc-out.xml file example
  <vc type='Local Beowulf'>
    <virtualization engine='kvm' type='hvm' arch='x86_64'/>
    <frontend name='calit2-119-225' fqdn='calit2-119-225.ucsd.edu' ip='137.110.119.225'/>
+   <!-- should we allow changing the FE mac address -->
    <compute count='3'>
      <node name='hosted-vm-0-0' mac='7a:77:6e:40:00:09' ip='10.1.255.254'/>
      <node name='hosted-vm-0-1' mac='7a:77:6e:40:00:0a' ip='10.1.255.253'/>
