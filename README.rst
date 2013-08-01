@@ -24,7 +24,7 @@ The network configuration file will contains the self explicative elements:
 
 pragma_boot is divided into several subscripts which will be called by the pragma_boot 
 invocation as described below. If the command is called `vc_driver/command_name` pragma_boot
-will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.xml 
+will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.json 
 file (each virtual machine will be able to choose its own vc_driver).
 If the command starts with ve_driver it will be replaced with the local Virtual Engine (VE) 
 driver which can be configured in the file (specify a file)
@@ -81,51 +81,65 @@ input and output XML file example
 =================================
 
            
-vc-in.xml file example
+vc-in.json file example
 
 ::
 
- <vc type='Local Beowulf'>
-   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
-   <distro name="rocks" version="6.1" driver="rocks6"/>
-   <frontend memory='1048576' vcpu='1'>
-     <devices>
-       <disk format='raw' bus='virtio'>
-         <source file='calit2-119-222.img.gz'/>
-       </disk>
-       <interface name='eth0'>
-         <subnet name='private'/>
-         <mac address='7a:77:6e:40:00:07'/>
-         <model type='virtio'/>
-       </interface>
-       <interface name='eth1'>
-         <subnet name='public'/>
-         <mac address='7a:77:6e:40:00:08'/>
-         <model type='virtio'/>
-       </interface>
-     </devices>
-   </frontend>
-   <compute memory='1048576' vcpu='1'>
-     <boot_dependency parent='frontend'>
-       <wait type='clock' value='300'/>
-     </boot_dependency>
-     <devices>
-       <disk format='raw' bus='virtio'>
-         <source file='hosted-vm-0-0-1.img.gz'/>
-       </disk>
-       <interface name='eth0'>
-         <subnet name='private'/>
-         <mac address='7a:77:6e:40:00:0a'/>
-         <model type='virtio'/>
-       </interface>
-     </devices>
-   </compute>
-   <networks>
-     <network name='private'>
-       <ip address='10.1.1.1' netmask='255.255.0.0'/>
-     </network>
-   </networks>
- </vc>
+ { "vc" : {
+   "virt_engine" : "kvm",
+   "arch"        : "x86_64",
+   "frontend" : {
+     "memory" : 1048576,
+     "vcpu" : 1 ,
+     "devices" : [
+       {
+         "disk"      : {
+           "format"  : "raw",
+           "bus"     : "virtio",
+           "source_file" : "calit2-119-222.img.gz"}
+       },{ 
+         "interface" : {
+ 	  "name"    : "eth0",
+           "subnet"  : "private",
+           "mac"     : "7a:77:6e:40:00:07",
+           "type"    : "virtio"}
+       },{
+         "interface" : {
+           "name"    : "eth1",
+           "subnet"  : "public",
+           "mac"     : "7a:77:6e:40:00:08",
+           "type"    : "virtio"}
+       }]
+     },
+   "compute" : {
+     "memory" : 1048576,
+     "vcpu" : 1 ,
+     "boot_dependency" : {
+       "depend_on" : "frontend",
+       "wait_time" : 300
+     },
+     "devices" : [
+       {
+         "disk"      : {
+           "format"  : "raw",
+           "bus"     : "virtio",
+           "source_file" : "hosted-vm-0-0-1.img.gz"}
+       },{
+         "interface" : {
+           "name"    : "eth0",
+           "subnet"  : "private",
+           "mac"     : "7a:77:6e:40:00:0a",
+           "type"    : "virtio"}
+       }]
+     },
+   "networks" : [
+     {
+       "name"    : "private",
+       "ip"      : "10.1.1.1",
+       "netmask" : "255.255.255.0"
+     }]
+   }
+ }
 
 
 vc-out.xml file example
