@@ -15,11 +15,11 @@ The network configuration file will contains the self explicative elements:
 
 ::
 
- public_ip=123.123.123.123
- netmask=255.255.255.0
- gw=123.123.123.1
- dns=8.8.8.8
- fqdn=fqdn_of_pubblic_ip.somehost.com
+ public_ip="123.123.123.123"
+ netmask="255.255.255.0"
+ gw="123.123.123.1"
+ dns="8.8.8.8"
+ fqdn="fqdn_of_pubblic_ip.somehost.com"
 
 
 pragma_boot is divided into several subscripts which will be called by the pragma_boot 
