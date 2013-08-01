@@ -10,16 +10,19 @@ from optparse import OptionParser, OptionGroup
 
 import logging
 import json
+import gzip
+import time
 
+
+#we need this to run from sources without installing fingerprint
+fullPath = os.path.dirname(os.path.realpath(__file__))
+script_base_dir = os.path.abspath(os.path.join(fullPath, os.path.pardir))
 
 try:
     import pragma
 except ImportError:
-    #we need this to run from sources without installing fingerprint
-    fullPath = os.path.dirname(os.path.realpath(__file__))
-    parDir = os.path.abspath(os.path.join(fullPath, os.path.pardir))
     #we need to use our local patched python-ptrace and not the system one
-    sys.path.insert(0, parDir)
+    sys.path.insert(0, script_base_dir)
     import pragma
 
 #
@@ -34,7 +37,6 @@ def main():
     #
     # set up the option parser
     #
-
     runHelp = "\nRun \"pragma_boot -h\" for more help."
     usage = "usage: %prog --vcname vcname --net_conf file [--num_compute N] [--basepath path]"
     parser = OptionParser(usage, version="0.1")
@@ -75,6 +77,7 @@ def main():
 
 
     # create logger
+    global logger
     logger = logging.getLogger('pragma_boot')
     logger.setLevel(logging.DEBUG)
     # create file handler which logs even debug messages
@@ -98,6 +101,10 @@ def main():
     # dns
     # fqdn
     execfile(options.net_conf, {}, globals())
+    # this imports the following values
+    # site_ve_driver
+    # temp_directory
+    execfile(script_base_dir + "/site_conf.conf", {}, globals())
 
     vc_in_filepath = None
     with open(vc_db_filepath, 'r') as vc_db:
@@ -117,10 +124,53 @@ def main():
     if vc["arch"] != "x86_64":
         logger.error("Error unsupported architecture in " + vc_in_filepath)
         sys.exit(-1)
+    client_driver_name = vc["driver_name"]
     for device in vc["frontend"]["devices"]:
         if "disk" in device:
             src_file = device["disk"]["source_file"]
             format = device["disk"]["format"]
+    client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
+
+
+    fe_disk_path = os.path.dirname(vc_in_filepath) + "/" + src_file
+    if not os.path.isfile(fe_disk_path):
+        logger.error("Error can not open FE disk image " + fe_disk_path)
+        sys.exit(-1)
+    if fe_disk_path.endswith(".gz"):
+        temp_disk_path = temp_directory + os.path.basename(fe_disk_path)[:-3]
+        deflate_file(fe_disk_path, temp_disk_path)
+    else:
+        temp_disk_path = temp_directory + os.path.basename(fe_disk_path)
+        shutil.copy(fe_disk_path, temp_disk_path)
+
+
+
+
+def deflate_file(srcpath, destpath):
+    """it gunzip a file """
+    logger.debug("Uncompressing file " + srcpath + " in " + destpath)
+    buf_size=16384
+    input = gzip.open(srcpath)
+    output = open(destpath, 'w')
+    temp_timer = time.time()
+    counter = 0
+    while True:
+        buffer =  input.read(buf_size)
+        if len(buffer) == 0:
+            break
+        output.write( input.read(buf_size) )
+        if counter == 1000:
+            logger.debug("Decoded " + str(buf_size * 1000), " in ", str(time.time() - temp_timer))
+            temp_timer = time.time()
+            counter = 0
+        counter += 1
+    input.close()
+    output.close()
+    logger.debug("File " + destpath + " uncompressed.")
+    
+    
+    
+
 
 
 
