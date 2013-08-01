@@ -36,15 +36,15 @@ def main():
     #
 
     runHelp = "\nRun \"pragma_boot -h\" for more help."
-    usage = "usage: %prog --vmname vmname --net_conf file [--num_compute N] [--basepath path]"
+    usage = "usage: %prog --vcname vcname --net_conf file [--num_compute N] [--basepath path]"
     parser = OptionParser(usage, version="0.1")
 
 
     # required options one of them must be selected
     group = OptionGroup(parser, "Required Options",
-                    "You must select both a vmname and net_conf file")
+                    "You must select both a vcname and net_conf file")
     parser.add_option_group(group)
-    group.add_option("--vmname", dest="vmname", default=None,
+    group.add_option("--vcname", dest="vcname", default=None,
                     help="The name of the cluster which should be started")
     group.add_option("--net_conf", dest="net_conf", default="net_conf.conf",
                     help="A file containing all the public network configuration")
@@ -64,8 +64,8 @@ def main():
     #
     # switch based on user input
     #
-    if not options.vmname:
-        parser.error("you need to specify a vmname")
+    if not options.vcname:
+        parser.error("you need to specify a vcname")
     if not os.path.isfile(options.net_conf):
         parser.error("you need to enter a valid net_conf file name")
     vc_db_filepath = options.basepath + "/vcdb.txt"
@@ -102,12 +102,12 @@ def main():
     vc_in_filepath = None
     with open(vc_db_filepath, 'r') as vc_db:
         for line in vc_db:
-            (vmname, temp_path) = line.split(',')
-            if options.vmname == vmname:
+            (vcname, temp_path) = line.split(',')
+            if options.vcname == vcname:
                 vc_in_filepath = options.basepath + "/" + temp_path.strip()
                 break
         if not vc_in_filepath:
-            logger.error("vmname " + options.vmname + " does not exist in VC database.\n"
+            logger.error("vcname " + options.vcname + " does not exist in VC database.\n"
                 "Check the VC database file " + vc_db_filepath)
             sys.exit(-1)
     # parse the vc-in file
