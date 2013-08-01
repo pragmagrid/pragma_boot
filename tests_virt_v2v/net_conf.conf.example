@@ -1,0 +1,5 @@
+public_ip="123.123.123.123"
+netmask="255.255.255.0"
+gw="123.123.123.1"
+dns="8.8.8.8"
+fqdn="fqdn_of_pubblic_ip.somehost.com"
