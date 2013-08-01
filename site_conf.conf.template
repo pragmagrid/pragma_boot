@@ -1,0 +1,9 @@
+
+
+# this is the vritualization engine driver base path
+site_ve_driver="kvm_rocks"
+
+# this is the temporary directory for staging vm images 
+# disk before deployment
+temp_directory="/state/partition2/temp"
+
