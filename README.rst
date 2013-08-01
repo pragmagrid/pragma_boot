@@ -1,12 +1,150 @@
-pragma_boot script
-==================
+The pragma_boot script
+----------------------
+
+**pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
+It accepts the following agruments:
+
+--vm vmname        the name of the vm machine to fetch from the database
+--base_path path   the base path of the VM database 
+--num_compute N    the number of compute node to start up (default to 0)
+--net_conf file    a filename containing the network configuration for 
+                   the new cluster frontend.
 
 
-This is the first draft version of the prgma boot script.
+The network configuration file will contains the self explicative elements:
 
-Some docs are available at PRAGMA wiki:
+::
 
-+ `VC on Rocks <http://goc.pragma-grid.net/wiki/index.php/Auto-deploy_VC_on_Rocks>`_
-+ `Virtualization <http://goc.pragma-grid.net/wiki/index.php/Virtualization#VC_Sharing>`_
+ public_ip="123.123.123.123"
+ netmask="255.255.255.0"
+ gw="123.123.123.1"
+ dns="8.8.8.8"
+ fqdn="fqdn_of_pubblic_ip.somehost.com"
 
+
+pragma_boot is divided into several subscripts which will be called by the pragma_boot 
+invocation as described below. If the command is called `vc_driver/command_name` pragma_boot
+will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.xml 
+file (each virtual machine will be able to choose its own vc_driver).
+If the command starts with ve_driver it will be replaced with the local Virtual Engine (VE) 
+driver which can be configured in the file (specify a file)
+
+
+
+* **vc_driver/pre_fix_driver** it prepares the current machine for the execution of 
+  the fix_driver script which will follow. Input args are:
+
+  * vm_disk_path=path
+
+* **ve_driver/fix_driver** (use virt-v2v) prepare the given VM image to be run 
+  on the current system (fix kernel, drivers, boot options, for 
+  current platform, etc.). It's input argumets are:
+
+  * vm_disk_path=path
+  * interfaces=eth0,eth1
+
+* **vc_driver/post_fix_driver** it restore the machine state (if needed) after the 
+  execution of the fix_driver script. t's input argumets are:
+
+  * vm_disk_path=path
+
+
+* **vc_driver/pre_boot** it takes care of fixing networking and other stuffs, it 
+  depends on the source VM type (if UCSD VM run rocks/pre_boot, etc.)
+  probably this script should be in the source folder where the VM 
+  images are.
+  
+  * interface1=aa:ff:bb:44:33:22,eth0,137.120.1.24,255.255.255.0
+    the parameter of the NIC 1 as they should be configured in the 
+    machine
+  * gateway=123.123.123.1
+  * dns=1.1.1.1
+
+* **ve_driver/boot** it takes care of starting the VM on the local virtualization 
+  engine. Its input parameters are:
+  
+  * cpu=3
+    number of cpus
+  * ram=1024
+    Megabytes of RAM
+  * vm_disk_path=path  
+    the path to it's virtual disks
+  * priv_mac_address=aa:ff:bb:44:33:22
+    the mac address of the private interface
+  * pub_mac_address=aa:ff:bb:44:33:22
+    the mac address of the public interface if there is any (this 
+    parameters is optionals.
+
+            
+
+input and output XML file example
+=================================
+
+           
+vc-in.xml file example
+
+::
+
+ <vc type='Local Beowulf'>
+   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
+   <distro name="rocks" version="6.1" driver="rocks6"/>
+   <frontend memory='1048576' vcpu='1'>
+     <devices>
+       <disk format='raw' bus='virtio'>
+         <source file='calit2-119-222.img.gz'/>
+       </disk>
+       <interface name='eth0'>
+         <subnet name='private'/>
+         <mac address='7a:77:6e:40:00:07'/>
+         <model type='virtio'/>
+       </interface>
+       <interface name='eth1'>
+         <subnet name='public'/>
+         <mac address='7a:77:6e:40:00:08'/>
+         <model type='virtio'/>
+       </interface>
+     </devices>
+   </frontend>
+   <compute memory='1048576' vcpu='1'>
+     <boot_dependency parent='frontend'>
+       <wait type='clock' value='300'/>
+     </boot_dependency>
+     <devices>
+       <disk format='raw' bus='virtio'>
+         <source file='hosted-vm-0-0-1.img.gz'/>
+       </disk>
+       <interface name='eth0'>
+         <subnet name='private'/>
+         <mac address='7a:77:6e:40:00:0a'/>
+         <model type='virtio'/>
+       </interface>
+     </devices>
+   </compute>
+   <networks>
+     <network name='private'>
+       <ip address='10.1.1.1' netmask='255.255.0.0'/>
+     </network>
+   </networks>
+ </vc>
+
+
+vc-out.xml file example
+
+
+::
+
+ <vc type='Local Beowulf'>
+   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
+   <frontend name='calit2-119-225' fqdn='calit2-119-225.ucsd.edu' ip='137.110.119.225'/>
+   <!-- should we allow changing the FE mac address -->
+   <compute count='3'>
+     <node name='hosted-vm-0-0' mac='7a:77:6e:40:00:09' ip='10.1.255.254'/>
+     <node name='hosted-vm-0-1' mac='7a:77:6e:40:00:0a' ip='10.1.255.253'/>
+     <node name='hosted-vm-0-2' mac='7a:77:6e:40:00:0b' ip='10.1.255.252'/>
+   </compute>
+   <network>
+     <dns ip='8.8.8.8' search='local ucsd.edu' domain=''/>
+     <gw ip='137.110.119.1'/>
+   </network>
+ </vc>
 

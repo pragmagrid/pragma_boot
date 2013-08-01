@@ -1,0 +1,796 @@
+#!/bin/bash
+#
+# pragma_boot - Deploy a virtual cluster with given VM disk image files 
+# in Gfarm or on local disk,  Assumes shared user home directories on all nodes
+# 
+# V0 - 2/2/13, Cindy Zheng, zhengc@sdsc.edu
+#
+
+#
+# Local admin need to adjust scripts installation directory
+# ---------------------------------------------------------
+scriptdir="/opt/vc-scripts"
+
+#
+# This script should be run in an user account
+# Check user, must NOT be root
+#
+username=$(whoami)
+if [ "$username" = "root" ];
+then
+   echo "Please run this in an user account";
+   exit 1
+fi
+
+#
+# $ pragma_boot vc--name [number of compute nodes] [local directory path]
+#
+if [ -z $1 ] || [ $# -gt 3 ];
+then
+   echo "Usage: pragma_boot <vc-name> [number of compute nodes] [local directory path]";
+   echo "vc-name is required and need to match one in gfarm:/vm-images/vcdb.txt";
+   echo "Number of compute nodes is optional. Default is 1";
+   echo "Local directory path is optional. Default is gfarm:/vm-images";
+   exit 2
+fi
+
+#
+# Parsing input arguments
+#
+vcname=$1
+let "ncompute=1"
+let "local=0"
+if [ $# -eq 3 ];
+then
+   let "local=1";
+   let "ncompute=$2";
+   localdir=$3
+elif [ $# -eq 2 ];
+then
+   if expr "$2" : '-\?[0-9]\+$' >/dev/null 
+   then 
+     let "ncompute=$2"
+   else
+     let "local=1"; 
+     localdir=$2
+   fi
+fi 
+if [ $local -eq 1 ];
+then
+   if [ ! -d "$localdir" ]; 
+   then
+      echo "Non-existent directory path: $localdir, abort...";
+      exit 3
+   fi
+fi
+
+#
+# Start log
+#
+log=$HOME/pragma_boot.log
+echo "$(date): $username starts pragma_boot $vcname $ncompute $localdir" >> $log
+
+# 
+# Get local settings
+#
+info=$(grep -v "#" $scriptdir/LocalSettings | grep gfarmvmdir | head -1)
+if [ -z "$info" ];
+then
+  echo "gfarmvmdir is not defined in $scriptdir/LocalSettings" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 4
+fi
+gfarmvmdir=$(echo $info | cut -d'=' -f2)
+
+info=$(grep -v "#" $scriptdir/LocalSettings | grep vcdb | head -1)
+if [ -z "$info" ];
+then
+  echo "vcdb is not defined in $scriptdir/LocalSettings" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 5
+fi
+vcdb=$(echo $info | cut -d'=' -f2)
+
+info=$(grep -v "#" $scriptdir/LocalSettings | grep bootk | head -1)
+if [ -z "$info" ];
+then
+  echo "bootk is not defined in $scriptdir/LocalSettings" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 6
+fi
+bootk=$(echo $info | cut -d'=' -f2)
+
+info=$(grep -v "#" $scriptdir/LocalSettings | grep nettype | head -1)
+if [ -z "$info" ];
+then
+  echo "network is not defined in $scriptdir/LocalSettings" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 7
+fi
+nettype=$(echo $info | cut -d'=' -f2)
+
+info=$(grep -v "#" $scriptdir/LocalSettings | grep netmask | head -1)
+if [ -z "$info" ];
+then
+  echo "netmask is not defined in $scriptdir/LocalSettings" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 8
+fi
+netmask=$(echo $info | cut -d'=' -f2)
+
+info=$(grep -v "#" $scriptdir/LocalSettings | grep gateway | head -1)
+if [ -z "$info" ];
+then
+  echo "gateway is not defined in $scriptdir/LocalSettings" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 9
+fi
+gateway=$(echo $info | cut -d'=' -f2)
+# debugging echo
+echo "$gfarmvmdir, $vcdb, $nettype, $netmask, $gateway"
+
+#
+# Check user gfarm access
+#
+if [ $local -eq 0 ]; 
+then
+   gfls > /dev/null 2>&1
+   if [ $? -ne 0 ];
+   then
+     echo "Failed to access Gfarm file system";
+     echo "Check Gfarm access by manually run a gfarm command";
+     echo "Try again after you fix the Gfarm access problem";
+     echo "exit";
+     echo "User failed Gfarm access test. Quit." >> $log;
+     exit 10
+   fi
+fi
+
+#
+# Check VC file names
+#
+vcnamecomma=$vcname","
+if [ $local -eq 0 ]; 
+then
+   vcinfo=$(gfexport $gfarmvmdir/$vcdb | grep $vcnamecomma)
+else
+   vcinfo=$(cat $localdir/$vcdb | grep $vcnamecomma)
+fi
+if [ -z "$vcinfo" ];
+then
+   if [ $local -eq 0 ];
+   then
+      echo "$vcname does not exist in gfarm:$gfarmvmdir/$vcdb";
+      echo "No match for $vcname in gfarm:$gfarmvmdir/$vcdb. Quit." >> $log
+   else
+      echo "$vcname does not exist in $localdir/$vcdb";
+      echo "No match for $vcname in $localdir/$vcdb. Quit." >> $log
+   fi
+   echo "exit";
+   exit 11
+fi
+
+vcname=$(echo $vcinfo | cut -d',' -f1)
+vcxmlpath=$(echo $vcinfo | cut -d',' -f2)
+
+# debugging echo
+echo "vcname=$vcname, vcxmlpath=$vcxmlpath"
+
+#
+# Copy xml file to user home directory
+#
+vcxmlhomepath=$HOME"/"$vcname"-"$username".xml"
+if [ $local -eq 0 ];
+then
+   echo "$(date): Start ocpy $vcxmlpath from gfarm" >> $log;
+   gfexport $gfarmvmdir/$vcxmlpath > $vcxmlhomepath;
+   if [ $? -ne 0 ];
+   then
+      echo "'gfexport $gfarmvmdir/$vcxmlpath > $vcxmlhomepath' returned $?. Failed copying xml file from gfarm";
+      exit 12
+   else
+      echo "$(date): Finish ocpy $vcxmlpath from gfarm" >> $log;
+   fi
+else
+   echo "$(date): Start ocpy $vcxmlpath from local disk" >> $log
+   cp $localdir/$vcxmlpath $vcxmlhomepath;
+   if [ $? -ne 0 ];
+   then
+      echo "'cp $localdir/$vcxmlpath $vcxmlhomepath' returned $?. Failed copying xml file from local disk";
+      exit 13
+   else 
+      echo "$(date): Finish ocpy $vcxmlpath from local disk" >> $log
+   fi
+fi
+
+#
+# Make user public keys available for VM image modification
+#
+userkeyfile=/tmp/$vcname"-"$username".tmp"
+/bin/cat $HOME/.ssh/*.pub > $userkeyfile
+
+#
+# Get info from xml file
+#
+# First line should be <vc type='xxx'>
+info=$(grep -v "#" $vcxmlhomepath | grep "vc type=" | head -1)
+if [ -z "$info" ];
+then
+  echo "'vc type' is not defined in $vcxmlhomepath" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 14
+fi
+vctype=$(echo $info | cut -d\' -f2)
+
+# Second line should be <virtualization engine='x' type='x" arch='x'/>
+info=$(grep -v "#" $vcxmlhomepath | grep "virtualization engine=" | head -1)
+if [ -z "$info" ];
+then
+  echo "'virtualization engine' is not defined in $vcxmlhomepath" | tee -a $log;
+  echo "Please report to your system administrator";
+  exit 15
+fi
+vengine=$(echo $info | cut -d\' -f2)
+vtype=$(echo $info | cut -d\' -f4)
+varch==$(echo $info | cut -d\' -f6)
+
+# Get info from VC xml file
+frontend=0
+festart="<frontend"
+festop="</frontend"
+sourcetag="<source file"
+interface=0
+ifstart="<interface"
+ifstop="</interface"
+subnettag="<subnet"
+compute=0
+cnstart="<compute"
+cnstop="</compute"
+boot=0
+bootstart="<boot_dependency"
+bootstop="</boot_dependency"
+waittag="<wait"
+fememory=0
+fecpu=0
+fevmname=""
+feprivate=""
+fepublic=""
+cnmemory=0
+cncpu=0
+bootorder=0
+bootwait=0
+cnvmname=""
+cnprivate=""
+cnpublic=""
+feprivateip=""
+privatemask=""
+while read LINE ; do
+  if [ $frontend -eq 0 ];
+  then
+    if [[ $LINE == *$festart* ]];
+    then
+      # Found the begining of frontend section
+      frontend=1;
+      fememory=$(echo $LINE | cut -d\' -f2);
+      let "fememory /= 1000";
+      fecpu=$(echo $LINE | cut -d\' -f4);
+    else
+      # Before the frontend section, skip
+      continue
+    fi
+  elif [ $frontend -eq 1 ];
+  then
+    if [[ $LINE == *$festop* ]];
+    then
+      # Found the end of frontend section
+      frontend=2;
+      continue
+    fi
+    # In frontend section
+    if [[ $LINE == *$sourcetag* ]];
+    then
+      fevmname=$(echo $LINE | cut -d\' -f2);
+      continue
+    fi
+    if [ $interface -eq 0 ];
+    then
+      if [[ $LINE == *$ifstart* ]];
+      then
+        # Found the begining of a interface section
+        interface=1;
+        ifname=$(echo $LINE | cut -d\' -f2);
+      fi
+      continue
+    elif [[ $LINE == *$ifstop* ]];
+    then
+      # Found the end of interface section
+      interface=0
+      continue
+    fi
+    # In a interface section
+    if [[ $LINE == *$subnettag* ]];
+    then
+      if [[ $LINE == *private* ]];
+      then
+        feprivate=$ifname
+      elif [[ $LINE == *public* ]];
+      then
+        fepublic=$ifname
+      else
+        echo "Unhandled subnet type $LINE in $vcxmlhomepath" | tee -a $log;
+        echo "Unable to continue. Exit..." | tee -a $log;
+        exit 16
+      fi
+      continue
+    fi
+  else
+    # past frontend section
+    if [ $compute -eq 0 ];
+    then
+      if [[ $LINE == *$cnstart* ]];
+      then
+        # Found the begining of compute section
+        let "compute=1";
+        cnmemory=$(echo $LINE | cut -d\' -f2);
+        let "cnmemory /= 1000";
+        cncpu=$(echo $LINE | cut -d\' -f4)
+      else
+        # Before the compute section, skip
+        continue
+      fi
+    elif [ $compute -eq 1 ];
+    then
+      if [[ $LINE == *$cnstop* ]];
+      then
+        # Found the end of compute section
+        compute=2
+        continue
+      fi
+      # In compute section
+      if [ $boot -eq 0 ];
+      then
+        if [[ $LINE == *$bootstart* ]];
+        then
+          let "boot=1"; 
+          parent=$( echo $LINE | cut -d\' -f2 );
+          if [ $parent = "frontend" ];
+          then
+            let "bootorder=2"
+          fi
+        fi
+      elif [ $boot -eq 1 ];
+      then
+        if [[ $LINE == *$bootstop* ]];
+        then
+          let "boot=2"
+        else
+          if [[ $LINE == *$waittag* ]];
+          then
+            bootwait=$(echo $LINE | cut -d\' -f4);
+          fi
+        fi
+      fi
+      if [[ $LINE == *$sourcetag* ]];
+      then
+        cnvmname=$(echo $LINE | cut -d\' -f2);
+        continue
+      fi
+      if [ $interface -eq 0 ];
+      then
+        if [[ $LINE == *$ifstart* ]];
+        then
+          # Found the begining of a interface section
+          interface=1;
+          ifname=$(echo $LINE | cut -d\' -f2);
+        fi
+        continue
+      elif [[ $LINE == *$ifstop* ]];
+      then
+        # Found the end of interface section
+        interface=0
+        continue
+      fi
+      # In a interface section
+      if [[ $LINE == *$subnettag* ]];
+      then
+        if [[ $LINE == *private* ]];
+        then
+          cnprivate=$ifname;
+        elif [[ $LINE == *public* ]];
+        then
+          cnpublic=$ifname
+        else
+          echo "Unhandled subnet type $LINE in $vcxmlhomepath" | tee -a $log;
+          echo "Unable to continue. Exit..." | tee -a $log;
+          exit 16
+        fi
+        continue
+      fi
+    else
+      # Past compute section - look for private net address and netmask
+      if [[ $LINE == *netmask* ]];
+      then
+        feprivateip=$(echo $LINE | cut -d\' -f2);
+        privatemask=$(echo $LINE | cut -d\' -f4);
+      fi
+      continue
+    fi
+  fi
+done < $vcxmlhomepath
+# debugging echo
+echo "fememory=$fememory"
+echo "fecpu=$fecpu"
+echo "fevmname=$fevmname"
+echo "feprivate=$feprivate"
+echo "fepublic=$fepublic"
+echo "cnmemory=$cnmemory"
+echo "cncpu=$cncpu"
+echo "cnvmname=$cnvmname"
+echo "cnprivate=$cnprivate"
+echo "cnpublic=$cnpublic"
+echo "feprivateip=$feprivateip"
+echo "privatemask=$privatemask"
+echo "bootorder=$bootorder"
+echo "bootwait=$bootwait"
+
+#
+# Get frontend VM image file size
+#
+vcimagedir=${vcxmlpath%%$(basename $vcxmlpath)}
+fevmpath=$vcimagedir$fevmname
+# debugging echo
+echo "vcimagedir=$vcimagedir, fevmpath=$fevmpath"
+
+if [ $local -eq 0 ];
+then
+   vcinfo=$(gfls -l $gfarmvmdir/$fevmpath)
+else
+   vcinfo=$(ls -l $localdir/$fevmpath)
+fi
+if [ -z "$vcinfo" ];
+then
+   if [ $local -eq 0 ];
+   then
+      echo "$gfarmvmdir/$fevmpath does not exist in gfarm";
+      echo "Please ask your Gfarm metaserver administrator to fix this problem, then try again.";
+      echo "$gfarmvmdir/$fevmpath does not exist in gfarm. Gfarm admin need to fix this. Quit." >> $log;
+   else
+      echo "$localdir/$fevmpath does not exist";
+      echo "Please ask your local system administrator to fix this problem, then try again.";
+      echo "$localdir/$fevmpath does not exist. Local admin need to fix this. Quit." >> $log;
+   fi
+   echo "Bye for now";
+   exit 17
+fi
+#
+# Get vm.gz size in bytes, converts to KB,
+# Estimated disk space required: assume gunzip size is 10x of gz size
+#
+fevmsize=$(echo $vcinfo | cut -d' ' -f5)
+let "fevmsize/=100"
+# debugging echo
+echo "disk space required is $fevmsize KB"
+
+#
+# Get compute node VM image size
+#
+cnvmpath=$vcimagedir$cnvmname
+if [ $local -eq 0 ];
+then
+   vcinfo=$(gfls -l $gfarmvmdir/$cnvmpath)
+else
+   vcinfo=$(ls -l $localdir/$cnvmpath)
+fi
+if [ -z "$vcinfo" ];
+then
+   if [ $local -eq 0 ];
+   then
+      echo "$gfarmvmdir/$cnvmpath does not exist in gfarm";
+      echo "Please ask your Gfarm metaserver administrator to fix this problem, then try again.";
+      echo "$gfarmvmdir/$cnvmpath does not exist in gfarm. Gfarm admin need to fix this. Quit." >> $log;
+   else
+      echo "$localdir/$cnvmpath does not exist";
+      echo "Please ask your local system administrator to fix this problem, then try again.";
+      echo "$localdir/$cnvmpath does not exist. Local admin need to fix this. Quit." >> $log;
+   fi
+   echo "Bye for now";
+   exit 18
+fi
+#
+# Get vm.gz size in bytes, converts to KB,
+# Estimated disk space required: assume gunzip size is 10x of gz size
+#
+cnvmsize=$(echo $vcinfo | cut -d' ' -f5)
+let "cnvmsize/=100"
+# debugging echo
+echo "disk space required is $cnvmsize KB"
+
+#
+# Check disk space availability for frontend
+#
+imagepartition=$($scriptdir/getBigPartition.py localhost)
+diskinfo=$(df $imagepartition | tail -1)
+if [ -z "$diskinfo" ];
+then
+  echo "df command returned no information. System error." | tee -a $log;
+  echo "Please report to your system administrator.";
+  echo "Unable to continue. Exit...";
+  exit 19
+fi
+space=$(echo $diskinfo | cut -d' ' -f4)
+# debugging echo
+echo "Available disk space = $space"
+
+# Enough disk space?
+if [ $fevmsize -gt $space ];
+then
+  echo "Need $fevmsize KB in $imagepartition and only $space KB available";
+  echo "insufficient disk space on frontend, Need $fevmsize KB in $imagepartition and only $space KB available. Quit." >> $log;
+  echo "Unable to continue. Exit...";
+  exit 20
+fi
+
+#
+# Check disk space availability for compute nodes
+#
+for (( i=0; i<$ncompute; i++ ))
+do
+  container=vm-container-0-$i
+  diskinfo=$(/usr/bin/ssh $container df $imagepartition | tail -1)
+  if [ -z "$diskinfo" ];
+  then
+    echo "df command returned no information. System error." | tee -a $log;
+    echo "Please report to your system administrator.";
+    echo "Unable to continue. Exit..."
+    exit 21
+  fi
+  space=$(echo $diskinfo | cut -d' ' -f4)
+  # debugging echo
+  echo "Available disk space = $space"
+  # Enough disk space?
+  if [ $cnvmsize -gt $space ];
+  then
+  # debugging echo
+    echo "Need $cnvmsize KB in $imagepartition and only $space KB available";
+    echo "insufficient disk space on $container, Need $cnvmsize KB in $imagepartition and only $space KB available. Quit." >> $log;
+    echo "Unable to continue. Exit...";
+    exit 22
+  fi
+done
+
+#
+# Preparations before creating the cluster
+#
+# The frontend vm name is the input vc-name concatanated with
+# username
+#
+fename=$vcname"-"$username
+# debugging echo
+echo "fename=$fename"
+
+#
+# Check if the named cluster already exists
+#
+fenamecolon=$fename":"
+vcinfo=$(/opt/rocks/bin/rocks list host | grep "$fenamecolon")
+if [ -n "$vcinfo" ];
+then
+  echo "$fename already exist" | tee -a $log;
+  echo "$vcinfo" | tee -a $log;
+  exit 23
+fi
+
+#
+# Check available ip
+#
+vcinfo=$(grep '.' $scriptdir/AvailableIP | grep -v "#" | head -1)
+if [ -z "$vcinfo" ];
+then
+  echo "No more unallocated ip in $scriptdir/AvailableIP file";
+  echo "Exit...";
+  echo "All ip# in $scriptdir/AvailableIP are marked used. Quit." >> $log;
+  $scriptdir/vc-cleanup $log 1 $userkeyfile $vcxmlhomepath;
+  if [ $? -ne 0 ];
+  then
+    echo "Script error: vc-cleanup 1 returned $?" | tee -a $log;
+    echo "Please inform the system administrators" | tee -a $log;
+    echo "Please remove $userkeyfile and $vcxmlhomepath yourself manually" | tee -a $log
+  fi
+  exit 24
+fi
+fepublicip=$(echo $vcinfo | cut -d' ' -f1)
+fehostname=$(echo $vcinfo | cut -d' ' -f2)
+echo "fepublicip=$fepublicip fehostname=$fehostname"
+
+# Check mount point availability
+mntpoint=$HOME"/"$fename"-mnt"
+if [ -d $mntpoint ];
+then
+  /bin/mountpoint -q $mntpoint;
+  if [ $? -eq 0 ];
+  then
+    /bin/umount $mntpoint;
+    if [ $? -ne 0 ];
+    then
+      echo "$mntpoint is busy and failed to unmount. Cannot continue." | tee -a $log;
+      exit 25
+    fi
+  fi
+else
+  /bin/mkdir $mntpoint
+fi
+
+# Create a new VC
+#
+echo "Creating new VC $fename... May take a few minutes"
+# debugging echo
+echo "sudo $scriptdir/vc-new $fepublicip $ncompute $cnmemory $cncpu $fename $scriptdir/AvailableIP"
+sudo $scriptdir/vc-new $fepublicip $ncompute $cnmemory $cncpu $fename $scriptdir/AvailableIP
+if [ $? -ne 0 ];
+then
+  echo "Failed to create new VC $fename, quit." | tee -a $log;
+  echo "Please report the problem to system administrator";
+  echo "$scriptdir/vc-new returned $?" >> $log;
+  exit 25
+fi
+echo "VC $fename has been created" >> $log
+/opt/rocks/bin/rocks list cluster $fename | tee -a $log
+
+#
+# Copy frontend image file to frontend fediskpath
+#
+# Find the frontend disk path
+rocksversion=$(/opt/rocks/bin/rocks report version)
+info=$(/opt/rocks/bin/rocks list host vm $fename showdisks=y | grep $fename)
+if [ "$rocksversion" == "5.5" ];
+then
+   substr1=$(echo $info | awk '{print $6}')
+else
+   substr1=$(echo $info | awk '{print $7}')
+fi
+substr2=$(echo $substr1 | cut -d':' -f2)
+fediskpath=$(echo $substr2 | cut -d',' -f1)
+# debugging echo
+echo "disk path for $fename is $fediskpath"
+# copy
+echo "Copy frontend VM image file. May take a few minutes..."
+if [ $local -eq 1 ];
+then
+  echo "$(date): Start gunzip frontend VM image from local disk" >> $log;
+  sudo sh -c "gunzip -c $localdir/$fevmpath > $fediskpath";
+  if [ $? -ne 0 ];
+  then
+    echo "gunzip -c $localdir/$fevmpath > $fediskpath, returned $?. Cleanup and exit." | tee -a $log;
+    sudo $scriptdir/vc-cleanup $log 2 $userkeyfile $vcxmlhomepath $fename $scriptdir/AvailableIP;
+    if [ $? -ne 0 ];
+    then
+      echo "Script error: vc-cleanup 2 returned $?" | tee -a $log;
+      echo "Please inform the system administrators" | tee -a $log;
+      echo "Please manually clean up: Remove cluster $fename, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log
+    fi
+    exit 26
+  else
+    echo "$(date): Finish gunzip frontend VM image from local disk" >> $log
+  fi
+else
+  echo "$(date): Start gunzip frontend VM image from gfarm" >> $log;
+  /opt/gfarm/bin/gfexport $gfarmvmdir/$fevmpath | sudo sh -c "gunzip > $fediskpath";
+  if [ $? -ne 0 ];
+  then
+    echo "gfexport $gfarmvmdir/$fevmpath | sudo sh -c gunzip > $fediskpath, returned $?. Cleanup and exit." | tee -a $log;
+    sudo $scriptdir/vc-cleanup $log 2 $userkeyfile $vcxmlhomepath $fename $scriptdir/AvailableIP;
+    if [ $? -ne 0 ];
+    then
+      echo "Script error: vc-cleanup 2 returned $?" | tee -a $log;
+      echo "Please inform the system administrators" | tee -a $log;
+      echo "Please manually clean up: Remove cluster $fename, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log
+    fi
+    exit 26
+  else
+    echo "$(date): Finish gunzip frontend VM image from gfarm" >> $log
+  fi
+fi
+
+#
+# Copy VC compute node image to user home directory
+#
+cnvmpath=$vcimagedir$cnvmname
+tmppath=$HOME"/"$cnvmname
+cnvmhomepath=${tmppath%%".gz"}
+echo "cnvmhomepath=$cnvmhomepath"
+if [ $local -eq 0 ];
+then
+   echo "Fetching compute node VM image $gfarmvmdir/$cnvmpath... May take a few minutes";
+   echo "$(date): Start gunzip compute node VM image from gfarm to user home" >> $log
+   /opt/gfarm/bin/gfexport $gfarmvmdir/$cnvmpath | gunzip > $cnvmhomepath;
+   if [ $? -ne 0 ];
+   then
+      echo "Failed to get $gfarmvmdir/$cnvmpath from gfarm" | tee -a $log;
+      sudo $scriptdir/vc-cleanup $log 3 $userkeyfile $vcxmlhomepath $fename $scriptdir/AvailableIP;
+      if [ $? -ne 0 ];
+      then
+        echo "Script error: vc-cleanup 3 returned $?" | tee -a $log;
+        echo "Please inform the system administrators" | tee -a $log;
+        echo "Please manually clean up: Remove cluster $fename, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log
+      fi
+      exit 27
+   else
+      echo "$(date): Finish gunzip compute node VM image from gfarm to user home" >> $log
+   fi
+else
+   echo "$(date): Copying compute node VM image $localdir/$cnvmpath... May take a few minutes";
+   echo "$(date): Start gunzip compute node VM image from local depository to user home" >> $log
+   gunzip -c $localdir/$cnvmpath > $cnvmhomepath;
+   if [ $? -ne 0 ];
+   then
+     sudo $scriptdir/vc-cleanup $log 3 $userkeyfile $vcxmlhomepath $fename $scriptdir/AvailableIP;
+     if [ $? -ne 0 ];
+     then
+       echo "Script error: vc-cleanup 3 returned $?" | tee -a $log;
+       echo "Please inform the system administrators" | tee -a $log;
+       echo "Please manually clean up: Remove cluster $fename, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log
+     fi
+     exit 27
+   fi
+   echo "$(date): Finish copy compute node VM image from local depository to user home" >> $log;
+fi
+
+#
+# Modify frontend image
+#
+echo "sudo $scriptdir/fe-makeover $mntpoint $fediskpath $fename $fepublic $feprivate $fepublicip $feprivateip $privatemask $fehostname $gateway $userkeyfile $ncompute $vcxmlhomepath $scriptdir/resolv.conf $log"
+sudo $scriptdir/fe-makeover $mntpoint $fediskpath $fename $fepublic $feprivate $fepublicip $feprivateip $privatemask $fehostname $gateway $userkeyfile $ncompute $vcxmlhomepath $scriptdir/resolv.conf $log
+if [ $? -ne 0 ]
+then
+  echo "fe-makeover returned $?" | tee -a $log;
+  sudo $scriptdir/vc-cleanup $log 3 $userkeyfile $vcxmlhomepath $fename $scriptdir/AvailableIP;
+  if [ $? -ne 0 ];
+  then
+    echo "Script error: vc-cleanup 3 returned $?" | tee -a $log;
+    echo "Please inform the system administrators" | tee -a $log;
+    echo "Please manually clean up: Remove cluster $fename, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log
+  fi
+  exit 28
+fi
+
+#
+# Modify compute node image
+#
+# get the names of all compute nodes in the cluster
+cnlist=( $(/opt/rocks/bin/rocks list cluster $fename | grep hosted-vm- | sort | awk '{ print $2}') )
+
+for (( i=0; i<$ncompute; i++ ))
+do
+  cnname=${cnlist[$i]};
+  # debugging echo
+  echo "compute nodes are $cnname"
+  cnip=$(/opt/rocks/bin/rocks list host interface $cnname | grep $cnname | awk '{print $4}')
+  echo "sudo $scriptdir/cn-makeover $mntpoint $cnvmhomepath $cnname $cnprivate $cnip $privatemask compute-0-$i $feprivateip $fepublicip $fehostname $userkeyfile$scriptdir/resolv.conf $log"
+  sudo $scriptdir/cn-makeover $mntpoint $cnvmhomepath $cnname $cnprivate $cnip $privatemask compute-0-$i $feprivateip $fepublicip $fehostname $userkeyfile $scriptdir/resolv.conf $log
+  if [ $? -ne 0 ]
+  then
+    echo "cn-makeover $cnname returned $?" | tee -a $log;
+    sudo $scriptdir/vc-cleanup $log 4 $userkeyfile $vcxmlhomepath $fename $scriptdir/AvailableIP $i;
+    if [ $? -ne 0 ];
+    then
+      echo "Script error: vc-cleanup 4 returned $?" | tee -a $log;
+      echo "Please inform the system administrators" | tee -a $log;
+      echo "Please manually clean up: Remove cluster $fename, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log
+    fi
+    exit 30
+  fi
+done
+
+#
+# Start the cluster
+#
+echo "sudo $scriptdir/vc-start $fename $ncompute $bootorder $bootwait"
+sudo $scriptdir/vc-start $fename $ncompute $bootorder $bootwait
+if [ $? -ne 0 ];
+then
+  echo "vc-start returned $?" | tee -a $log;
+  echo "Please investigate the cause and perhaps try manually start";
+  echo "To undo, please manually remove cluster $fename, VM image files, $userkeyfile, $vcxmlhomepath and uncomment the public IP# used by fename in $scriptdir/AvailableIP" | tee -a $log;
+fi
+
+exit 0
