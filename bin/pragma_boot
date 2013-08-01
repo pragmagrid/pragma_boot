@@ -131,16 +131,18 @@ def main():
             format = device["disk"]["format"]
     client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
 
-
+    #
+    # copy FE disk image over to temp floder
+    #
     fe_disk_path = os.path.dirname(vc_in_filepath) + "/" + src_file
     if not os.path.isfile(fe_disk_path):
         logger.error("Error can not open FE disk image " + fe_disk_path)
         sys.exit(-1)
     if fe_disk_path.endswith(".gz"):
-        temp_disk_path = temp_directory + os.path.basename(fe_disk_path)[:-3]
+        temp_disk_path = temp_directory + '/' + os.path.basename(fe_disk_path)[:-3]
         deflate_file(fe_disk_path, temp_disk_path)
     else:
-        temp_disk_path = temp_directory + os.path.basename(fe_disk_path)
+        temp_disk_path = temp_directory + '/' + os.path.basename(fe_disk_path)
         shutil.copy(fe_disk_path, temp_disk_path)
 
 
