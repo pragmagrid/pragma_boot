@@ -1,2 +1,3 @@
 net_conf.conf
 *.pyo
+*.pyc
