@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 #
-# LC
+# Clem
+#
+# This script is used inside pragma to boot up virtual cluster
 #
 
 import os, sys, string
 from optparse import OptionParser, OptionGroup
 
 import logging
-import xml.dom.minidom
+import json
 
 
 try:
@@ -88,16 +90,14 @@ def main():
     logger.addHandler(ch)
 
 
-    #with open(options.net_conf, 'r') as f:
-        # dirty and nasty but fast!!
-        # it will define the follwing variable
-        # public_ip
-        # netmask
-        # gw
-        # dns
-        # fqdn
-    #    eval(f.read())
-    execfile(options.net_conf)
+    # dirty and nasty but fast!!
+    # it will define the follwing variable
+    # public_ip
+    # netmask
+    # gw
+    # dns
+    # fqdn
+    execfile(options.net_conf, {}, globals())
 
     vc_in_filepath = None
     with open(vc_db_filepath, 'r') as vc_db:
@@ -110,7 +110,25 @@ def main():
             logger.error("vmname " + options.vmname + " does not exist in VC database.\n"
                 "Check the VC database file " + vc_db_filepath)
             sys.exit(-1)
-    vc_in_dom = xml.dom.minidom.parse(vc_in_filepath)
+    # parse the vc-in file
+    # vc_in_dom = xml.dom.minidom.parse(vc_in_filepath)[0]
+    with open(vc_in_filepath) as vc_in:
+        vc = json.loads(vc_in.read())["vc"]
+    if vc["arch"] != "x86_64":
+        logger.error("Error unsupported architecture in " + vc_in_filepath)
+        sys.exit(-1)
+    for device in vc["frontend"]["devices"]:
+        if "disk" in device:
+            src_file = device["disk"]["source_file"]
+            format = device["disk"]["format"]
+
+
+
+
+
+
+
+
 
 
 
