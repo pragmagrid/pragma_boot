@@ -1,3 +1,4 @@
 net_conf.conf
+site_conf.conf
 *.pyo
 *.pyc
