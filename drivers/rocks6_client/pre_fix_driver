@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# prepare a rocks image to run virt-v2v
+#
+#     pre_fix_driver image_name_path
+#
+
+
+if [ ! -f "$1" ]; then 
+    echo "File $1 is not a machine image"
+    exit 1
+fi
+
+function error(){
+    echo Error $1
+    exit 1
+}
+
+
+image="$1"
+tmp_folder=`mktemp -d`
+
+#prepatch virt-v2v
+guestmount -a $image -m /dev/sda1 $tmp_folder || error "unable to mount guest FS"
+cp $tmp_folder/etc/yum.conf yum.backup || error "unable to copy yum.conf"
+cat >> $tmp_folder/etc/yum.conf << "EOF"
+[main]
+cachedir=/var/cache/yum
+debuglevel=2
+logfile=/var/log/yum.log
+pkgpolicy=newest
+distroverpkg=redhat-release
+tolerant=1
+exactarch=1
+assumeyes=1
+
+
+[base]
+enabled = 1 
+name=CentOS-$releasever - Base
+mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os
+#baseurl=http://mirror.centos.org/centos/$releasever/os/$basearch/
+EOF
+fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
+sleep 3
+rmdir $tmp_folder
+
