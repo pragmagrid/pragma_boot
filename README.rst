@@ -34,19 +34,19 @@ driver which can be configured in the file (specify a file)
 * **vc_driver/pre_fix_driver** it prepares the current machine for the execution of 
   the fix_driver script which will follow. Input args are:
 
-  * vm_disk_path=path
+  * **path** the vm disk path
 
 * **ve_driver/fix_driver** (use virt-v2v) prepare the given VM image to be run 
   on the current system (fix kernel, drivers, boot options, for 
-  current platform, etc.). It's input argumets are:
+  current platform, etc.). It's input argumets are (in the following order):
 
-  * vm_disk_path=path
-  * interfaces=eth0,eth1
+  * **path** the vm disk path
+  * **eth0,eth1** the interface name
 
 * **vc_driver/post_fix_driver** it restore the machine state (if needed) after the 
   execution of the fix_driver script. t's input argumets are:
 
-  * vm_disk_path=path
+  * **path** the vm disk path
 
 
 * **vc_driver/pre_boot** it takes care of fixing networking and other stuffs, it 
