@@ -4,7 +4,7 @@ The pragma_boot script
 **pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
 It accepts the following agruments:
 
---vm vmname        the name of the vm machine to fetch from the database
+--vcname vcname    the name of the virtual clutster to start up (the name must be in the database)
 --base_path path   the base path of the VM database 
 --num_compute N    the number of compute node to start up (default to 0)
 --net_conf file    a filename containing the network configuration for 
