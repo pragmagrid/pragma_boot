@@ -4,15 +4,15 @@
 #
 # This script is used inside pragma to boot up virtual cluster
 #
+# requires python-elementtree on RHEL 5.x
 
 import os, sys, string
 from optparse import OptionParser, OptionGroup
 
 import logging
-import json
 import gzip
 import time
-
+import xml.etree.ElementTree
 
 #we need this to run from sources without installing
 fullPath = os.path.dirname(os.path.realpath(__file__))
@@ -120,17 +120,20 @@ def main():
                 "Check the VC database file " + vc_db_filepath)
             sys.exit(-1)
     # parse the vc-in file
-    # vc_in_dom = xml.dom.minidom.parse(vc_in_filepath)[0]
-    with open(vc_in_filepath) as vc_in:
-        vc = json.loads(vc_in.read())["vc"]
-    if vc["arch"] != "x86_64":
+    # rant: to get tree values out of a configuration file you need 
+    # 15 lines of code! XML such a great invention
+    vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
+
+    # get the arch
+    if vc_in_xmlroot.findall('./virtualization')[0].attrib['arch'] != "x86_64":
         logger.error("Error unsupported architecture in " + vc_in_filepath)
         sys.exit(-1)
-    client_driver_name = vc["driver_name"]
-    for device in vc["frontend"]["devices"]:
-        if "disk" in device:
-            src_file = device["disk"]["source_file"]
-            format = device["disk"]["format"]
+    # get the driver name
+    client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
+    # 
+    disk=vc_in_xmlroot.findall('./frontend/devices/disk')[0]
+    src_file = disk.getchildren()[0].attrib['file']
+    format = disk.attrib['format']
     client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
 
     #
