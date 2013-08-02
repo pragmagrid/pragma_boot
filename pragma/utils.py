@@ -9,7 +9,9 @@ def getOutputAsList(cmdline, inputString=None):
     """ run popen pipe inputString and return a touple of
     (the stdout as a list of string, return value of the command)
     """
-    if type(cmdline) is str:
+    if isinstance(cmdline, unicode):
+        cmdline = str(cmdline)
+    if isinstance(cmdline, str):
         # needs to make a list
         cmdline = shlex.split(cmdline)
     p = Popen(cmdline, stdin=PIPE, stdout=PIPE, stderr=PIPE)
