@@ -191,9 +191,9 @@ def deflate_file(srcpath, destpath):
         buffer =  input.read(buf_size)
         if len(buffer) == 0:
             break
-        output.write( input.read(buf_size) )
+        output.write( buffer )
         if counter == 1000:
-            logger.debug("Decoded " + str(buf_size * 1000), " in ", str(time.time() - temp_timer))
+            logger.debug("Decoded " + str(buf_size * 1000) + " in " + str(time.time() - temp_timer))
             temp_timer = time.time()
             counter = 0
         counter += 1
