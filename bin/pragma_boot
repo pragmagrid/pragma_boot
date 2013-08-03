@@ -173,7 +173,7 @@ def main():
         interface_list += ","
 
     # fix_driver
-    cmdline = ve_driver_base_path + "/fix_driver vc-in.xml " + xml_fe_path + " " + interface_list
+    cmdline = ve_driver_base_path + "/fix_driver " + xml_fe_path + " " + interface_list
     # TODO add interfaces
     runCommand(cmdline)
 
