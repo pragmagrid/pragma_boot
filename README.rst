@@ -92,40 +92,40 @@ vc-in.xml file example
      <!-- this is the libvirt xml syntax unmodified 
           see: http://libvirt.org -->
      <domain type='kvm'>
-     <name>calit2-119-222</name>
-     <os>
-       <type>hvm</type>
-       <boot dev='network'/>
-       <boot dev='hd'/>
-       <bootmenu enable='yes'/>
-     </os>
-     <memory>1048576</memory>
-     <vcpu>1</vcpu>
-     <features>
-             <acpi/>
-             <apic/>
-             <pae/>
-     </features>
-     <devices>
-       <emulator>/usr/libexec/qemu-kvm</emulator>
-       <interface type='direct'>
-         <source dev='eth0.2' mode='bridge'/>
-         <mac address='7a:77:6e:40:00:07'/>
-         <model type='virtio' />
-       </interface>
-       <interface type='bridge'>
-         <source bridge='eth1'/>
-         <mac address='7a:77:6e:40:00:08'/>
-         <model type='virtio' />
-       </interface>
-       <disk type='file' device='disk'>
-         <driver name='qemu' type='raw'/>
-         <source file='calit2-119-222.img.gz'/>
-         <target dev='hda' bus='ide'/>
-       </disk>
-       <graphics type='vnc' port='-1'/>
-       <console tty='/dev/pts/0'/>
-     </devices>
+       <name>calit2-119-222</name>
+       <os>
+         <type>hvm</type>
+         <boot dev='network'/>
+         <boot dev='hd'/>
+         <bootmenu enable='yes'/>
+       </os>
+       <memory>1048576</memory>
+       <vcpu>1</vcpu>
+       <features>
+               <acpi/>
+               <apic/>
+               <pae/>
+       </features>
+       <devices>
+         <emulator>/usr/libexec/qemu-kvm</emulator>
+         <interface type='direct'>
+           <source dev='eth0.2' mode='bridge'/>
+           <mac address='7a:77:6e:40:00:07'/>
+           <model type='virtio' />
+         </interface>
+         <interface type='bridge'>
+           <source bridge='eth1'/>
+           <mac address='7a:77:6e:40:00:08'/>
+           <model type='virtio' />
+         </interface>
+         <disk type='file' device='disk'>
+           <driver name='qemu' type='raw'/>
+           <source file='calit2-119-222.img.gz'/>
+           <target dev='hda' bus='ide'/>
+         </disk>
+         <graphics type='vnc' port='-1'/>
+         <console tty='/dev/pts/0'/>
+       </devices>
      </domain>
      <!-- end libvirt xml format -->
    </frontend>
@@ -136,41 +136,42 @@ vc-in.xml file example
      <!-- this is the libvirt xml syntax unmodified 
           see: http://libvirt.org -->
      <domain type='kvm'>
-     <name>compute-0-0-0</name>
-     <os>
-       <type>hvm</type>
-       <boot dev='network'/>
-       <boot dev='hd'/>
-       <bootmenu enable='yes'/>
-     </os>
-     <memory>1048576</memory>
-     <vcpu>1</vcpu>
-     <features>
-       <acpi/>
-       <apic/>
-       <pae/>
-     </features>
-     <devices>
-       <emulator>/usr/libexec/qemu-kvm</emulator>
-       <interface type='direct'>
-         <source bridge='eth0.2'/>
-         <mac address='7a:77:6e:40:00:0a'/>
-         <model type='virtio' />
-       </interface>
-       <disk type='file' device='disk'>
-         <driver name='qemu' type='raw'/>
-         <source file='hosted-vm-0-0-1.img.gz'/>
-         <target dev='hda' bus='ide'/>
-       </disk>
-       <graphics type='vnc' port='-1'/>
-       <console tty='/dev/pts/0'/>
-     </devices>
+       <name>compute-0-0-0</name>
+       <os>
+         <type>hvm</type>
+         <boot dev='network'/>
+         <boot dev='hd'/>
+         <bootmenu enable='yes'/>
+       </os>
+       <memory>1048576</memory>
+       <vcpu>1</vcpu>
+       <features>
+         <acpi/>
+         <apic/>
+         <pae/>
+       </features>
+       <devices>
+         <emulator>/usr/libexec/qemu-kvm</emulator>
+         <interface type='direct'>
+           <source bridge='eth0.2'/>
+           <mac address='7a:77:6e:40:00:0a'/>
+           <model type='virtio' />
+         </interface>
+         <disk type='file' device='disk'>
+           <driver name='qemu' type='raw'/>
+           <source file='hosted-vm-0-0-1.img.gz'/>
+           <target dev='hda' bus='ide'/>
+         </disk>
+         <graphics type='vnc' port='-1'/>
+         <console tty='/dev/pts/0'/>
+       </devices>
      </domain>
      <!-- end libvirt xml format -->
    </compute>
    <networks>
      <network name='private'>
- 		<ipaddress='10.1.1.1' netmask='255.255.0.0'/>
+       <ipaddress>10.1.1.1</ipaddress>
+       <netmask>255.255.0.0</netmask>
      </network>
      <frontend>
          <public>eth1</public>
