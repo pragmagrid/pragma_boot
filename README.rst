@@ -88,42 +88,93 @@ vc-in.xml file example
  <vc type='Local Beowulf'>
    <virtualization engine='kvm' type='hvm' arch='x86_64'/>
    <driver>rocks6_client</driver>
-   <frontend memory='1048576' vcpu='1'>
+   <frontend>
+     <!-- this is the libvirt xml syntax unmodified 
+          see: http://libvirt.org -->
+     <domain type='kvm'>
+     <name>calit2-119-222</name>
+     <os>
+       <type>hvm</type>
+       <boot dev='network'/>
+       <boot dev='hd'/>
+       <bootmenu enable='yes'/>
+     </os>
+     <memory>1048576</memory>
+     <vcpu>1</vcpu>
+     <features>
+             <acpi/>
+             <apic/>
+             <pae/>
+     </features>
      <devices>
-       <disk format='raw' bus='virtio'>
-         <source file='calit2-119-222.img.gz'/>
-       </disk>
-       <interface name='eth0'>
-         <subnet name='private'/>
+       <emulator>/usr/libexec/qemu-kvm</emulator>
+       <interface type='direct'>
+         <source dev='eth0.2' mode='bridge'/>
          <mac address='7a:77:6e:40:00:07'/>
-         <model type='virtio'/>
+         <model type='virtio' />
        </interface>
-       <interface name='eth1'>
-         <subnet name='public'/>
+       <interface type='bridge'>
+         <source bridge='eth1'/>
          <mac address='7a:77:6e:40:00:08'/>
-         <model type='virtio'/>
+         <model type='virtio' />
        </interface>
+       <disk type='file' device='disk'>
+         <driver name='qemu' type='raw'/>
+         <source file='calit2-119-222.img.gz'/>
+         <target dev='hda' bus='ide'/>
+       </disk>
+       <graphics type='vnc' port='-1'/>
+       <console tty='/dev/pts/0'/>
      </devices>
+     </domain>
+     <!-- end libvirt xml format -->
    </frontend>
    <compute memory='1048576' vcpu='1'>
      <boot_dependency parent='frontend'>
        <wait type='clock' value='300'/>
      </boot_dependency>
+     <!-- this is the libvirt xml syntax unmodified 
+          see: http://libvirt.org -->
+     <domain type='kvm'>
+     <name>compute-0-0-0</name>
+     <os>
+       <type>hvm</type>
+       <boot dev='network'/>
+       <boot dev='hd'/>
+       <bootmenu enable='yes'/>
+     </os>
+     <memory>1048576</memory>
+     <vcpu>1</vcpu>
+     <features>
+       <acpi/>
+       <apic/>
+       <pae/>
+     </features>
      <devices>
-       <disk format='raw' bus='virtio'>
-         <source file='hosted-vm-0-0-1.img.gz'/>
-       </disk>
-       <interface name='eth0'>
-         <subnet name='private'/>
+       <emulator>/usr/libexec/qemu-kvm</emulator>
+       <interface type='direct'>
+         <source bridge='eth0.2'/>
          <mac address='7a:77:6e:40:00:0a'/>
-         <model type='virtio'/>
+         <model type='virtio' />
        </interface>
+       <disk type='file' device='disk'>
+         <driver name='qemu' type='raw'/>
+         <source file='hosted-vm-0-0-1.img.gz'/>
+         <target dev='hda' bus='ide'/>
+       </disk>
+       <graphics type='vnc' port='-1'/>
+       <console tty='/dev/pts/0'/>
      </devices>
+     </domain>
+     <!-- end libvirt xml format -->
    </compute>
    <networks>
      <network name='private'>
-         <ip address='10.1.1.1' netmask='255.255.0.0'/>
+ 		<ipaddress='10.1.1.1' netmask='255.255.0.0'/>
      </network>
+     <frontend>
+         <public>eth1</public>
+     </frontend>
    </networks>
  </vc>
 
