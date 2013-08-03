@@ -175,8 +175,8 @@ def runCommand(cmdline):
     logger.debug("Executing: " + cmdline)
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     if ret != 0 :
-        log.error("Error while running: " + cmdline)
-        log.error('\n'.join(stdout))
+        logger.error("Error while running: " + cmdline)
+        logger.error('\n'.join(stdout))
         sys.exit(-1)
     logger.debug("Command executed: " + cmdline)
     logger.debug("Output: " + '\n'.join(stdout))
