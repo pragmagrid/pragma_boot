@@ -131,13 +131,12 @@ def main():
     # get the driver name
     client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
     # 
-    disk=vc_in_xmlroot.findall('./frontend/devices/disk')[0]
-    src_file = disk.getchildren()[0].attrib['file']
-    format = disk.attrib['format']
+    disk=vc_in_xmlroot.findall('./frontend/domain/devices/disk/source')[0]
+    src_file = disk.attrib['file']
     client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
 
     #
-    # copy FE disk image over to temp floder
+    # copy FE disk image over to temp floder and uncompress it
     #
     fe_disk_path = os.path.dirname(vc_in_filepath) + "/" + src_file
     if not os.path.isfile(fe_disk_path):
@@ -158,9 +157,23 @@ def main():
     cmdline = client_driver_base_path + "/pre_fix_driver " + temp_disk_path
     runCommand(cmdline)
 
+    # creating the domain.xml for libvirt
+    xml_fe_path = temp_directory + '/vc-in.xml'
+    fe_domain = vc_in_xmlroot.findall('./frontend/domain')[0]
+    fe_disk_source = fe_domain.findall('./devices/disk/source')[0]
+    fe_disk_source.attrib['file'] = temp_disk_path
+    xml.etree.ElementTree.ElementTree( fe_domain ).write(xml_fe_path)
+    # figuring out the interface name list
+    interface_list = ""
+    for interface in fe_domain.findall('./devices/interface/source'):
+        if 'dev' in interface.attrib:
+            interface_list += interface.attrib['dev']
+        if 'bridge' in interface.attrib:
+            interface_list += interface.attrib['bridge']
+        interface_list += ","
 
     # fix_driver
-    cmdline = ve_driver_base_path + "/fix_driver --vm_disk_path " + temp_disk_path
+    cmdline = ve_driver_base_path + "/fix_driver vc-in.xml " + xml_fe_path + " " + interface_list
     # TODO add interfaces
     runCommand(cmdline)
 
@@ -185,6 +198,7 @@ def runCommand(cmdline):
 def deflate_file(srcpath, destpath):
     """it gunzip a file """
     logger.debug("Uncompressing file " + srcpath + " in " + destpath)
+    return
     buf_size=16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
