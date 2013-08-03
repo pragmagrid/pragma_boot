@@ -1,3 +1,29 @@
 #!/bin/bash
+#
+# Clem
+#
+# This script is used to fix a vritual image on the current machine
 
-echo running ok
+
+xml_file=$1
+interfaces=$2
+
+#if it fails it means there is already a pool with that name
+#virsh  pool-create-as transferimages dir --target $temp_path
+
+echo $xml_file and $interfaces
+
+
+v2v_conf=virt-v2v.xml
+echo " <virt-v2v>" > $v2v_conf
+for i in `echo $interfaces|tr ',' ' '`;do 
+	echo "<network type='bridge' name='$i'><network type='bridge' name='$i'/></network>" >> ;
+done
+echo "</virt-v2v>" >> $v2v_conf
+
+
+
+#virt-v2v  -f virt-v2v.xml -f /var/lib/virt-v2v/virt-v2v.db -i libvirtxml -oa sparse -os transferimages output.xml
+
+
+
