@@ -40,8 +40,9 @@ driver which can be configured in the file (specify a file)
   on the current system (fix kernel, drivers, boot options, for 
   current platform, etc.). It's input argumets are (in the following order):
 
-  * **path** the vm disk path
+  * **xml_file** the xml file of the virtual machine we have to convert
   * **eth0,eth1** the interface name
+  * **temp_directory** the temporary directory used to place all the temporary virtual images
 
 * **vc_driver/post_fix_driver** it restore the machine state (if needed) after the 
   execution of the fix_driver script. t's input argumets are:
@@ -108,8 +109,8 @@ vc-in.xml file example
        </features>
        <devices>
          <emulator>/usr/libexec/qemu-kvm</emulator>
-         <interface type='direct'>
-           <source dev='eth0.2' mode='bridge'/>
+         <interface type='bridge'>
+           <source bridge='eth0.2'/>
            <mac address='7a:77:6e:40:00:07'/>
            <model type='virtio' />
          </interface>
@@ -152,7 +153,7 @@ vc-in.xml file example
        </features>
        <devices>
          <emulator>/usr/libexec/qemu-kvm</emulator>
-         <interface type='direct'>
+         <interface type='bridge'>
            <source bridge='eth0.2'/>
            <mac address='7a:77:6e:40:00:0a'/>
            <model type='virtio' />
