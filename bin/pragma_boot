@@ -173,13 +173,16 @@ def main():
         interface_list += ","
 
     # fix_driver
-    cmdline = ve_driver_base_path + "/fix_driver " + xml_fe_path + " " + interface_list
+    cmdline = ve_driver_base_path + "/fix_driver " + xml_fe_path + " " + \
+        interface_list + " " + temp_directory
     # TODO add interfaces
     runCommand(cmdline)
 
     # postfix_driver
     cmdline = client_driver_base_path + "/post_fix_driver " + temp_disk_path
     runCommand(cmdline)
+
+    
     
 
 
@@ -198,7 +201,6 @@ def runCommand(cmdline):
 def deflate_file(srcpath, destpath):
     """it gunzip a file """
     logger.debug("Uncompressing file " + srcpath + " in " + destpath)
-    return
     buf_size=16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
