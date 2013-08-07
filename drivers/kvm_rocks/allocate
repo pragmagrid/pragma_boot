@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Clem
+#
+# This script is used to fix a vritual image on the current machine
+
+
+
+if [ "x$#" != "x2" ]; then 
+    echo "This script should be invoked with 2 arguments"
+    exit 1
+fi
+
+function error(){
+    echo -e "Error $1"
+    exit 1
+}
+
+# tree required arguments
+numcpus=$1
+vc_out=$2
+
+# fix configuration parameters
+# this should come out of a DB
+cpus_per_node=2
+mem_compute=2024
+# need to get the ceiling of the division (not the floor)
+numnodes=$(( ($numcpus + $cpus_per_node - 1) / $cpus_per_node ))
+
+# TODO this should be created dinamically
+pushd `dirname $0` > /dev/null
+SCRIPTPATH=`pwd`
+popd > /dev/null
+
+. $SCRIPTPATH/net_conf.conf
+# creating the pool
+
+
+rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fqdn
+
+
+# we fix this on our rocks systems
+private_ip="10.1.1.1"
+private_netmask="255.255.0.0"
+
+echo '<vc>' > $vc_out
+echo "  <frontend>" >> $vc_out
+echo "    <public fqdn=\"$fqdn\" ip=\"$public_ip\" netmask=\"$netmask\" gw=\"$gw\" />" >> $vc_out
+echo "    <private ip=\"$private_ip\" netmask=\"$private_netmask\"/>" >> $vc_out
+echo "  </frontend>" >> $vc_out
+echo "  <compute count=\"$numnodes\">" >> $vc_out
+
+# TODO support only 255 host and netmask of at least 
+counter=254
+temp_ip=`echo "$private_ip" | awk '{split($1,a,"."); print a[1]"."a[2]"."a[3]}'`
+for i in `rocks list cluster calit2-119-222.ucsd.edu | awk '{print $2}'|grep ^hosted`; do 
+	mac=`rocks list host interface $i |awk '{print $3}' | tail -n 1`
+        ip=$temp_ip.$counter
+	echo "    <node name='$i' mac='$mac' ip='$ip'/>" >> $vc_out
+        counter=$(( $counter - 1 ))	
+done
+
+echo "  </compute>" >> $vc_out
+echo "  <network>" >> $vc_out
+echo "    <dns ip=\"$dns\" search=\"local\" domain=\"\"/>" >> $vc_out
+echo "  </network>" >> $vc_out
+echo "</vc>" >> $vc_out
+
+
+
