@@ -40,7 +40,7 @@ def main():
     # set up the option parser
     #
     runHelp = "\nRun \"pragma_boot -h\" for more help."
-    usage = "usage: %prog --vcname vcname --net_conf file [--num_compute N] [--basepath path]"
+    usage = "usage: %prog --vcname vcname [--num_compute N] [--basepath path]"
     parser = OptionParser(usage, version="0.1")
 
 
@@ -50,14 +50,12 @@ def main():
     parser.add_option_group(group)
     group.add_option("--vcname", dest="vcname", default=None,
                     help="The name of the cluster which should be started")
-    group.add_option("--net_conf", dest="net_conf", default="net_conf.conf",
-                    help="A file containing all the public network configuration")
 
     #various option
     parser.add_option("--basepath", dest="basepath", default="/gfarm/vm-images",
                     help="The base path used to find all the cluster images")
-    parser.add_option("--num_compute", dest="num_compute", default=0,
-                    help="The nuber of computing node to start up")
+    parser.add_option("--num_cpus", dest="num_cpus", default=0,
+                    help="The nuber of cpus requested to start up")
 
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                     default=False,
@@ -70,13 +68,10 @@ def main():
     #
     if not options.vcname:
         parser.error("you need to specify a vcname")
-    if not os.path.isfile(options.net_conf):
-        parser.error("you need to enter a valid net_conf file name")
     vc_db_filepath = options.basepath + "/vcdb.txt"
     if not os.path.isfile(vc_db_filepath) :
         parser.error("The file " + vc_db_filepath + " does not exist/\n"
             "Your basepath should point to a valid pragma virtaul cluster repository")
-
 
     # create logger
     global logger
@@ -94,20 +89,13 @@ def main():
         ch.setLevel(logging.ERROR)
     logger.addHandler(ch)
 
-    # dirty and nasty but fast!!
-    # it will define the follwing variable
-    # public_ip
-    # netmask
-    # gw
-    # dns
-    # fqdn
-    execfile(options.net_conf, {}, globals())
     # this imports the following values
     # site_ve_driver
     # temp_directory
     execfile(script_base_dir + "/site_conf.conf", {}, globals())
     ve_driver_base_path = script_base_dir + "/drivers/" + site_ve_driver
 
+    # look in the vcdb.txt database for the machine name
     vc_in_filepath = None
     with open(vc_db_filepath, 'r') as vc_db:
         for line in vc_db:
@@ -120,20 +108,42 @@ def main():
                 "Check the VC database file " + vc_db_filepath)
             sys.exit(-1)
     # parse the vc-in file
-    # rant: to get tree values out of a configuration file you need 
-    # 15 lines of code! XML such a great invention
     vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
 
     # get the arch
     if vc_in_xmlroot.findall('./virtualization')[0].attrib['arch'] != "x86_64":
         logger.error("Error unsupported architecture in " + vc_in_filepath)
         sys.exit(-1)
-    # get the driver name
+    # get the client driver name from the xml file
     client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
-    # 
+    client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
+    # get the disk path
     disk=vc_in_xmlroot.findall('./frontend/domain/devices/disk/source')[0]
     src_file = disk.attrib['file']
-    client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
+
+    #
+    # First let's check if we have enough resources to start this cluster 
+    # and let's create vc-out.xml
+    #
+    cmdline = [ve_driver_base_path + "/allocate", str(options.num_cpus), temp_directory + "/vc-out.xml"]
+    (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
+    stdout = '\n'.join(stdout)
+    if ret != 0 :
+        logger.error("Now enough resources on the cluster to run %s cpus" % options.num_cpus)
+        logger.error(stdout)
+        sys.exit(-1)
+    logger.info("Command: " + ' '.join(cmdline))
+    logger.info("Output: " + stdout)
+    vc_out_xmlroot = xml.etree.ElementTree.parse(temp_directory + "/vc-out.xml")
+    pubblic_node = vc_out_xmlroot.findall('./frontend/public')[0]
+    public_ip = pubblic_node.attrib["ip"]
+    fqdn = pubblic_node.attrib["fqdn"]
+    netmask = pubblic_node.attrib["netmask"]
+    gw = pubblic_node.attrib["gw"]
+    dns_node = vc_out_xmlroot.findall('./network/dns')[0]
+    dns_servers = dns_node.attrib["ip"]
+    # search="local" domain=""
+    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + " - netmask=" + netmask + " - gw=" + gw)
 
     #
     # copy FE disk image over to temp floder and uncompress it
@@ -154,10 +164,10 @@ def main():
     #
 
     # prefix_driver
-    cmdline = client_driver_base_path + "/pre_fix_driver " + temp_disk_path
+    cmdline = client_driver_base_path + "/pre_fix_driver " + temp_disk_path 
     runCommand(cmdline)
 
-    # creating the domain.xml for libvirt
+    # extracting domain.xml for libvirt from vc-in.xml
     xml_fe_path = temp_directory + '/vc-in.xml'
     fe_domain = vc_in_xmlroot.findall('./frontend/domain')[0]
     fe_disk_source = fe_domain.findall('./devices/disk/source')[0]
@@ -182,8 +192,25 @@ def main():
     cmdline = client_driver_base_path + "/post_fix_driver " + temp_disk_path
     runCommand(cmdline)
 
+    # drop network configuration into FE
+    # remove MAC address if any in the config
+    # boot the system 
     
-    
+
+
+    # for the compute
+    # <!-- change eth0 to be dhcp and mac address neutral -->
+    # <file name="/etc/sysconfig/network-scripts/ifcfg-eth0">
+    # DEVICE=eth0
+    # BOOTPROTO=dhcp
+    # ONBOOT=yes
+    # </file>
+    # 
+    # <!-- change network file to not have hostname of gateway -->
+    # <file name="/etc/sysconfig/network">
+    # NETWORKING=yes
+    # </file>
+    # 
 
 
 
@@ -194,13 +221,13 @@ def runCommand(cmdline):
         logger.error("Error while running: " + cmdline)
         logger.error('\n'.join(stdout))
         sys.exit(-1)
-    logger.debug("Command executed: " + cmdline)
+    logger.info("Command executed: " + cmdline)
     logger.debug("Output: " + '\n'.join(stdout))
 
 
 def deflate_file(srcpath, destpath):
     """it gunzip a file """
-    logger.debug("Uncompressing file " + srcpath + " in " + destpath)
+    logger.info("Uncompressing file " + srcpath + " in " + destpath)
     buf_size=16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
@@ -218,21 +245,9 @@ def deflate_file(srcpath, destpath):
         counter += 1
     input.close()
     output.close()
-    logger.debug("File " + destpath + " uncompressed.")
+    logger.info("File " + destpath + " uncompressed.")
     
     
-    
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
