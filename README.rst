@@ -30,6 +30,15 @@ If the command starts with ve_driver it will be replaced with the local Virtual 
 driver which can be configured in the file (specify a file)
 
 
+* **ve_driver/allocate** this script takes care of verifying that there are enough 
+  resoureces to satisfy the user request, if so it will also allocate public IP, 
+  private IPs, MAC addresses, and computing resources. If the system can create 
+  SMP nodes it can allocate less compute node with multiple cpus in each node.
+  If successful it will write a vc-out.xml file at the location specfied by **vc_out_path** 
+  input parameters.
+
+  * **num_compute** it specifies the number of CPU requested by the user. 
+  * **vc_out_path** this should point to the path where the vc-out.xml will be saved
 
 * **vc_driver/pre_fix_driver** it prepares the current machine for the execution of 
   the fix_driver script which will follow. Input args are:
@@ -48,7 +57,6 @@ driver which can be configured in the file (specify a file)
   execution of the fix_driver script. t's input argumets are:
 
   * **path** the vm disk path
-
 
 * **vc_driver/pre_boot** it takes care of fixing networking and other stuffs, it 
   depends on the source VM type (if UCSD VM run rocks/pre_boot, etc.)
@@ -183,21 +191,29 @@ vc-in.xml file example
 
 vc-out.xml file example
 
-
 ::
 
- <vc type='Local Beowulf'>
-   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
-   <frontend name='calit2-119-225' fqdn='calit2-119-225.ucsd.edu' ip='137.110.119.225'/>
-   <!-- should we allow changing the FE mac address -->
-   <compute count='3'>
-     <node name='hosted-vm-0-0' mac='7a:77:6e:40:00:09' ip='10.1.255.254'/>
-     <node name='hosted-vm-0-1' mac='7a:77:6e:40:00:0a' ip='10.1.255.253'/>
-     <node name='hosted-vm-0-2' mac='7a:77:6e:40:00:0b' ip='10.1.255.252'/>
+ <vc>
+   <frontend>
+     <public fqdn="calit2-119-222.ucsd.edu" ip="137.110.119.222" netmask="255.255.255.0" gw="137.110.119.1"/>
+     <private ip="10.1.0.0" netmask="255.255.0.0"/>
+   </frontend>
+   <compute count="2">
+     <node name="hosted-vm-0-1-0" mac="7a:77:6e:40:00:15" ip="10.1.0.254"/>
+     <node name="hosted-vm-0-0-0" mac="7a:77:6e:40:00:14" ip="10.1.0.253"/>
    </compute>
    <network>
-     <dns ip='8.8.8.8' search='local ucsd.edu' domain=''/>
-     <gw ip='137.110.119.1'/>
+     <dns ip="8.8.8.8" search="local" domain=""/>
    </network>
  </vc>
+
+
+Questions
+=========
+
+* Can the Virtual Cluster choose the private IP addresses as he likes?
+  Or it is the hosting environment who completely decides the private IP 
+  addressing and range.
+
+* DHCP is it running or not in the hosting evnironment?
 
