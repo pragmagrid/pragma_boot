@@ -4,22 +4,10 @@ The pragma_boot script
 **pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
 It accepts the following agruments:
 
---vcname vcname    the name of the virtual clutster to start up (the name must be in the database)
---base_path path   the base path of the VM database 
---num_compute N    the number of compute node to start up (default to 0)
---net_conf file    a filename containing the network configuration for 
-                   the new cluster frontend.
+* **--num_compute N**    the number of compute node to start up (default to 0)
+* **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
+* **--base_path path**   the base path of the VM database 
 
-
-The network configuration file will contains the self explicative elements:
-
-::
-
- public_ip="123.123.123.123"
- netmask="255.255.255.0"
- gw="123.123.123.1"
- dns="8.8.8.8"
- fqdn="fqdn_of_pubblic_ip.somehost.com"
 
 
 pragma_boot is divided into several subscripts which will be called by the pragma_boot 
@@ -39,6 +27,7 @@ driver which can be configured in the file (specify a file)
 
   * **num_compute** it specifies the number of CPU requested by the user. 
   * **vc_out_path** this should point to the path where the vc-out.xml will be saved
+
 
 * **vc_driver/pre_fix_driver** it prepares the current machine for the execution of 
   the fix_driver script which will follow. Input args are:
@@ -138,7 +127,7 @@ vc-in.xml file example
      </domain>
      <!-- end libvirt xml format -->
    </frontend>
-   <compute memory='1048576' vcpu='1'>
+   <compute>
      <boot_dependency parent='frontend'>
        <wait type='clock' value='300'/>
      </boot_dependency>

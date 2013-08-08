@@ -2,7 +2,10 @@
 #
 # Clem
 #
-# This script is used to fix a vritual image on the current machine
+# This script is used to allocate the resource needed to start up a 
+# virtual cluster
+# 
+# For info see README
 
 
 
@@ -32,8 +35,16 @@ pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd`
 popd > /dev/null
 
+
+
+#The network configuration file will contains the self explicative elements:
+# public_ip="123.123.123.123"
+# netmask="255.255.255.0"
+# gw="123.123.123.1"
+# dns="8.8.8.8"
+# fqdn="fqdn_of_pubblic_ip.somehost.com"
+#
 . $SCRIPTPATH/net_conf.conf
-# creating the pool
 
 
 rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fqdn
@@ -43,6 +54,9 @@ rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-c
 private_ip="10.1.1.1"
 private_netmask="255.255.0.0"
 
+#
+# creation of the vc-out.xml
+#
 echo '<vc>' > $vc_out
 echo "  <frontend>" >> $vc_out
 echo "    <public fqdn=\"$fqdn\" ip=\"$public_ip\" netmask=\"$netmask\" gw=\"$gw\" />" >> $vc_out
@@ -65,6 +79,4 @@ echo "  <network>" >> $vc_out
 echo "    <dns ip=\"$dns\" search=\"local\" domain=\"\"/>" >> $vc_out
 echo "  </network>" >> $vc_out
 echo "</vc>" >> $vc_out
-
-
 
