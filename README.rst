@@ -52,28 +52,20 @@ driver which can be configured in the file (specify a file)
   probably this script should be in the source folder where the VM 
   images are.
   
-  * interface1=aa:ff:bb:44:33:22,eth0,137.120.1.24,255.255.255.0
-    the parameter of the NIC 1 as they should be configured in the 
-    machine
-  * gateway=123.123.123.1
-  * dns=1.1.1.1
+  * **file_path**   the path where the vm image is
+  * **vc_out**      path to the vc-out.xml file
+  * **host_name**   the name of the host we want to boot
+
 
 * **ve_driver/boot** it takes care of starting the VM on the local virtualization 
   engine. Its input parameters are:
   
-  * cpu=3
-    number of cpus
-  * ram=1024
-    Megabytes of RAM
-  * vm_disk_path=path  
-    the path to it's virtual disks
-  * priv_mac_address=aa:ff:bb:44:33:22
-    the mac address of the private interface
-  * pub_mac_address=aa:ff:bb:44:33:22
-    the mac address of the public interface if there is any (this 
-    parameters is optionals.
+  * **file_path**   the path where the vm image is
+  * **xml_file**    libvirt xml file needed to boot this machine
+  * **vc_out**      path to the vc-out.xml file 
+  * **host_name**   the name of the host we want to boot
 
-            
+
 
 input and output XML file example
 =================================

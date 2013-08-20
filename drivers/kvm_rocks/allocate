@@ -30,7 +30,7 @@ mem_compute=2024
 # need to get the ceiling of the division (not the floor)
 numnodes=$(( ($numcpus + $cpus_per_node - 1) / $cpus_per_node ))
 
-# TODO this should be created dinamically
+# get the path to this script
 pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd`
 popd > /dev/null

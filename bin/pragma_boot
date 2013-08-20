@@ -125,7 +125,8 @@ def main():
     # First let's check if we have enough resources to start this cluster 
     # and let's create vc-out.xml
     #
-    cmdline = [ve_driver_base_path + "/allocate", str(options.num_cpus), temp_directory + "/vc-out.xml"]
+    vc_out_filepath = temp_directory + "/vc-out.xml"
+    cmdline = [ve_driver_base_path + "/allocate", str(options.num_cpus), vc_out_filepath]
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     stdout = '\n'.join(stdout)
     if ret != 0 :
@@ -134,7 +135,7 @@ def main():
         sys.exit(-1)
     logger.info("Command: " + ' '.join(cmdline))
     logger.info("Output: " + stdout)
-    vc_out_xmlroot = xml.etree.ElementTree.parse(temp_directory + "/vc-out.xml")
+    vc_out_xmlroot = xml.etree.ElementTree.parse(vc_out_filepath)
     pubblic_node = vc_out_xmlroot.findall('./frontend/public')[0]
     public_ip = pubblic_node.attrib["ip"]
     fqdn = pubblic_node.attrib["fqdn"]
@@ -183,20 +184,23 @@ def main():
         interface_list += ","
 
     # fix_driver
-    cmdline = ve_driver_base_path + "/fix_driver " + xml_fe_path + " " + \
-        interface_list + " " + temp_directory
-    # TODO add interfaces
+    cmdline = [ve_driver_base_path + "/fix_driver", xml_fe_path, interface_list,
+                temp_directory]
     runCommand(cmdline)
 
     # postfix_driver
-    cmdline = client_driver_base_path + "/post_fix_driver " + temp_disk_path
+    cmdline = [client_driver_base_path + "/post_fix_driver", temp_disk_path]
     runCommand(cmdline)
 
-    # drop network configuration into FE
-    # remove MAC address if any in the config
-    # boot the system 
-    
+    # dmreread the xml_fe_path to see changes in the VM
 
+    # pre_boot takes care of fixing the network on the image before booting it
+    cmdline = [client_driver_base_path + "/pre_boot", temp_disk_path, xml_fe_path,
+                vc_out_filepath, fqdn]
+    runCommand(cmdline)
+
+    cmdline = [ve_driver_base_path + "/boot", temp_disk_path, xml_fe_path, fqdn]
+    runCommand(cmdline)
 
     # for the compute
     # <!-- change eth0 to be dhcp and mac address neutral -->
@@ -205,12 +209,12 @@ def main():
     # BOOTPROTO=dhcp
     # ONBOOT=yes
     # </file>
-    # 
+    #
     # <!-- change network file to not have hostname of gateway -->
     # <file name="/etc/sysconfig/network">
     # NETWORKING=yes
     # </file>
-    # 
+    #
 
 
 
