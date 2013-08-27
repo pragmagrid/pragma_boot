@@ -15,7 +15,8 @@ invocation as described below. If the command is called `vc_driver/command_name`
 will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.xml 
 file (each virtual machine will be able to choose its own vc_driver).
 If the command starts with ve_driver it will be replaced with the local Virtual Engine (VE) 
-driver which can be configured in the file (specify a file)
+driver (the base path used to find all the VE drivers can be configured in the file 
+site_conf.conf)
 
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough 
