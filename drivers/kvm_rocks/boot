@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# Clem
+#
+# This script is used to allocate the resource needed to start up a 
+# virtual cluster
+# 
+# For info see README
+
+
+
+if [ "x$#" != "x2" ]; then 
+    echo "This script should be invoked with 2 arguments"
+    exit 1
+fi
+
+function error(){
+    echo -e "Error $1"
+    exit 1
+}
+
+# tree required arguments
+temp_disk_path=$1
+# unused
+xml_file_path=$2
+hostname=$3
+
+# get the path to this script
+pushd `dirname $0` > /dev/null
+SCRIPTPATH=`pwd`
+popd > /dev/null
+
+
+container=`rocks list host vm $hostname | awk '{print $5}'|tail -n 1`
+disk_path=`rocks list host vm $hostname showdisks=1|awk '{print $7}'|tail -n 1`
+# remove useless stuff from file path
+disk_path=${disk_path#file:}
+disk_path=${disk_path/,*/}
+
+localhost=`hostname -s`
+
+
+if [ "$container" == "$localhost" ];then
+	mv $temp_disk_path $disk_path \
+		|| error "unable to copy the disk image $temp_disk_path to $disk_path"
+else
+	scp $temp_disk_path $container:$disk_path \
+		|| error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
+	rm $disk_path
+fi
+
+rocks start host vm $hostname
+
+
