@@ -53,9 +53,11 @@ def main():
 
     #various option
     parser.add_option("--basepath", dest="basepath", default="/gfarm/vm-images",
-                    help="The base path used to find all the cluster images")
+                    help="The base path used to find all the cluster images "
+                    "(default is /gfarm/vm-images)")
     parser.add_option("--num_cpus", dest="num_cpus", default=0,
-                    help="The nuber of cpus requested to start up")
+                    help="The nuber of cpus requested to start up (default is 0 "
+                    " only frontend will be started")
 
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                     default=False,
