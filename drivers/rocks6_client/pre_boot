@@ -9,8 +9,8 @@
 
 
 
-if [ "x$#" != "x4" ]; then 
-    echo "This script should be invoked with 4 arguments"
+if [ "x$#" != "x3" ]; then
+    echo "This script should be invoked with 3 arguments"
     exit 1
 fi
 
@@ -21,8 +21,8 @@ function error(){
 
 # tree required arguments
 temp_disk_path=$1
-vc_out_filepath=$3
-fqdn=$4
+vc_out_filepath=$2
+fqdn=$3
 
 
 # TODO this should be created dinamically
