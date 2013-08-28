@@ -81,9 +81,9 @@ def main():
     logger = logging.getLogger('pragma_boot')
     logger.setLevel(logging.DEBUG)
     # create file handler which logs even debug messages
-    #fh = logging.FileHandler('pragma_boot.log')
-    #fh.setLevel(logging.DEBUG)
-    #logger.addHandler(fh)
+    fh = logging.FileHandler('pragma_boot.log')
+    fh.setLevel(logging.DEBUG)
+    logger.addHandler(fh)
     # create console handler and set level to debug
     ch = logging.StreamHandler()
     if options.verbose :
