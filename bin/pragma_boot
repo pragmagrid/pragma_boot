@@ -46,10 +46,12 @@ def main():
 
     # required options one of them must be selected
     group = OptionGroup(parser, "Required Options",
-                    "You must select both a vcname and net_conf file")
+                    "You must select a vcname or use the list option")
     parser.add_option_group(group)
     group.add_option("--vcname", dest="vcname", default=None,
                     help="The name of the cluster which should be started")
+    group.add_option("--list", dest="list", action="store_true",
+                    help="list available virtual machines")
 
     #various option
     parser.add_option("--basepath", dest="basepath", default="/gfarm/vm-images",
@@ -58,7 +60,6 @@ def main():
     parser.add_option("--num_cpus", dest="num_cpus", default=0,
                     help="The nuber of cpus requested to start up (default is 0 "
                     " only frontend will be started")
-
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                     default=False,
                     help="Print all debugging information to stdout")
@@ -68,7 +69,7 @@ def main():
     #
     # switch based on user input
     #
-    if not options.vcname:
+    if not options.vcname and not options.list:
         parser.error("you need to specify a vcname")
     vc_db_filepath = options.basepath + "/vcdb.txt"
     if not os.path.isfile(vc_db_filepath) :
@@ -90,6 +91,15 @@ def main():
     else:
         ch.setLevel(logging.ERROR)
     logger.addHandler(ch)
+
+    if options.list:
+        print "Available virtual cluters:"
+        with open(vc_db_filepath, 'r') as vc_db:
+            for line in vc_db:
+                (vcname, temp_path) = line.split(',')
+                if os.path.isfile(options.basepath + "/" + temp_path.strip()):
+                    print vcname
+        sys.exit(0)
 
     # this imports the following values
     # site_ve_driver

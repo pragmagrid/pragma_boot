@@ -17,6 +17,7 @@ file (each virtual machine will be able to choose its own vc_driver).
 If the command starts with ve_driver it will be replaced with the local Virtual Engine (VE) 
 driver (the base path used to find all the VE drivers can be configured in the file 
 site_conf.conf)
+site_conf.conf should be used also to set the path for the temporary staging of VM images
 
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough 
@@ -71,7 +72,9 @@ input and output XML file example
 =================================
 
            
-vc-in.xml file example
+vc-in.xml file example. This xml file is the concatenation of the libvirt xml
+of a frontend and of a compute node (encolsed between the ``frontend`` and
+``compute`` tag) with few extra tag added at the beginning and at the end.
 
 ::
 

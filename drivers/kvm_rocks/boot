@@ -2,8 +2,7 @@
 #
 # Clem
 #
-# This script is used to allocate the resource needed to start up a 
-# virtual cluster
+# This script is used to start a virtual machine
 # 
 # For info see README
 
