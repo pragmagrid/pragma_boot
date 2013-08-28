@@ -232,13 +232,13 @@ def main():
 
 
 def runCommand(cmdline):
-    logger.debug("Executing: " + cmdline)
+    logger.debug("Executing: " + str(cmdline))
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     if ret != 0 :
-        logger.error("Error while running: " + cmdline)
+        logger.error("Error while running: " + str(cmdline))
         logger.error('\n'.join(stdout))
         sys.exit(-1)
-    logger.info("Command executed: " + cmdline)
+    logger.info("Command executed: " + str(cmdline))
     logger.debug("Output: " + '\n'.join(stdout))
 
 
