@@ -62,8 +62,7 @@ site_conf.conf)
   engine. Its input parameters are:
   
   * **file_path**   the path where the vm image is
-  * **xml_file**    libvirt xml file needed to boot this machine
-  * **vc_out**      path to the vc-out.xml file 
+  * **xml_file**    libvirt xml file needed to boot this machine (unused at the moment)
   * **host_name**   the name of the host we want to boot
 
 
