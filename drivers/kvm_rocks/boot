@@ -8,8 +8,8 @@
 
 
 
-if [ "x$#" != "x2" ]; then 
-    echo "This script should be invoked with 2 arguments"
+if [ "x$#" != "x3" ]; then
+    echo "This script should be invoked with 3 arguments"
     exit 1
 fi
 
