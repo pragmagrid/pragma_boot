@@ -49,6 +49,8 @@ else
 	rm $disk_path
 fi
 
+# do not install just boot the system as it is
+rocks set host boot $hostname action=os
 rocks start host vm $hostname
 
 
