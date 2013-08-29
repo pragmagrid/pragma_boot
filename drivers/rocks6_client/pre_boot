@@ -38,7 +38,7 @@ gw=`echo "cat /vc/frontend/public/@gw" | xmllint --shell $vc_out_filepath | grep
 fqdn=`echo "cat /vc/frontend/public/@fqdn" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 ip=`echo "cat /vc/frontend/public/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 netmask=`echo "cat /vc/frontend/public/@netmask" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
-dns=`echo "cat /vc/network/dns/@ip" | xmllint --shell ../../vc-out.xml | grep = | awk -F \" '{print $2}'`
+dns=`echo "cat /vc/network/dns/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 
 
 guestmount -a $temp_disk_path -m /dev/sda1 $tmp_folder || error "unable to mount guest FS"
