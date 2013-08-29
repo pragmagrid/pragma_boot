@@ -29,15 +29,16 @@ pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd`
 popd > /dev/null
 
-
-container=`rocks list host vm $hostname | awk '{print $5}'|tail -n 1`
-disk_path=`rocks list host vm $hostname showdisks=1|awk '{print $7}'|tail -n 1`
+# match everything except 'HOST' and a line of -----
+container=`rocks list host vm $hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
+disk_path=`rocks list host vm $hostname showdisks=1 | awk ' {if (/file/) print $7}'`
 # remove useless stuff from file path
 disk_path=${disk_path#file:}
 disk_path=${disk_path/,*/}
 
 localhost=`hostname -s`
 
+echo Destination disk path is $container:$disk_path
 
 if [ "$container" == "$localhost" ];then
 	mv $temp_disk_path $disk_path \
