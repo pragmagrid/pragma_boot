@@ -44,7 +44,7 @@ dns=`echo "cat /vc/network/dns/@ip" | xmllint --shell ../../vc-out.xml | grep = 
 guestmount -a $temp_disk_path -m /dev/sda1 $tmp_folder || error "unable to mount guest FS"
 
 # create the net_conf.conf
-cat >> $tmp_folder/root/net_conf.conf << "EOF"
+cat >> $tmp_folder/root/net_conf.conf << EOF
 public_ip="$ip"
 netmask="$netmask"
 gw="$gw"
