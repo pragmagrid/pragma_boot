@@ -64,6 +64,11 @@ cat $ssh_key >> $tmp_folder/root/.ssh/authorized_keys
 # copy the vc-out.xml
 cp $vc_out_filepath $tmp_folder/root/
 
+# remove udev old network rules
+rm $tmp_folder/etc/udev/rules.d/70-persistent-net.rules
+rm $tmp_folder/etc/sysconfig/network-scripts/ifcfg-eth0
+rm $tmp_folder/etc/sysconfig/network-scripts/ifcfg-eth1
+
 fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
 
 
