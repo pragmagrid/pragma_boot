@@ -57,6 +57,8 @@ site_conf.conf should be used also to set the path for the temporary staging of 
   * **file_path**   the path where the vm image is
   * **vc_out**      path to the vc-out.xml file
   * **host_name**   the name of the host we want to boot
+  * **key**         The path to the ssh public key that will be authorized to the 
+                    frontend root account
 
 
 * **ve_driver/boot** it takes care of starting the VM on the local virtualization 

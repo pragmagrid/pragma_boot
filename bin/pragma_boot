@@ -40,7 +40,7 @@ def main():
     # set up the option parser
     #
     runHelp = "\nRun \"pragma_boot -h\" for more help."
-    usage = "usage: %prog --vcname vcname [--num_compute N] [--basepath path]"
+    usage = "usage: %prog --list | --vcname vcname [--num_compute N] [--basepath path] [--key path]"
     parser = OptionParser(usage, version="0.1")
 
 
@@ -57,6 +57,9 @@ def main():
     parser.add_option("--basepath", dest="basepath", default="/gfarm/vm-images",
                     help="The base path used to find all the cluster images "
                     "(default is /gfarm/vm-images)")
+    parser.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
+                    help="The ssh key that will be authorized on the frontned "
+                    "of the cluster (default is /root/.ssh/id_rsa.pub)")
     parser.add_option("--num_cpus", dest="num_cpus", default=0,
                     help="The nuber of cpus requested to start up (default is 0 "
                     " only frontend will be started")
@@ -209,7 +212,7 @@ def main():
 
     # pre_boot takes care of fixing the network on the image before booting it
     cmdline = [client_driver_base_path + "/pre_boot", temp_disk_path,
-                vc_out_filepath, fqdn]
+                vc_out_filepath, fqdn, options.key]
     runCommand(cmdline)
 
     cmdline = [ve_driver_base_path + "/boot", temp_disk_path, xml_fe_path, fqdn]

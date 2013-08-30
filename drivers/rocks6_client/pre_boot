@@ -9,8 +9,8 @@
 
 
 
-if [ "x$#" != "x3" ]; then
-    echo "This script should be invoked with 3 arguments"
+if [ "x$#" != "x4" ]; then
+    echo "This script should be invoked with 4 arguments"
     exit 1
 fi
 
@@ -23,6 +23,7 @@ function error(){
 temp_disk_path=$1
 vc_out_filepath=$2
 fqdn=$3
+ssh_key=$4
 
 
 # TODO this should be created dinamically
@@ -54,6 +55,9 @@ fqdn="$fqdn"
 private_mac=""
 public_mac=""
 EOF
+
+#copy the ssh key
+cat $ssh_key >> $tmp_folder/root/.ssh/authorized_keys
 
 # copy the vc-out.xml
 cp $vc_out_filepath $tmp_folder/root/
