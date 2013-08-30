@@ -49,18 +49,22 @@ popd > /dev/null
 
 rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fqdn
 
-
 # we fix this on our rocks systems
 private_ip="10.1.1.1"
 private_netmask="255.255.0.0"
+
+mac_public=`rocks list host interface $fqdn | grep $public_ip | awk '{print $3}'`
+# the private interface does not have the private IP assigne properly on the hosting system
+mac_private=`rocks list host interface $fqdn | grep eth0 | awk '{print $3}'`
+
 
 #
 # creation of the vc-out.xml
 #
 echo '<vc>' > $vc_out
 echo "  <frontend>" >> $vc_out
-echo "    <public fqdn=\"$fqdn\" ip=\"$public_ip\" netmask=\"$netmask\" gw=\"$gw\" />" >> $vc_out
-echo "    <private ip=\"$private_ip\" netmask=\"$private_netmask\"/>" >> $vc_out
+echo "    <public fqdn=\"$fqdn\" ip=\"$public_ip\" netmask=\"$netmask\" gw=\"$gw\" mac=\"$mac_public\" />" >> $vc_out
+echo "    <private ip=\"$private_ip\" netmask=\"$private_netmask\" mac=\"$mac_private\"/>" >> $vc_out
 echo "  </frontend>" >> $vc_out
 echo "  <compute count=\"$numnodes\">" >> $vc_out
 
