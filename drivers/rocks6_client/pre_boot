@@ -39,6 +39,8 @@ gw=`echo "cat /vc/frontend/public/@gw" | xmllint --shell $vc_out_filepath | grep
 fqdn=`echo "cat /vc/frontend/public/@fqdn" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 ip=`echo "cat /vc/frontend/public/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 netmask=`echo "cat /vc/frontend/public/@netmask" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+public_mac=`echo "cat /vc/frontend/public/@mac" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+private_mac=`echo "cat /vc/frontend/private/@mac" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 dns=`echo "cat /vc/network/dns/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
 
 
@@ -52,8 +54,8 @@ gw="$gw"
 dns="$dns"
 fqdn="$fqdn"
 #use these two entries to specify new mac addresses
-private_mac=""
-public_mac=""
+private_mac="$private_mac"
+public_mac="$public_mac"
 EOF
 
 #copy the ssh key
