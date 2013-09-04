@@ -28,6 +28,7 @@ site_conf.conf should be used also to set the path for the temporary staging of 
   input parameters.
 
   * **num_compute** it specifies the number of CPU requested by the user. 
+  * **vc_in_path** it points to the vc-in.xml of the selected cluster
   * **vc_out_path** this should point to the path where the vc-out.xml will be saved
 
 

@@ -141,7 +141,8 @@ def main():
     # and let's create vc-out.xml
     #
     vc_out_filepath = temp_directory + "/vc-out.xml"
-    cmdline = [ve_driver_base_path + "/allocate", str(options.num_cpus), vc_out_filepath]
+    cmdline = [ve_driver_base_path + "/allocate", str(options.num_cpus), vc_in_filepath,
+						vc_out_filepath]
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     stdout = '\n'.join(stdout)
     if ret != 0 :
