@@ -34,6 +34,23 @@ if "any" not in dir(__builtins__):
 
 
 
+mockup_vc_out_xml='''
+<vc>
+<frontend>
+    <public fqdn="somehost.ucsd.edu" ip="127.111.111.222" netmask="255.255.255.0" gw="127.111.111.1" mac="7a:77:6e:40:00:16" />
+    <private ip="10.1.1.1" netmask="255.255.0.0" mac="7a:77:6e:40:00:15"/>
+  </frontend>
+  <compute count="2">
+    <node name='hosted-vm-0-1-0' mac='7a:77:6e:40:00:18' ip='10.1.1.254' cpus='2'/>
+    <node name='hosted-vm-0-0-0' mac='7a:77:6e:40:00:17' ip='10.1.1.253' cpus='2'/>
+  </compute>
+  <network>
+    <dns ip="8.8.8.8" search="local" domain=""/>
+  </network>
+</vc>
+'''
+
+
 class drivers_manager:
     """manages the paths to the various drivers"""
 
@@ -107,6 +124,9 @@ def main():
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                     default=False,
                     help="Print all debugging information to stdout")
+    parser.add_option("-d", "--debug", action="store_true", dest='debug',
+                    default=False, help="Print only the command that will be "
+                    "executed do not execute them")
     (options, args) = parser.parse_args()
 
 
@@ -188,10 +208,17 @@ def main():
     #
     vc_out_filepath = temp_directory + "/vc-out.xml"
     cmdline = [dr_manager.allocate(), str(options.num_cpus), vc_out_filepath]
-    (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
+    if not options.debug :
+        (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
+    else:
+	# write facke vc_out_xml
+	fd=open(vc_out_filepath, 'w')
+        fd.write(mockup_vc_out_xml)
+        fd.close()
+        (stdout, ret) = ("", 0)
     stdout = '\n'.join(stdout)
     if ret != 0 :
-        logger.error("Not enough resources on the cluster to run %s cpus" % 
+        logger.error("Not enough resources on the cluster to run %s cpus" %
             options.num_cpus)
         logger.error(stdout)
         sys.exit(-1)
@@ -209,39 +236,40 @@ def main():
     for node_xml in vc_out_xmlroot.findall('./compute/node'):
         node_names.append( node_xml.attrib["name"] )
     # search="local" domain=""
-    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + " - netmask=" + netmask + " - gw=" + gw)
+    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + 
+            " - netmask=" + netmask + " - gw=" + gw)
 
 
     #
     # deploy frontend
     #
-    (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory, "frontend", dr_manager)
-    deployImage(disk_path, vc_out_filepath, fqdn, options.key, xml_path, dr_manager)
+    (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory,
+            "frontend", dr_manager, options.debug)
+    deployImage(disk_path, vc_out_filepath, fqdn, options.key, xml_path,
+            dr_manager, options.debug)
 
     if options.num_cpus > 0 :
         #
         # deploy nodes
         #
-        (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory, "compute", dr_manager)
+        (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory,
+                "compute", dr_manager, options.debug)
         for i in node_names:
-            deployImage(disk_path, vc_out_filepath, i, options.key, xml_path, dr_manager)
+            deployImage(disk_path, vc_out_filepath, i, options.key, xml_path,
+                    dr_manager, options.debug)
 
 
 
-def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager):
-    """ prepare the virtual image to be run on the current platform 
-
-    input_xml_path is the path to the libvirt xml file of this virtual machine, this file 
-    will be overwritten, imput_disk_path this is the path to the .gz image of the machine
-
-    """
+def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
+    """ prepare the virtual image to be run on the current platform """
 
     # extracting domain.xml for libvirt from vc-in.xml
     xml_libvirt_path = temp_directory + '/vc-in.xml'
     vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
     xml_node_domain = vc_in_xmlroot.findall('./' + node_type + '/domain')[0]
     input_disk_source = xml_node_domain.findall('./devices/disk/source')[0]
-    input_disk_path = os.path.dirname(vc_in_filepath) + "/" + input_disk_source.attrib['file']
+    input_disk_path = os.path.dirname(vc_in_filepath) + "/" + \
+            input_disk_source.attrib['file']
     
     #
     # copy FE disk image over to temp floder and uncompress it
@@ -251,7 +279,7 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager):
         sys.exit(-1)
     if input_disk_path.endswith(".gz"):
         temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)[:-3]
-        deflate_file(input_disk_path, temp_disk_path)
+        deflate_file(input_disk_path, temp_disk_path, debug)
     else:
         temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)
         shutil.copy(input_disk_path, temp_disk_path)
@@ -265,7 +293,7 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager):
 
     # prefix_driver
     cmdline = [dr_manager.pre_fix_driver(), temp_disk_path]
-    runCommand(cmdline)
+    runCommand(cmdline, debug)
 
     # figuring out the interface name list
     interface_list = ""
@@ -279,34 +307,34 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager):
     # fix_driver
     cmdline = [dr_manager.fix_driver(), xml_libvirt_path, interface_list,
                 temp_directory]
-    runCommand(cmdline)
+    runCommand(cmdline, debug)
 
     # postfix_driver
     cmdline = [dr_manager.post_fix_driver(), temp_disk_path]
-    runCommand(cmdline)
+    runCommand(cmdline, debug)
 
     return (temp_disk_path, xml_libvirt_path)
 
 
 
 
-def deployImage(temp_disk_path, vc_out_filepath, fqdn, key, xml, dr_manager):
-    """it runs the pre_boot and the boot script on a machine once
-    """
-    # dmreread the xml_fe_path to see changes in the VM
+def deployImage(temp_disk_path, vc_out_filepath, fqdn, key, xml, dr_manager, debug):
+    """it runs the pre_boot and the boot script on a machine once """
 
-    # pre_boot takes care of fixing the network on the image before booting it
     cmdline = [dr_manager.pre_boot(), temp_disk_path, vc_out_filepath, fqdn, key]
-    runCommand(cmdline)
+    runCommand(cmdline, debug)
 
     cmdline = [dr_manager.boot(), temp_disk_path, xml, fqdn]
-    runCommand(cmdline)
+    runCommand(cmdline, debug)
 
 
 
 
-def runCommand(cmdline):
+def runCommand(cmdline, debug):
     logger.debug("Executing: " + str(cmdline))
+    if debug :
+        logger.debug("Executed")
+        return
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     if ret != 0 :
         logger.error("Error while running: " + str(cmdline))
@@ -316,9 +344,12 @@ def runCommand(cmdline):
     logger.debug("Output: " + '\n'.join(stdout))
 
 
-def deflate_file(srcpath, destpath):
+def deflate_file(srcpath, destpath, debug):
     """it gunzip a file """
     logger.info("Uncompressing file " + srcpath + " in " + destpath)
+    if debug :
+        logger.debug("File uncompressed")
+        return
     buf_size=16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
@@ -330,7 +361,8 @@ def deflate_file(srcpath, destpath):
             break
         output.write( buffer )
         if counter == 1000:
-            logger.debug("Decoded " + str(buf_size * 1000) + " in " + str(time.time() - temp_timer))
+            logger.debug("Decoded " + str(buf_size * 1000) + " in " + 
+                str(time.time() - temp_timer))
             temp_timer = time.time()
             counter = 0
         counter += 1
