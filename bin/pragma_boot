@@ -307,8 +307,6 @@ def deployImage(temp_disk_path, vc_out_filepath, fqdn, key, xml, dr_manager):
 
 def runCommand(cmdline):
     logger.debug("Executing: " + str(cmdline))
-    print "Executed"
-    return
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     if ret != 0 :
         logger.error("Error while running: " + str(cmdline))
@@ -321,8 +319,6 @@ def runCommand(cmdline):
 def deflate_file(srcpath, destpath):
     """it gunzip a file """
     logger.info("Uncompressing file " + srcpath + " in " + destpath)
-    print "deflated"
-    return
     buf_size=16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
