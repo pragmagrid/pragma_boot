@@ -20,3 +20,4 @@ $: << RUBY_LIB_LOCATION
 # Required libraries
 ##############################################################################
 require 'opennebula'
+require 'opennebula/oneflow_client'

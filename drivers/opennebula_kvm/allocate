@@ -1,28 +1,212 @@
 #!/bin/env ruby
 require "opennebula/settings.rb"
-require "opennebula/opennebula_api.rb"
+require "opennebula/api.rb"
+require "opennebula/utils.rb"
 require "rubygems"
 require "nokogiri"
+require "logger"
+require "json"
+include OpenNebula
+
+
+$logger = Logger.new(LOG_FILE)
+
+
+class Allocator
+
+    public
+
+    def initialize(vc_in, num_compute)
+        @name = File.basename(vc_in, ".*")
+        @vc_in = Nokogiri::XML(open(vc_in))
+        @basepath = File.dirname(vc_in)
+        @num_compute = Integer(num_compute)
+        @client = Client.new(CREDENTIALS, ENDPOINT)
+        username, password = CREDENTIALS.split(":")
+        @cloud_client = Service::Client.new(
+            :username   => username,
+            :password   => password,
+            :url        => ONEFLOW_URL,
+            :user_agent => USER_AGENT
+        )
+
+        @network = allocate_network
+        @frontend = allocate_frontend
+        @compute = allocate_compute
+        @flow = allocate_flow
+    end
+
+    def vc_out
+        Nokogiri::XML::Builder.new do |xml|
+            xml.vc {
+                xml.frontend {
+                    xml.public(:fqdn => "", :ip => "", :netmask => "", :gw => "")
+                    xml.private(:ip => "", :netmask => "")
+                }
+                xml.compute(:count => "") {
+                    xml.node(:name => "", :mac => "", :ip => "")
+                    xml.node(:name => "", :mac => "", :ip => "")
+                }
+                xml.network {
+                    xml.dns(:ip => "", :search => "", :domain => "")
+                }
+            }
+        end
+    end
+
+    def instantiate
+        json_str = Service.build_json_action('instantiate')
+        response = @cloud_client.post("/service_template/#{@flow["DOCUMENT"]["ID"]}/action", json_str)
+        if CloudClient::is_error?(response)
+            abort(response.to_s)
+        end
+        JSON.parse(response.body)
+    end
+
+    private
+
+    def allocate_network
+        network = @vc_in.search("//vc/networks/network")[0]  # Assume there is only 1 network entry
+        template = <<-EOT
+        NAME = #{network["name"]}
+        TYPE = RANGED
+        NETWORK_ADDRESS = #{network.search("ipaddress")[0].content}
+        NETWORK_MASK = #{network.search("netmask")[0].content}
+        BRIDGE = #{PRIVATE_BRIDGE}
+        EOT
+        xml = OpenNebula::VirtualNetwork.build_xml
+        network = OpenNebula::VirtualNetwork.new(xml, @client)
+        response = network.allocate(template)
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        response = network.info
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        network
+    end
+
+    def allocate_image(disk, persistent=false)
+        image_file = File.join(@basepath, disk.search("source")[0]["file"])
+        inject_context_script image_file
+
+        template = <<-EOT
+        NAME = #{image_file.gsub "/", "__"}
+        PATH = #{image_file}
+        TYPE = OS
+        DRIVER = #{disk.search("driver")[0]["type"]}
+        DESCRIPTION = ""
+        EOT
+        if persistent
+            template << "PERSISTENT = YES\n"
+        end
+
+        xml = OpenNebula::Image.build_xml
+        image = OpenNebula::Image.new(xml, @client)
+        response = image.allocate(template, DATASTORE_ID)
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        response = image.info
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        image
+    end
+
+    def allocate_template(vm)
+        template = <<-EOT
+        NAME = "#{vm.search("domain/name")[0].content}"
+        CPU = #{vm.search("domain/vcpu")[0].content}
+        VCPU = #{vm.search("domain/vcpu")[0].content}
+        MEMORY = #{Integer(vm.search("domain/memory")[0].content) / 1024}
+        OS = [ BOOT = "hd", ARCH = "x86_64" ]
+        EOT
+        if vm.name == "frontend"
+            template << <<-EOT
+            DISK = [ IMAGE = #{@frontend["image"].name} ]
+            NIC = [ 
+                NETWORK = #{@network.name},
+                MODEL = #{vm.search("domain/devices/interface/model")[0]["type"]}
+            ]
+            NIC = [
+                NETWORK = #{PUBLIC_NETWORK},
+                MODEL = #{vm.search("domain/devices/interface/model")[1]["type"]}
+            ]
+            EOT
+        else
+            template << <<-EOT
+            DISK = [ IMAGE = "#{@compute["image"].name}" ]
+            NIC = [ 
+                NETWORK = #{@network.name},
+                MODEL = #{vm.search("domain/devices/interface/model")[0]["type"]}
+            ]
+            EOT
+        end
+
+        xml = OpenNebula::Template.build_xml
+        vm = OpenNebula::Template.new(xml, @client)
+        response = vm.allocate(template)
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        response = vm.info
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        vm
+    end
+
+    def allocate_frontend
+        @frontend = {}
+        @frontend["image"] = allocate_image(@vc_in.search("//vc/frontend/domain/devices/disk")[0], persistent=true)
+        @frontend["template"] = allocate_template @vc_in.search("//vc/frontend")[0]
+        @frontend
+    end
+
+    def allocate_compute
+        @compute = {}
+        @compute["image"] = allocate_image @vc_in.search("//vc/compute/domain/devices/disk")[0]
+        @compute["template"] = allocate_template @vc_in.search("//vc/compute")[0]
+        @compute
+    end
+
+    def allocate_flow
+        template = <<-EOT
+        {
+            "name": "#{@name}",
+            "deployment": "straight",
+            "roles": [
+                {
+                    "name": "frontend",
+                    "vm_template": #{@frontend["template"].id}
+                },
+                {
+                    "name": "compute",
+                    "parents": [
+                        "frontend"
+                    ],
+                    "vm_template": #{@compute["template"].id},
+                    "cardinality": #{@num_compute}
+                }
+            ]
+        }
+        EOT
+        response = @cloud_client.post("/service_template", template)
+        if CloudClient::is_error?(response)
+            abort(response.to_s)
+        end
+        JSON.parse(response.body)
+    end
+
+end
+
 
 num_compute = Integer(ARGV[0])
-vc_in = Nokogiri(open(ARGV[1]))
-
-# Write output
+vc_in = ARGV[1]
+allocator = Allocator.new(vc_in, num_compute)
+allocator.instantiate
 File.open(ARGV[2], "w") do |file|
-    vc_out = Nokogiri::XML::Builder.new do |xml|
-        xml.vc {
-            xml.frontend {
-                xml.public(:fqdn => "", :ip => "", :netmask => "", :gw => "")
-                xml.private(:ip => "", :netmask => "")
-            }
-            xml.compute(:count => "") {
-                xml.node(:name => "", :mac => "", :ip => "")
-                xml.node(:name => "", :mac => "", :ip => "")
-            }
-            xml.network {
-                xml.dns(:ip => "", :search => "", :domain => "")
-            }
-        }
-    end
-    file.write(vc_out.to_xml)
+    file.write(allocator.vc_out.to_xml)
 end
