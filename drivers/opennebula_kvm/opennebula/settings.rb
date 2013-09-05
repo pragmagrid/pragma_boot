@@ -1,0 +1,1 @@
+CREDENTIALS = "oneadmin:bdf874d5f8114b4d0b06d82c858be9a0"

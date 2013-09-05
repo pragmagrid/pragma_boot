@@ -1,0 +1,22 @@
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Resource allocated: fqdn= - ip= - netmask= - gw=
+Error can not open FE disk image /vagrant/repository/NAIST/dummy/rocks-204.vda.gz
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Resource allocated: fqdn= - ip= - netmask= - gw=
+Error can not open FE disk image /vagrant/repository/NAIST/dummy/rocks-204.vda.gz
+Command: /vagrant/pragma_boot/drivers/opennebula_kvm/allocate 0 /vagrant/repository/NAIST/dummy/dummy.xml /tmp/pragma_boot/vc-out.xml
+Output: 
+Resource allocated: fqdn= - ip= - netmask= - gw=
+Error can not open FE disk image /vagrant/repository/NAIST/dummy/rocks-204.vda.gz

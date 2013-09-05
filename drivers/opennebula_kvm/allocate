@@ -1,0 +1,28 @@
+#!/bin/env ruby
+require "opennebula/settings.rb"
+require "opennebula/opennebula_api.rb"
+require "rubygems"
+require "nokogiri"
+
+num_compute = Integer(ARGV[0])
+vc_in = Nokogiri(open(ARGV[1]))
+
+# Write output
+File.open(ARGV[2], "w") do |file|
+    vc_out = Nokogiri::XML::Builder.new do |xml|
+        xml.vc {
+            xml.frontend {
+                xml.public(:fqdn => "", :ip => "", :netmask => "", :gw => "")
+                xml.private(:ip => "", :netmask => "")
+            }
+            xml.compute(:count => "") {
+                xml.node(:name => "", :mac => "", :ip => "")
+                xml.node(:name => "", :mac => "", :ip => "")
+            }
+            xml.network {
+                xml.dns(:ip => "", :search => "", :domain => "")
+            }
+        }
+    end
+    file.write(vc_out.to_xml)
+end
