@@ -101,7 +101,7 @@ def main():
     parser.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
                     help="The ssh key that will be authorized on the frontned "
                     "of the cluster (default is /root/.ssh/id_rsa.pub)")
-    parser.add_option("--num_cpus", dest="num_cpus", default=0,
+    parser.add_option("--num_cpus", dest="num_cpus", default=0, type="int",
                     help="The nuber of cpus requested to start up (default is 0 "
                     " only frontend will be started")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
@@ -205,15 +205,26 @@ def main():
     gw = pubblic_node.attrib["gw"]
     dns_node = vc_out_xmlroot.findall('./network/dns')[0]
     dns_servers = dns_node.attrib["ip"]
+    node_names = []
+    for node_xml in vc_out_xmlroot.findall('./compute/node'):
+        node_names.append( node_xml.attrib["name"] )
     # search="local" domain=""
     logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + " - netmask=" + netmask + " - gw=" + gw)
 
 
+    #
+    # deploy frontend
+    #
     (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory, "frontend", dr_manager)
-
-    # for each node:
     deployImage(disk_path, vc_out_filepath, fqdn, options.key, xml_path, dr_manager)
 
+    if options.num_cpus > 0 :
+        #
+        # deploy nodes
+        #
+        (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory, "compute", dr_manager)
+        for i in node_names:
+            deployImage(disk_path, vc_out_filepath, i, options.key, xml_path, dr_manager)
 
 
 
