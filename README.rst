@@ -185,8 +185,8 @@ vc-out.xml file example
      <private ip="10.1.0.0" netmask="255.255.0.0"/>
    </frontend>
    <compute count="2">
-     <node name="hosted-vm-0-1-0" mac="7a:77:6e:40:00:15" ip="10.1.0.254"/>
-     <node name="hosted-vm-0-0-0" mac="7a:77:6e:40:00:14" ip="10.1.0.253"/>
+     <node name="hosted-vm-0-1-0" mac="7a:77:6e:40:00:15" ip="10.1.0.254" cpus="2"/>
+     <node name="hosted-vm-0-0-0" mac="7a:77:6e:40:00:14" ip="10.1.0.253" cpus="2"/>
    </compute>
    <network>
      <dns ip="8.8.8.8" search="local" domain=""/>

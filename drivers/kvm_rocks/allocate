@@ -74,7 +74,7 @@ temp_ip=`echo "$private_ip" | awk '{split($1,a,"."); print a[1]"."a[2]"."a[3]}'`
 for i in `rocks list cluster calit2-119-222.ucsd.edu | awk '{print $2}'|grep ^hosted`; do 
 	mac=`rocks list host interface $i |awk '{print $3}' | tail -n 1`
         ip=$temp_ip.$counter
-	echo "    <node name='$i' mac='$mac' ip='$ip'/>" >> $vc_out
+	echo "    <node name=\"$i\" mac=\"$mac\" ip=\"$ip\" cpus=\"$cpus_per_node\"/>" >> $vc_out
         counter=$(( $counter - 1 ))	
 done
 
