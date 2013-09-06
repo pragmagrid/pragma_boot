@@ -1,13 +1,23 @@
 #!/bin/env ruby
-require "opennebula/settings.rb"
-require "opennebula/api.rb"
-require "opennebula/utils.rb"
+
+# Port require_relative back to ruby 1.8.x
+# Taken from http://stackoverflow.com/questions/4333286/ruby-require-vs-require-relative-best-practice-to-workaround-running-in-both
+unless Kernel.respond_to?(:require_relative)
+  module Kernel
+    def require_relative(path)
+      require File.join(File.dirname(caller[0]), path.to_str)
+    end
+  end
+end
+
+require_relative "opennebula/settings.rb"
+require_relative "opennebula/api.rb"
+require_relative "opennebula/utils.rb"
 require "rubygems"
 require "nokogiri"
 require "logger"
 require "json"
 include OpenNebula
-
 
 $logger = Logger.new(LOG_FILE)
 
