@@ -56,6 +56,12 @@ staging all VM images
                        frontend root account
 
 
+The sequence of calls for the driver is the following:
+
+1. fix_images: called once for each pragma_boot invocation
+2. allocate: called once for each pragma_boot invocation
+3. boot: called once for each node in the cluster
+
 
 input and output XML file example
 =================================
