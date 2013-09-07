@@ -4,70 +4,56 @@ The pragma_boot script
 **pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
 It accepts the following agruments:
 
+* **--list**             list the available images
 * **--num_compute N**    the number of compute node to start up (default to 0)
 * **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
 * **--base_path path**   the base path of the VM database 
+* **--key path**         The ssh key that will be authorized on the frontned of
+                         the cluster (default is /root/.ssh/id_rsa.pub)
 
 
 
-pragma_boot is divided into several subscripts which will be called by the pragma_boot 
-invocation as described below. If the command is called `vc_driver/command_name` pragma_boot
-will replace the vc_driver with the value of the element `vc/distro@driver` in the vc-in.xml 
-file (each virtual machine will be able to choose its own vc_driver).
-If the command starts with ve_driver it will be replaced with the local Virtual Engine (VE) 
+pragma_boot ivokes the follwing subscripts which will be invoked in the order described below.
+In the commands below the ve_dirver will be replaced with the local Virtual Engine (VE) 
 driver (the base path used to find all the VE drivers can be configured in the file 
 site_conf.conf)
-site_conf.conf should be used also to set the path for the temporary staging of VM images
+site_conf.conf should be used also to set the path for the temporary_directory used for
+staging all VM images
 
+
+* **ve_driver/fix_images** prepare the given VC images to be run on the current system
+  (fix kernel, drivers, boot options, for current platform, etc.).
+  It's input argumets are (in the following order):
+
+  * **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
+  * **temp_directory** the temporary directory used to place all the temporary virtual 
+  * **node_type**      a command separated list of node type to be prepared 
+                       (e.g. "frontend,computenode")
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough 
   resoureces to satisfy the user request, if so it will also allocate public IP, 
   private IPs, MAC addresses, and computing resources. If the system can create 
   SMP nodes it can allocate less compute node with multiple cpus in each node.
-  If successful it will write a vc-out.xml file at the location specfied by **vc_out_path** 
-  input parameters.
+  If successful it will write a /root/vc-out.xml file inside the various virtual machines 
+  images (see below for more info)
 
-  * **num_compute** it specifies the number of CPU requested by the user. 
-  * **vc_in_path** it points to the vc-in.xml of the selected cluster
-  * **vc_out_path** this should point to the path where the vc-out.xml will be saved
-
-
-* **vc_driver/pre_fix_driver** it prepares the current machine for the execution of 
-  the fix_driver script which will follow. Input args are:
-
-  * **path** the vm disk path
-
-* **ve_driver/fix_driver** (use virt-v2v) prepare the given VM image to be run 
-  on the current system (fix kernel, drivers, boot options, for 
-  current platform, etc.). It's input argumets are (in the following order):
-
-  * **xml_file** the xml file of the virtual machine we have to convert
-  * **eth0,eth1** the interface name
-  * **temp_directory** the temporary directory used to place all the temporary virtual images
-
-* **vc_driver/post_fix_driver** it restore the machine state (if needed) after the 
-  execution of the fix_driver script. t's input argumets are:
-
-  * **path** the vm disk path
-
-* **vc_driver/pre_boot** it takes care of fixing networking and other stuffs, it 
-  depends on the source VM type (if UCSD VM run rocks/pre_boot, etc.)
-  probably this script should be in the source folder where the VM 
-  images are.
-  
-  * **file_path**   the path where the vm image is
-  * **vc_out**      path to the vc-out.xml file
-  * **host_name**   the name of the host we want to boot
-  * **key**         The path to the ssh public key that will be authorized to the 
-                    frontend root account
+  * **num_compute**    it specifies the number of CPU requested by the user. 
+  * **vc_in_path**     it points to the vc-in.xml of the selected cluster
+  * **vc_out_path**    this should point to the path where the frontend vc-out.xml will be saved
+  * **temp_directory** the temporary directory used to place all the temporary virtual 
+  * **key**            The path to the ssh public key that will be authorized to the 
+                       frontend root account
 
 
 * **ve_driver/boot** it takes care of starting the VM on the local virtualization 
   engine. Its input parameters are:
   
-  * **file_path**   the path where the vm image is
-  * **xml_file**    libvirt xml file needed to boot this machine (unused at the moment)
-  * **host_name**   the name of the host we want to boot
+  * **file_path**      the path where the vm image is
+  * **host_name**      the name of the host we want to boot
+  * **temp_directory** the temporary directory used to place all the temporary virtual 
+  * **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
+  * **key**            The path to the ssh public key that will be authorized to the 
+                       frontend root account
 
 
 
@@ -75,13 +61,13 @@ input and output XML file example
 =================================
 
            
-vc-in.xml file example. This xml file is the concatenation of the libvirt xml
+vc-in.xml file example. This xml file is a concatenation of the libvirt xml
 of a frontend and of a compute node (encolsed between the ``frontend`` and
-``compute`` tag) with few extra tag added at the beginning and at the end.
+``compute`` tag) with few extra tags added at the beginning and at the end.
 
 ::
 
- <vc type='Local Beowulf'>
+ <vc version='0.1'>
    <virtualization engine='kvm' type='hvm' arch='x86_64'/>
    <driver>rocks6_client</driver>
    <frontend>
@@ -176,7 +162,7 @@ of a frontend and of a compute node (encolsed between the ``frontend`` and
  </vc>
 
 
-vc-out.xml file example
+vc-out.xml file example for a frontend
 
 ::
 
@@ -194,13 +180,37 @@ vc-out.xml file example
    </network>
  </vc>
 
+vc-in.xml file example for a compute node
 
-Questions
-=========
+::
 
-* Can the Virtual Cluster choose the private IP addresses as he likes?
-  Or it is the hosting environment who completely decides the private IP 
-  addressing and range.
+ <vc>
+   <compute>
+     <private fqdn="compute-0" ip="10.1.1.30" netmask="255.255.0.0" gw="10.1.1.1"/>
+   </compute>
+   <network>
+     <dns ip="8.8.8.8" search="local" domain=""/>
+   </network>
+ </vc>
 
-* DHCP is it running or not in the hosting evnironment?
+
+Prgma Virtual Clutser Requirements
+==================================
+
+To create a virtual cluster which is compatible with Pragma infrastrucutre the 
+nodes must respect the following criteria (with the current versio of software):
+
+
+- All host can run inside kvm-based virtualization engine.
+- Each VM have a single disk image
+- The first partition is the / partition
+- No LVM/RAID or other fancy FS type is supported
+- Frontend VM contains 2 network interfaces. The first one connects to private
+  network. The other connect to public network
+- Compute VM contains 1 network interface connected to private network
+- when the frontend boot, it expects a file in /root/vc-out.xml as described
+  above to configure its network interfaces and the list of compute hosts
+- when the compute node boot, it expects a file in /root/vc-out.xml as descibed 
+  above to configure its network
+
 
