@@ -16,44 +16,69 @@ function error(){
     exit 1
 }
 
+function uncompress(){
+    #TODO check if the image is really gzipped
+    echo Uncompressing $1
+    gunzip -c "$1" > "$2" || error "Unable to uncompress virtual image"
+}
+
 # tree required arguments
-xml_file=$1
-interfaces=$2
-temp_path=$3
+vc_in=$1
+temp_path=$2
+node_type=$3 # not used at the moment
 
 
-# creating the pool
-transferpool_path=`mktemp -d -p $temp_path`
-transferpool_name="transferimages"
-virsh  pool-create-as $transferpool_name dir --target $transferpool_path
+base_path=`dirname $vc_in`
 
-# creating network mapping file
-v2v_conf=virt-v2v.xml
-echo " <virt-v2v>" > $v2v_conf
-for i in `echo $interfaces|tr ',' ' '`;do 
-	echo "<network type='bridge' name='$i'><network type='bridge' name='$i'/></network>" >> $v2v_conf;
-done
-echo "</virt-v2v>" >> $v2v_conf
+fe_disk_path=`echo "cat /vc/frontend/domain/devices/disk/source/@file" | xmllint --shell $vc_in | grep = | awk -F \" '{print $2}'`
+fe_source_disk=$base_path/$fe_disk_path
 
+uncompress "$fe_source_disk" "$temp_path/${fe_disk_path%.gz}"
+
+comp_disk_path=`echo "cat /vc/compute/domain/devices/disk/source/@file" | xmllint --shell $vc_in | grep = | awk -F \" '{print $2}'`
+comp_source_disk=$base_path/$comp_disk_path
+
+uncompress "$comp_source_disk" "$temp_path/${comp_disk_path%.gz}"
+
+
+
+
+
+
+
+# old virt-v2v stuff
+## creating the pool
+#transferpool_path=`mktemp -d -p $temp_path`
+#transferpool_name="transferimages"
+#virsh  pool-create-as $transferpool_name dir --target $transferpool_path
 #
-# running vrit-v2v
+## creating network mapping file
+#v2v_conf=virt-v2v.xml
+#echo " <virt-v2v>" > $v2v_conf
+#for i in `echo $interfaces|tr ',' ' '`;do 
+#	echo "<network type='bridge' name='$i'><network type='bridge' name='$i'/></network>" >> $v2v_conf;
+#done
+#echo "</virt-v2v>" >> $v2v_conf
 #
-echo "virt-v2v  -f $v2v_conf -f /var/lib/virt-v2v/virt-v2v.db -i libvirtxml -oa sparse -os $transferpool_name \
-		$xml_file  2>&1  || error Failed to execute virt-v2v"
-virt-v2v  -f $v2v_conf -f /var/lib/virt-v2v/virt-v2v.db -i libvirtxml -oa sparse -os $transferpool_name \
-		$xml_file  2>&1  || error "Failed to execute virt-v2v\nDelete transfer pool manually virsh pool-destroy $transferpool_name."
-
-# get the xml from libvirt
-domain_name=`echo "cat //domain/name" | xmllint --shell $xml_file | sed '/^\/ >/d' | sed 's/<[^>]*.//g'`
-virsh dumpxml $domain_name > $xml_file || error "Unable to dump domaind xml."
-virsh undefine $domain_name || error "Unable to undefine the domain."
-
-# removing the pool
-disk_filename=`ls $transferpool_path`
-mv $transferpool_path/$disk_filename $temp_path || error "Unable to rename the file $disk_filename\nDelete it manually\nvirsh pool-destroy $transferpool_name."
-virsh pool-destroy $transferpool_name || error "Unable to delete $transferpool_name pool.\nDelete it manually\nvirsh pool-destroy $transferpool_name."
-#virsh pool-undefine $transferpool_name || error "Unable to delete $transferpool_name pool.\nDelete it manually."
-
-rmdir $transferpool_path
-rm $v2v_conf
+##
+## running vrit-v2v
+##
+#echo "virt-v2v  -f $v2v_conf -f /var/lib/virt-v2v/virt-v2v.db -i libvirtxml -oa sparse -os $transferpool_name \
+#		$xml_file  2>&1  || error Failed to execute virt-v2v"
+#virt-v2v  -f $v2v_conf -f /var/lib/virt-v2v/virt-v2v.db -i libvirtxml -oa sparse -os $transferpool_name \
+#		$xml_file  2>&1  || error "Failed to execute virt-v2v\nDelete transfer pool manually virsh pool-destroy $transferpool_name."
+#
+## get the xml from libvirt
+#domain_name=`echo "cat //domain/name" | xmllint --shell $xml_file | sed '/^\/ >/d' | sed 's/<[^>]*.//g'`
+#virsh dumpxml $domain_name > $xml_file || error "Unable to dump domaind xml."
+#virsh undefine $domain_name || error "Unable to undefine the domain."
+#
+## removing the pool
+#disk_filename=`ls $transferpool_path`
+#mv $transferpool_path/$disk_filename $temp_path || error "Unable to rename the file $disk_filename\nDelete it manually\nvirsh pool-destroy $transferpool_name."
+#virsh pool-destroy $transferpool_name || error "Unable to delete $transferpool_name pool.\nDelete it manually\nvirsh pool-destroy $transferpool_name."
+##virsh pool-undefine $transferpool_name || error "Unable to delete $transferpool_name pool.\nDelete it manually."
+#
+#rmdir $transferpool_path
+#rm $v2v_conf
 

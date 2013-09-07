@@ -7,9 +7,8 @@
 # For info see README
 
 
-
-if [ "x$#" != "x3" ]; then
-    echo "This script should be invoked with 3 arguments"
+if [ "x$#" != "x5" ]; then
+    echo "This script should be invoked with 5 arguments"
     exit 1
 fi
 
@@ -20,18 +19,66 @@ function error(){
 
 # tree required arguments
 temp_disk_path=$1
-# unused
-xml_file_path=$2
-hostname=$3
+fqdn=$2
+temp_directory=$3
+vc_out_filepath=$4
+ssh_key=$5
+
 
 # get the path to this script
 pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd`
 popd > /dev/null
 
+
+#
+#    ----------------       fixing the disk image  -------------------
+#
+tmp_folder=`mktemp -d`
+
+gw=`echo "cat /vc/frontend/public/@gw" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+fqdn=`echo "cat /vc/frontend/public/@fqdn" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+ip=`echo "cat /vc/frontend/public/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+netmask=`echo "cat /vc/frontend/public/@netmask" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+public_mac=`echo "cat /vc/frontend/public/@mac" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+private_mac=`echo "cat /vc/frontend/private/@mac" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+dns=`echo "cat /vc/network/dns/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+
+guestmount -a $temp_disk_path -m /dev/sda1 $tmp_folder || error "unable to mount guest FS"
+
+# create the net_conf.conf
+cat >> $tmp_folder/root/net_conf.conf << EOF
+public_ip="$ip"
+netmask="$netmask"
+gw="$gw"
+dns="$dns"
+fqdn="$fqdn"
+#use these two entries to specify new mac addresses
+private_mac="$private_mac"
+public_mac="$public_mac"
+EOF
+
+#copy the ssh key
+cat $ssh_key >> $tmp_folder/root/.ssh/authorized_keys
+
+# copy the vc-out.xml
+cp $vc_out_filepath $tmp_folder/root/
+
+# remove udev old network rules
+rm -f $tmp_folder/etc/udev/rules.d/70-persistent-net.rules
+rm -f $tmp_folder/etc/sysconfig/network-scripts/ifcfg-eth0
+rm -f $tmp_folder/etc/sysconfig/network-scripts/ifcfg-eth1
+
+fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
+rmdir $tmp_folder
+
+
+#
+#    ----------------       deploying disk image and booting  -------------------
+#
 # match everything except 'HOST' and a line of -----
-container=`rocks list host vm $hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
-disk_path=`rocks list host vm $hostname showdisks=1 | awk ' {if (/file/) print $7}'`
+container=`rocks list host vm $fqdn | awk '{if (! /---*/ && ! /HOST/) print $5}'`
+disk_path=`rocks list host vm $fqdn showdisks=1 | awk ' {if (/file/) print $7}'`
 # remove useless stuff from file path
 disk_path=${disk_path#file:}
 disk_path=${disk_path/,*/}
@@ -41,16 +88,14 @@ localhost=`hostname -s`
 echo Destination disk path is $container:$disk_path
 
 if [ "$container" == "$localhost" ];then
-	mv $temp_disk_path $disk_path \
+	dd $temp_disk_path $disk_path \
 		|| error "unable to copy the disk image $temp_disk_path to $disk_path"
 else
 	scp $temp_disk_path $container:$disk_path \
 		|| error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
-	rm $disk_path
 fi
 
 # do not install just boot the system as it is
-rocks set host boot $hostname action=os
-rocks start host vm $hostname
-
+rocks set host boot $fqdn action=os
+rocks start host vm $fqdn
 

@@ -9,8 +9,8 @@
 
 
 
-if [ "x$#" != "x3" ]; then
-    echo "This script should be invoked with 3 arguments"
+if [ "x$#" != "x5" ]; then
+    echo "This script should be invoked with 5 arguments"
     exit 1
 fi
 
@@ -21,7 +21,10 @@ function error(){
 
 # tree required arguments
 numcpus=$1
-vc_out=$2
+vc_in=$2 # not used
+vc_out=$3
+temp_directory=$4
+key=$5
 
 # fix configuration parameters
 # this should come out of a DB
