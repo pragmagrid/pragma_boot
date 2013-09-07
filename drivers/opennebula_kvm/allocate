@@ -113,6 +113,10 @@ class Allocator
         image_file = File.join(@basepath, disk.search("source")[0]["file"])
         inject_context_script image_file
 
+        if File.extname(image_file) == ".gz"
+            image_file = decompress(image_file, TEMP_PATH)
+        end
+
         template = <<-EOT
         NAME = #{image_file.gsub "/", "__"}
         PATH = #{image_file}
