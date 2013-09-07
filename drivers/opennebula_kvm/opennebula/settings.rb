@@ -1,4 +1,4 @@
-CREDENTIALS = "oneadmin:bdf874d5f8114b4d0b06d82c858be9a0"
+CREDENTIALS = "oneadmin:6e6a90f1447984610f1898876e2b3a39"
 ENDPOINT    = "http://localhost:2633/RPC2"
 ONEFLOW_URL = "http://localhost:2474"
 USER_AGENT = "PRAGMA"

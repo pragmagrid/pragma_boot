@@ -1,0 +1,277 @@
+#!/bin/bash
+#
+# chkconfig: 35 1 90
+# description: reconfigure Beowulf compute node
+#
+
+set -x
+
+check_context() {
+    ### mount CONTEXT ISO image
+    _exist=0;
+    for _cdrom in `ls /dev/cdrom* 2> /dev/null`
+    do
+        mount -t iso9660 ${_cdrom} /mnt
+        if [ $? -ne 0 ]; then
+            echo "${_cdrom} cannot mount."
+        fi
+
+        if [ -f "/mnt/context.sh" ]; then
+            echo "/mnt/context.sh found."
+            . /mnt/context.sh
+            _exist=1
+        fi
+        umount /mnt
+    done
+
+    if [ "${_exist}" -eq 0 ]; then
+        echo "/mnt/context.sh not found. exit."
+        exit 0
+    fi
+    if [ "$PRAGMA_CONTEXT"X != "true"X ]; then
+        echo "PRAGMA_CONTEXT is not defined. exit."
+        exit 0
+    fi
+
+    return 0
+}
+
+start() {
+
+    check_context
+
+    ### for RHEL6 family
+    ### overwrite udev rule, and reload.
+    grep -q '6\.' /etc/redhat-release
+    if [ $? -eq 0 ]; then
+        reconfig_udev
+    fi
+
+    ### generate ifcfg-eth*
+    _priv_mac=`/sbin/ifconfig ${PRAGMA_CMP_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
+    modify_ifcfg \
+        ${PRAGMA_CMP_PRIV_NIC} \
+        ${_priv_mac} \
+        ${PRAGMA_PRIV_NETMASK} \
+        ${PRAGMA_PRIV_NETWORK} \
+        ${PRAGMA_PRIV_BROADCAST} \
+        /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_CMP_PRIV_NIC}
+
+    ### generate /etc/resolv.conf
+    echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
+    for _d in ${PRAGMA_PRIV_DNS} ${PRAGMA_PUB_DNS}
+    do
+        echo "nameserver ${_d}" >>/etc/resolv.conf
+    done
+
+    ### generate /etc/hosts
+    echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
+    echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
+    echo ""         >> /etc/hosts
+    echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
+
+    ### set hostname
+    _myip=`mac2ip ${_priv_mac}`
+    _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
+    hostname ${_myname}
+
+    ### modify /etc/sysconfig/network
+    _beowulf_gw=`grep "$PRAGMA_FE_SHORTNAME[ 	]*$" /etc/hosts | awk '{print $1}'`
+    sed -i \
+        -e "s/^\(GATEWAY=\).*$/\1${_beowulf_gw}/" \
+        -e "s/^\(HOSTNAME=\).*$/\1${_myname}/" \
+        /etc/sysconfig/network
+
+    ### modify /etc/ssh/sshd_config
+    modify_sshd_cfg
+
+    ### make /root/vc-out.xml
+    make_vcout > /root/vc-out.xml
+
+    return 0
+}
+
+stop () {
+    # this function is dummy
+    return 0
+}
+
+### Reconfig udev
+reconfig_udev() {
+    # rename current ethX to public and private nic name.
+    
+    _priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
+    _priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+
+    cat /dev/null > /etc/udev/rules.d/70-persistent-net.rules
+    for _dev in `/sbin/ifconfig -a | awk '/^eth/ {print $1}'`
+    do
+        _m=`/sbin/ifconfig ${_dev} | awk '{print(tolower($5))}'`
+        _check_ip=`mac2ip ${_m}`
+
+        ### check for private nic
+        echo "${_check_ip}" | grep -q "${_priv_lower}"
+        _ret_l=$?
+        echo "${_check_ip}" | grep -q "${_priv_higher}"
+        _ret_h=$?
+        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
+            gen_udev_rule ${PRAGMA_CMP_PRIV_NIC} ${_m} >>  /etc/udev/rules.d/70-persistent-net.rules
+        fi
+    done
+
+    if [ -f "/dev/.udev/tmp-rules--70-persistent-net.rules" ]; then
+        # we don't need /etc/init.d/udev-post file
+        rm -f /dev/.udev/tmp-rules--70-persistent-net.rules
+    fi
+
+    # reload udev rule and rename ethX
+    /sbin/udevadm control --reload-rules
+    /sbin/udevadm trigger --attr-match=subsystem=net
+    sleep 1
+
+    return 0
+}
+
+# Generate udev rules
+gen_udev_rule() {
+    _ifid=$1
+    _mac=$2
+
+    cat <<EOT
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="${_mac}", ATTR{type}=="1", KERNEL=="eth*", NAME="${_ifid}"
+
+EOT
+
+    return 0
+}
+
+# Gets IP address from a given MAC
+mac2ip() {
+    mac=$1
+    ip_a=0x`echo $mac | cut -d: -f 3`
+    ip_b=0x`echo $mac | cut -d: -f 4`
+    ip_c=0x`echo $mac | cut -d: -f 5`
+    ip_d=0x`echo $mac | cut -d: -f 6`
+    printf "%d.%d.%d.%d" $ip_a $ip_b $ip_c $ip_d
+
+    return 0
+}
+
+# modify ifcfg-eth*
+modify_ifcfg() {
+    _ifid=$1
+    _mac=$2
+    _mask=$3
+    _nw=$4
+    _bc=$5
+    _conf=$6
+
+    _ip=`mac2ip ${_mac}`
+
+    sed -i \
+        -e "s/^\(DEVICE=\).*$/\1${_ifid}/" \
+        -e "s/^\(HWADDR=\).*$/\1${_mac}/" \
+        -e "s/^\(IPADDR=\).*$/\1${_ip}/" \
+        -e "s/^\(NETMASK=\).*$/\1${_mask}/" \
+        -e "s/^\(NETWORK=\).*$/\1${_nw}/" \
+        -e "s/^\(BROADCAST=\).*$/\1${_bc}/" \
+        ${_conf}
+
+    return 0
+}
+
+# modify /etc/ssh/sshd_config
+modify_sshd_cfg() {
+    sed -i \
+        -e "s/^\(PasswordAuthentication\).*$/\1 no/" \
+        -e "s/^\(ChallengeResponseAuthentication\).*$/\1 no/" \
+        -e "s/^\(UsePAM\).*$/\1 no/" \
+        /etc/ssh/sshd_config
+
+    grep -q '^PasswordAuthentication' /etc/ssh/sshd_config
+    if [ "$?" -ne 0 ]; then
+        echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+    fi
+
+    return 0
+}
+
+### make vc-out.xml
+make_vcout() {
+    ### header
+    cat << __EOF__
+<vc type='Local Beowulf'>
+  <virtualization engine='kvm' type='hvm' arch='x86_64'/>
+__EOF__
+
+    ### frontend
+    _xml_fe_shortname=${PRAGMA_FE_SHORTNAME}
+    _xml_pub_lower=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
+    _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
+    _xml_priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
+    _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+
+    if [ -z "${_xml_fe_shortname}" ]; then
+        _xml_fe_shortname=`hostname`
+    fi
+
+    for i in `grep "${_xml_fe_shortname}" /etc/hosts | awk '{print $1}'`
+    do
+        echo "${i}" | grep -q "${_xml_pub_lower}"
+        _ret_l=$?
+        echo "${i}" | grep -q "${_xml_pub_higher}"
+        _ret_h=$?
+        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
+            _xml_fe_pub_ip=${i}
+        fi
+
+        echo "${i}" | grep -q "${_xml_priv_lower}"
+        _ret_l=$?
+        echo "${i}" | grep -q "${_xml_priv_higher}"
+        _ret_h=$?
+        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
+            _xml_fe_priv_ip=${i}
+        fi
+    done
+
+    echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${_xml_fe_pub_ip}'/>"
+
+    ### compute
+    _xml_mac_prefix=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{gsub(/..:..:..:..$/,"", $5); print $5}'`
+
+    _xml_cmp_count=`egrep -vic "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts`
+    echo "  <compute count='${_xml_cmp_count}'>" 
+
+    for i in `egrep -vi "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts | awk '{print $1}'`
+    do
+        # IP address to MAC address
+        _xml_cmp_priv_mac=`echo ${i} | awk -F'.' '{printf("%x:%x:%x:%x\n", $1, $2, $3, $4)}'`
+        _xml_cmp_hostname=`grep "^${i}[ 	]" /etc/hosts | awk '{print $2}'`
+        echo "    <node name='${_xml_cmp_hostname}' mac='${_xml_mac_prefix}${_xml_cmp_priv_mac}' private_ip='${i}' public_ip=''/>" 
+    done
+
+    ### footer
+    cat << __EOF__
+  </compute>
+</vc>
+__EOF__
+
+    return 0
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    *)
+        echo "Usage: `basename $0` {start|stop}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
+
+# $Id$
