@@ -17,6 +17,8 @@ require "rubygems"
 require "nokogiri"
 require "logger"
 require "json"
+require "open4"
+require "ipaddr"
 include OpenNebula
 
 $logger = Logger.new(LOG_FILE)
@@ -40,6 +42,11 @@ class Allocator
             :user_agent => USER_AGENT
         )
 
+        # Modify images with pragma-makeover
+        driver_dir = File.dirname File.expand_path __FILE__
+        execute "cd #{driver_dir}/pragma_makeover && ./pragma-makeover.pl #{vc_in}"
+
+        @leases = generate_leases
         @network = allocate_network
         @frontend = allocate_frontend
         @compute = allocate_compute
@@ -79,11 +86,16 @@ class Allocator
         network = @vc_in.search("//vc/networks/network")[0]  # Assume there is only 1 network entry
         template = <<-EOT
         NAME = #{network["name"]}
-        TYPE = RANGED
+        TYPE = FIXED
         NETWORK_ADDRESS = #{network.search("ipaddress")[0].content}
         NETWORK_MASK = #{network.search("netmask")[0].content}
         BRIDGE = #{PRIVATE_BRIDGE}
         EOT
+        @leases.each do |lease|
+            template << <<-EOT
+            LEASES = [ IP = #{lease[0]}, MAC = #{lease[1]}]
+            EOT
+        end
         xml = OpenNebula::VirtualNetwork.build_xml
         network = OpenNebula::VirtualNetwork.new(xml, @client)
         response = network.allocate(template)
@@ -126,19 +138,50 @@ class Allocator
     end
 
     def allocate_template(vm)
+
+        # Create cluster_hosts
+        # e.g.
+        #192.168.57.204   hosted-vm-0-0-1
+        #192.168.57.205   hosted-vm-0-0-2
+        frontend, *computes = @leases
+        cluster_hosts = <<-EOT
+        #{frontend[0]}    #{@vc_in.search("//vc/frontend/domain/name")[0].content}
+        EOT
+        computes.each_with_index do |lease, index|
+            cluster_hosts << <<-EOT
+            #{lease[0]}    #{@vc_in.search("//vc/compute/domain/name")[0].content}-#{index}
+            EOT
+        end
+
         template = <<-EOT
         NAME = "#{vm.search("domain/name")[0].content}"
         CPU = #{vm.search("domain/vcpu")[0].content}
         VCPU = #{vm.search("domain/vcpu")[0].content}
         MEMORY = #{Integer(vm.search("domain/memory")[0].content) / 1024}
         OS = [ BOOT = "hd", ARCH = "x86_64" ]
+        CONTEXT = [
+            NETWORK                 = "YES",
+            PRAGMA_CLUSTER_HOSTS    = "#{cluster_hosts}",
+            PRAGMA_FE_NAME          = "#{@vc_in.search("//vc/frontend/domain/name")[0].content}",
+            PRAGMA_FE_SHORTNAME     = "#{@vc_in.search("//vc/frontend/domain/name")[0].content}",
+            PRAGMA_FE_PRIV_NIC      = "eth0",
+            PRAGMA_FE_PUB_NIC       = "eth1",
+            PRAGMA_PRIV_DNS         = "$NIC[DNS, NETWORK=\\"#{@network.name}\\"]",
+            PRAGMA_PRIV_NETMASK     = "$NIC[NETWORK_MASK, NETWORK=\\"#{@network.name}\\"]",
+            PRAGMA_PRIV_NETWORK     = "$NIC[NETWORK_ADDRESS, NETWORK=\\"#{@network.name}\\"]",
+            PRAGMA_PUB_DNS         = "$NIC[DNS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
+            PRAGMA_PUB_NETMASK     = "$NIC[NETWORK_MASK, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
+            PRAGMA_PUB_NETWORK     = "$NIC[NETWORK_ADDRESS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
+            PRAGMA_CONTEXT          = "true"
+        ]
         EOT
         if vm.name == "frontend"
             template << <<-EOT
             DISK = [ IMAGE = #{@frontend["image"].name} ]
             NIC = [ 
                 NETWORK = #{@network.name},
-                MODEL = #{vm.search("domain/devices/interface/model")[0]["type"]}
+                MODEL = #{vm.search("domain/devices/interface/model")[0]["type"]},
+                MAC = #{@leases.first[1]}
             ]
             NIC = [
                 NETWORK = #{PUBLIC_NETWORK},
@@ -208,6 +251,49 @@ class Allocator
             abort(response.to_s)
         end
         JSON.parse(response.body)
+    end
+
+    def public_network
+        vn_pool = VirtualNetworkPool.new(@client, -1)
+        response = vn_pool.info
+        if OpenNebula.is_error?(response)
+            abort(response.message)
+        end
+        vn_pool.each do |vn|
+            if vn.name == PUBLIC_NETWORK
+                response = vn.info
+                if OpenNebula.is_error?(response)
+                    abort(response.message)
+                end
+                return vn
+            end
+        end
+        abort("Public network mismatch")
+    end
+
+    def execute(command)
+        pid, stdin, stdout, stderr = Open4::popen4(command)
+        $logger.info "[stdout] " + stdout.read
+        $logger.info "[stderr] " + stderr.read
+        stdin.close
+        stdout.close
+        stderr.close
+    end
+
+    def generate_leases
+        leases = []
+        network = @vc_in.search("//vc/networks/network/ipaddress")[0].content
+        netmask = @vc_in.search("//vc/networks/network/netmask")[0].content
+        ip = IPAddr.new("#{network}/#{netmask}")
+        ip = ip.succ  # Skip to frontend ip
+        leases << [ip, (1..6).map{"%0.2X"%rand(256)}.join(":")]
+        ip = ip.succ  # Skip to compute ip range
+        (@num_compute).times do |count|
+            leases << [ip, (1..6).map{"%0.2X"%rand(256)}.join(":")]
+            ip = ip.succ
+        end
+        $logger.debug leases
+        leases
     end
 
 end

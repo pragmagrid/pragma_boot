@@ -6,3 +6,5 @@ PUBLIC_NETWORK = "pragmapub"
 PRIVATE_BRIDGE = "pragmapriv"
 LOG_FILE = "/tmp/opennebula_kvm.log"
 DATASTORE_ID = 1
+# TODO: Think of a better way to assign FQDN dynamically
+FQDN = "foobar"

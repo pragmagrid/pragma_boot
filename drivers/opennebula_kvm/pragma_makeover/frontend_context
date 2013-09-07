@@ -40,39 +40,6 @@ start() {
 
     check_context
 
-    ### for RHEL6 family
-    ### overwrite udev rule, and reload.
-    grep -q '6\.' /etc/redhat-release
-    if [ $? -eq 0 ]; then
-        reconfig_udev
-    fi
-
-    ### generate ifcfg-eth*
-    _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    modify_ifcfg \
-        ${PRAGMA_FE_PUB_NIC} \
-        ${_pub_mac} \
-        ${PRAGMA_PUB_NETMASK} \
-        ${PRAGMA_PUB_NETWORK} \
-        ${PRAGMA_PUB_BROADCAST} \
-        /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_FE_PUB_NIC}
-
-    _priv_mac=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    modify_ifcfg \
-        ${PRAGMA_FE_PRIV_NIC} \
-        ${_priv_mac} \
-        ${PRAGMA_PRIV_NETMASK} \
-        ${PRAGMA_PRIV_NETWORK} \
-        ${PRAGMA_PRIV_BROADCAST} \
-        /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_FE_PRIV_NIC}
-
-    ### generate /etc/resolv.conf
-    echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
-    for _d in ${PRAGMA_PRIV_DNS} ${PRAGMA_PUB_DNS}
-    do
-        echo "nameserver ${_d}" >>/etc/resolv.conf
-    done
-
     ### generate /etc/hosts
     echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
     echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
@@ -80,19 +47,11 @@ start() {
     echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
 
     ### set hostname
+    _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
     _myip=`mac2ip ${_pub_mac}`
-    _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
+    _myname=`grep "^${_myip}[   ]" /etc/hosts | awk '{print $2}'`
     hostname "${_myname}"
 
-    ### modify /etc/sysconfig/network
-    sed -i \
-        -e "s/^\(GATEWAY=\).*$/\1${PRAGMA_GATEWAY}/" \
-        -e "s/^\(HOSTNAME=\).*$/\1${_myname}/" \
-        /etc/sysconfig/network
-
-    ### modify /etc/ssh/sshd_config
-    modify_sshd_cfg
- 
     ### make /root/vc-out.xml
     make_vcout > /root/vc-out.xml
 
@@ -101,66 +60,6 @@ start() {
 
 stop () {
     # this function is dummy
-    return 0
-}
-
-### Reconfig udev
-reconfig_udev() {
-    # rename current ethX to public and private nic name.
-    
-    _pub_lower=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
-    _pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
-    _priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
-    _priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
-
-    cat /dev/null > /etc/udev/rules.d/70-persistent-net.rules
-    for _dev in `/sbin/ifconfig -a | awk '/^eth/ {print $1}'`
-    do
-        _m=`/sbin/ifconfig ${_dev} | awk '{print(tolower($5))}'`
-        _check_ip=`mac2ip ${_m}`
-
-        ### check for public nic
-        echo "${_check_ip}" | grep -q "${_pub_lower}"
-        _ret_l=$?
-        echo "${_check_ip}" | grep -q "${_pub_higher}"
-        _ret_h=$?
-        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
-            gen_udev_rule ${PRAGMA_FE_PUB_NIC} ${_m} >>  /etc/udev/rules.d/70-persistent-net.rules
-        fi
-
-        ### check for private nic
-        echo "${_check_ip}" | grep -q "${_priv_lower}"
-        _ret_l=$?
-        echo "${_check_ip}" | grep -q "${_priv_higher}"
-        _ret_h=$?
-        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
-            gen_udev_rule ${PRAGMA_FE_PRIV_NIC} ${_m} >>  /etc/udev/rules.d/70-persistent-net.rules
-        fi
-    done
-
-    if [ -f "/dev/.udev/tmp-rules--70-persistent-net.rules" ]; then
-        # we don't need /etc/init.d/udev-post file
-        rm -f /dev/.udev/tmp-rules--70-persistent-net.rules
-    fi
-
-    # reload udev rule and rename ethX
-    /sbin/udevadm control --reload-rules
-    /sbin/udevadm trigger --attr-match=subsystem=net
-    sleep 1
-
-    return 0
-}
-
-# Generate udev rules
-gen_udev_rule() {
-    _ifid=$1
-    _mac=$2
-
-    cat <<EOT
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="${_mac}", ATTR{type}=="1", KERNEL=="eth*", NAME="${_ifid}"
-
-EOT
-
     return 0
 }
 
@@ -176,45 +75,6 @@ mac2ip() {
     return 0
 }
 
-# modify ifcfg-eth*
-modify_ifcfg() {
-    _ifid=$1
-    _mac=$2
-    _mask=$3
-    _nw=$4
-    _bc=$5
-    _conf=$6
-
-    _ip=`mac2ip ${_mac}`
-
-    sed -i \
-        -e "s/^\(DEVICE=\).*$/\1${_ifid}/" \
-        -e "s/^\(HWADDR=\).*$/\1${_mac}/" \
-        -e "s/^\(IPADDR=\).*$/\1${_ip}/" \
-        -e "s/^\(NETMASK=\).*$/\1${_mask}/" \
-        -e "s/^\(NETWORK=\).*$/\1${_nw}/" \
-        -e "s/^\(BROADCAST=\).*$/\1${_bc}/" \
-        ${_conf}
-
-    return 0
-}
-
-# modify /etc/ssh/sshd_config
-modify_sshd_cfg() {
-    sed -i \
-        -e "s/^\(PasswordAuthentication\).*$/\1 no/" \
-        -e "s/^\(ChallengeResponseAuthentication\).*$/\1 no/" \
-        -e "s/^\(UsePAM\).*$/\1 no/" \
-        /etc/ssh/sshd_config
-
-    grep -q '^PasswordAuthentication' /etc/ssh/sshd_config
-    if [ "$?" -ne 0 ]; then
-        echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
-    fi
-
-    return 0
-}
-
 ### make vc-out.xml
 make_vcout() {
     ### header
@@ -222,6 +82,12 @@ make_vcout() {
 <vc type='Local Beowulf'>
   <virtualization engine='kvm' type='hvm' arch='x86_64'/>
 __EOF__
+
+    ## Calculate BROADCAST from NETMASK
+    IFS=. read -r m1 m2 m3 m4 <<< ${PRAGMA_PUB_NETMASK}
+    PRAGMA_PUB_BROADCAST="$((255 ^ m1)).$((255 ^ m2)).$((255 ^ m3)).$((255 ^ m4))"
+    IFS=. read -r m1 m2 m3 m4 <<< ${PRAGMA_PRIV_NETMASK}
+    PRAGMA_PRIV_BROADCAST="$((255 ^ m1)).$((255 ^ m2)).$((255 ^ m3)).$((255 ^ m4))"
 
     ### frontend
     _xml_fe_shortname=${PRAGMA_FE_SHORTNAME}
