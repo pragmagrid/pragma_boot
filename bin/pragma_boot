@@ -34,6 +34,64 @@ if "any" not in dir(__builtins__):
 
 
 
+mockup_vc_out_xml='''
+<vc>
+<frontend>
+    <public fqdn="somehost.ucsd.edu" ip="127.111.111.222" netmask="255.255.255.0" gw="127.111.111.1" mac="7a:77:6e:40:00:16" />
+    <private ip="10.1.1.1" netmask="255.255.0.0" mac="7a:77:6e:40:00:15"/>
+  </frontend>
+  <compute count="2">
+    <node name='hosted-vm-0-1-0' mac='7a:77:6e:40:00:18' ip='10.1.1.254' cpus='2'/>
+    <node name='hosted-vm-0-0-0' mac='7a:77:6e:40:00:17' ip='10.1.1.253' cpus='2'/>
+  </compute>
+  <network>
+    <dns ip="8.8.8.8" search="local" domain=""/>
+  </network>
+</vc>
+'''
+
+
+class drivers_manager:
+    """manages the paths to the various drivers"""
+
+    def set_client_base_path(self, path):
+        self.client_driver_base_path = path
+
+    def set_ve_base_path(self, path):
+        self.ve_driver_base_path = path
+
+    def allocate(self):
+	path = self.ve_driver_base_path + '/allocate'
+        return self._get_path(path)
+
+    def pre_fix_driver(self):
+	path = self.client_driver_base_path + '/pre_fix_driver'
+        return self._get_path(path)
+
+    def fix_driver(self):
+	path = self.ve_driver_base_path + '/fix_driver'
+        return self._get_path(path)
+
+    def post_fix_driver(self):
+	path = self.client_driver_base_path + '/post_fix_driver'
+        return self._get_path(path)
+
+    def pre_boot(self):
+	path = self.client_driver_base_path + '/pre_boot'
+        return self._get_path(path)
+
+    def boot(self):
+	path = self.ve_driver_base_path + '/boot'
+        return self._get_path(path)
+
+    def _get_path(self, path):
+        #TODO make execution of driver optional
+        if os.path.isfile(path):
+            return path
+        else:
+            return None
+
+
 def main():
 
     #
@@ -60,12 +118,15 @@ def main():
     parser.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
                     help="The ssh key that will be authorized on the frontned "
                     "of the cluster (default is /root/.ssh/id_rsa.pub)")
-    parser.add_option("--num_cpus", dest="num_cpus", default=0,
+    parser.add_option("--num_cpus", dest="num_cpus", default=0, type="int",
                     help="The nuber of cpus requested to start up (default is 0 "
                     " only frontend will be started")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                     default=False,
                     help="Print all debugging information to stdout")
+    parser.add_option("-d", "--debug", action="store_true", dest='debug',
+                    default=False, help="Print only the command that will be "
+                    "executed do not execute them")
     (options, args) = parser.parse_args()
 
 
@@ -79,7 +140,9 @@ def main():
         parser.error("The file " + vc_db_filepath + " does not exist/\n"
             "Your basepath should point to a valid pragma virtaul cluster repository")
 
+    # 
     # create logger
+    # 
     global logger
     logger = logging.getLogger('pragma_boot')
     logger.setLevel(logging.DEBUG)
@@ -95,6 +158,9 @@ def main():
         ch.setLevel(logging.ERROR)
     logger.addHandler(ch)
 
+    #
+    # list cluster and exit
+    #
     if options.list:
         print "Available virtual cluters:"
         with open(vc_db_filepath, 'r') as vc_db:
@@ -108,9 +174,12 @@ def main():
     # site_ve_driver
     # temp_directory
     execfile(script_base_dir + "/site_conf.conf", {}, globals())
-    ve_driver_base_path = script_base_dir + "/drivers/" + site_ve_driver
+    dr_manager = drivers_manager()
+    dr_manager.set_ve_base_path(script_base_dir + "/drivers/" + site_ve_driver)
 
-    # look in the vcdb.txt database for the machine name
+    #
+    # look up requested image in the vcdb.txt database
+    #
     vc_in_filepath = None
     with open(vc_db_filepath, 'r') as vc_db:
         for line in vc_db:
@@ -131,22 +200,26 @@ def main():
         sys.exit(-1)
     # get the client driver name from the xml file
     client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
-    client_driver_base_path = script_base_dir + "/drivers/" + client_driver_name
-    # get the disk path
-    disk=vc_in_xmlroot.findall('./frontend/domain/devices/disk/source')[0]
-    src_file = disk.attrib['file']
+    dr_manager.set_client_base_path(script_base_dir + "/drivers/" + client_driver_name)
 
     #
     # First let's check if we have enough resources to start this cluster 
     # and let's create vc-out.xml
     #
     vc_out_filepath = temp_directory + "/vc-out.xml"
-    cmdline = [ve_driver_base_path + "/allocate", str(options.num_cpus), vc_in_filepath,
-						vc_out_filepath]
-    (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
+    cmdline = [dr_manager.allocate(), str(options.num_cpus), vc_in_filepath, 
+            vc_out_filepath]
+    if not options.debug :
+        (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
+    else:
+	# write facke vc_out_xml
+	fd=open(vc_out_filepath, 'w')
+        fd.write(mockup_vc_out_xml)
+        fd.close()
+        (stdout, ret) = ("", 0)
     stdout = '\n'.join(stdout)
     if ret != 0 :
-        logger.error("Not enough resources on the cluster to run %s cpus" % 
+        logger.error("Not enough resources on the cluster to run %s cpus" %
             options.num_cpus)
         logger.error(stdout)
         sys.exit(-1)
@@ -160,40 +233,72 @@ def main():
     gw = pubblic_node.attrib["gw"]
     dns_node = vc_out_xmlroot.findall('./network/dns')[0]
     dns_servers = dns_node.attrib["ip"]
+    node_names = []
+    for node_xml in vc_out_xmlroot.findall('./compute/node'):
+        node_names.append( node_xml.attrib["name"] )
     # search="local" domain=""
-    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + " - netmask=" + netmask + " - gw=" + gw)
+    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + 
+            " - netmask=" + netmask + " - gw=" + gw)
 
+
+    #
+    # deploy frontend
+    #
+    (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory,
+            "frontend", dr_manager, options.debug)
+    deployImage(disk_path, vc_out_filepath, fqdn, options.key, xml_path,
+            dr_manager, options.debug)
+
+    if options.num_cpus > 0 :
+        #
+        # deploy nodes
+        #
+        (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory,
+                "compute", dr_manager, options.debug)
+        for i in node_names:
+            deployImage(disk_path, vc_out_filepath, i, options.key, xml_path,
+                    dr_manager, options.debug)
+
+
+
+def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
+    """ prepare the virtual image to be run on the current platform """
+
+    # extracting domain.xml for libvirt from vc-in.xml
+    xml_libvirt_path = temp_directory + '/vc-in.xml'
+    vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
+    xml_node_domain = vc_in_xmlroot.findall('./' + node_type + '/domain')[0]
+    input_disk_source = xml_node_domain.findall('./devices/disk/source')[0]
+    input_disk_path = os.path.dirname(vc_in_filepath) + "/" + \
+            input_disk_source.attrib['file']
+    
     #
     # copy FE disk image over to temp floder and uncompress it
     #
-    fe_disk_path = os.path.dirname(vc_in_filepath) + "/" + src_file
-    if not os.path.isfile(fe_disk_path):
-        logger.error("Error can not open FE disk image " + fe_disk_path)
+    if not os.path.isfile(input_disk_path):
+        logger.error("Error can not open FE disk image " + input_disk_path)
         sys.exit(-1)
-    if fe_disk_path.endswith(".gz"):
-        temp_disk_path = temp_directory + '/' + os.path.basename(fe_disk_path)[:-3]
-        deflate_file(fe_disk_path, temp_disk_path)
+    if input_disk_path.endswith(".gz"):
+        temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)[:-3]
+        deflate_file(input_disk_path, temp_disk_path, debug)
     else:
-        temp_disk_path = temp_directory + '/' + os.path.basename(fe_disk_path)
-        shutil.copy(fe_disk_path, temp_disk_path)
+        temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)
+        shutil.copy(input_disk_path, temp_disk_path)
+
+    input_disk_source.attrib['file'] = temp_disk_path
+    xml.etree.ElementTree.ElementTree( xml_node_domain ).write(xml_libvirt_path)
 
     #
     # start fixing the image
     #
 
     # prefix_driver
-    cmdline = client_driver_base_path + "/pre_fix_driver " + temp_disk_path 
-    runCommand(cmdline)
+    cmdline = [dr_manager.pre_fix_driver(), temp_disk_path]
+    runCommand(cmdline, debug)
 
-    # extracting domain.xml for libvirt from vc-in.xml
-    xml_fe_path = temp_directory + '/vc-in.xml'
-    fe_domain = vc_in_xmlroot.findall('./frontend/domain')[0]
-    fe_disk_source = fe_domain.findall('./devices/disk/source')[0]
-    fe_disk_source.attrib['file'] = temp_disk_path
-    xml.etree.ElementTree.ElementTree( fe_domain ).write(xml_fe_path)
     # figuring out the interface name list
     interface_list = ""
-    for interface in fe_domain.findall('./devices/interface/source'):
+    for interface in xml_node_domain.findall('./devices/interface/source'):
         if 'dev' in interface.attrib:
             interface_list += interface.attrib['dev']
         if 'bridge' in interface.attrib:
@@ -201,42 +306,36 @@ def main():
         interface_list += ","
 
     # fix_driver
-    cmdline = [ve_driver_base_path + "/fix_driver", xml_fe_path, interface_list,
+    cmdline = [dr_manager.fix_driver(), xml_libvirt_path, interface_list,
                 temp_directory]
-    runCommand(cmdline)
+    runCommand(cmdline, debug)
 
     # postfix_driver
-    cmdline = [client_driver_base_path + "/post_fix_driver", temp_disk_path]
-    runCommand(cmdline)
+    cmdline = [dr_manager.post_fix_driver(), temp_disk_path]
+    runCommand(cmdline, debug)
 
-    # dmreread the xml_fe_path to see changes in the VM
-
-    # pre_boot takes care of fixing the network on the image before booting it
-    cmdline = [client_driver_base_path + "/pre_boot", temp_disk_path,
-                vc_out_filepath, fqdn, options.key]
-    runCommand(cmdline)
-
-    cmdline = [ve_driver_base_path + "/boot", temp_disk_path, xml_fe_path, fqdn]
-    runCommand(cmdline)
-
-    # for the compute
-    # <!-- change eth0 to be dhcp and mac address neutral -->
-    # <file name="/etc/sysconfig/network-scripts/ifcfg-eth0">
-    # DEVICE=eth0
-    # BOOTPROTO=dhcp
-    # ONBOOT=yes
-    # </file>
-    #
-    # <!-- change network file to not have hostname of gateway -->
-    # <file name="/etc/sysconfig/network">
-    # NETWORKING=yes
-    # </file>
-    #
+    return (temp_disk_path, xml_libvirt_path)
 
 
 
-def runCommand(cmdline):
+
+def deployImage(temp_disk_path, vc_out_filepath, fqdn, key, xml, dr_manager, debug):
+    """it runs the pre_boot and the boot script on a machine once """
+
+    cmdline = [dr_manager.pre_boot(), temp_disk_path, vc_out_filepath, fqdn, key]
+    runCommand(cmdline, debug)
+
+    cmdline = [dr_manager.boot(), temp_disk_path, xml, fqdn]
+    runCommand(cmdline, debug)
+
+
+
+
+def runCommand(cmdline, debug):
     logger.debug("Executing: " + str(cmdline))
+    if debug :
+        logger.debug("Executed")
+        return
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     if ret != 0 :
         logger.error("Error while running: " + str(cmdline))
@@ -246,9 +345,12 @@ def runCommand(cmdline):
     logger.debug("Output: " + '\n'.join(stdout))
 
 
-def deflate_file(srcpath, destpath):
+def deflate_file(srcpath, destpath, debug):
     """it gunzip a file """
     logger.info("Uncompressing file " + srcpath + " in " + destpath)
+    if debug :
+        logger.debug("File uncompressed")
+        return
     buf_size=16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
@@ -260,7 +362,8 @@ def deflate_file(srcpath, destpath):
             break
         output.write( buffer )
         if counter == 1000:
-            logger.debug("Decoded " + str(buf_size * 1000) + " in " + str(time.time() - temp_timer))
+            logger.debug("Decoded " + str(buf_size * 1000) + " in " + 
+                str(time.time() - temp_timer))
             temp_timer = time.time()
             counter = 0
         counter += 1
