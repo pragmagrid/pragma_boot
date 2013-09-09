@@ -68,8 +68,8 @@ class drivers_manager:
 	path = self.client_driver_base_path + '/pre_fix_driver'
         return self._get_path(path)
 
-    def fix_driver(self):
-	path = self.ve_driver_base_path + '/fix_driver'
+    def fix_images(self):
+	path = self.ve_driver_base_path + '/fix_images'
         return self._get_path(path)
 
     def post_fix_driver(self):
@@ -203,8 +203,13 @@ def main():
     dr_manager.set_client_base_path(script_base_dir + "/drivers/" + client_driver_name)
 
     #
-    # First let's check if we have enough resources to start this cluster 
-    # and let's create vc-out.xml
+    # now we first call fix_image
+    #
+    # TODO properly set the node_types argument
+    prepareImage(vc_in_filepath, temp_directory, "frontend,compute", dr_manager, options.debug)
+
+    #
+    # and then we call allocate and create vc-out.xml
     #
     vc_out_filepath = temp_directory + "/vc-out.xml"
     cmdline = [dr_manager.allocate(), str(options.num_cpus), vc_in_filepath, 
@@ -240,95 +245,53 @@ def main():
     logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + 
             " - netmask=" + netmask + " - gw=" + gw)
 
-
     #
     # deploy frontend
     #
-    (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory,
-            "frontend", dr_manager, options.debug)
-    deployImage(disk_path, vc_out_filepath, fqdn, options.key, xml_path,
-            dr_manager, options.debug)
+    disk_path = get_temporary_disk_path(vc_in_filepath, "frontend", temp_directory)
+    deployImage(disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
     if options.num_cpus > 0 :
         #
         # deploy nodes
         #
-        (disk_path, xml_path) = prepareImage(vc_in_filepath, temp_directory,
-                "compute", dr_manager, options.debug)
         for i in node_names:
-            deployImage(disk_path, vc_out_filepath, i, options.key, xml_path,
-                    dr_manager, options.debug)
+            disk_path = get_temporary_disk_path(vc_in_filepath, "compute", temp_directory)
+            deployImage(disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
 
 
 def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
-    """ prepare the virtual image to be run on the current platform """
+    """ prepare the virtual images to be run on the current platform """
+    # fix_driver
+    cmdline = [dr_manager.fix_images(), vc_in_filepath, temp_directory, node_type]
+    runCommand(cmdline, debug)
 
-    # extracting domain.xml for libvirt from vc-in.xml
-    xml_libvirt_path = temp_directory + '/vc-in.xml'
+
+def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug):
+    """ it runs the boot script on a machine once """
+    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath]
+    runCommand(cmdline, debug)
+
+
+def get_temporary_disk_path(vc_in_filepath, node_type, temp_directory):
+    """get the temporary disk name of FE and compute"""
     vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
     xml_node_domain = vc_in_xmlroot.findall('./' + node_type + '/domain')[0]
     input_disk_source = xml_node_domain.findall('./devices/disk/source')[0]
     input_disk_path = os.path.dirname(vc_in_filepath) + "/" + \
             input_disk_source.attrib['file']
-    
-    #
+ 
     # copy FE disk image over to temp floder and uncompress it
-    #
     if not os.path.isfile(input_disk_path):
         logger.error("Error can not open FE disk image " + input_disk_path)
         sys.exit(-1)
     if input_disk_path.endswith(".gz"):
         temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)[:-3]
-        deflate_file(input_disk_path, temp_disk_path, debug)
     else:
         temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)
-        shutil.copy(input_disk_path, temp_disk_path)
 
-    input_disk_source.attrib['file'] = temp_disk_path
-    xml.etree.ElementTree.ElementTree( xml_node_domain ).write(xml_libvirt_path)
-
-    #
-    # start fixing the image
-    #
-
-    # prefix_driver
-    cmdline = [dr_manager.pre_fix_driver(), temp_disk_path]
-    runCommand(cmdline, debug)
-
-    # figuring out the interface name list
-    interface_list = ""
-    for interface in xml_node_domain.findall('./devices/interface/source'):
-        if 'dev' in interface.attrib:
-            interface_list += interface.attrib['dev']
-        if 'bridge' in interface.attrib:
-            interface_list += interface.attrib['bridge']
-        interface_list += ","
-
-    # fix_driver
-    cmdline = [dr_manager.fix_driver(), xml_libvirt_path, interface_list,
-                temp_directory]
-    runCommand(cmdline, debug)
-
-    # postfix_driver
-    cmdline = [dr_manager.post_fix_driver(), temp_disk_path]
-    runCommand(cmdline, debug)
-
-    return (temp_disk_path, xml_libvirt_path)
-
-
-
-
-def deployImage(temp_disk_path, vc_out_filepath, fqdn, key, xml, dr_manager, debug):
-    """it runs the pre_boot and the boot script on a machine once """
-
-    cmdline = [dr_manager.pre_boot(), temp_disk_path, vc_out_filepath, fqdn, key]
-    runCommand(cmdline, debug)
-
-    cmdline = [dr_manager.boot(), temp_disk_path, xml, fqdn]
-    runCommand(cmdline, debug)
-
-
+    return temp_disk_path
 
 
 def runCommand(cmdline, debug):
@@ -345,6 +308,7 @@ def runCommand(cmdline, debug):
     logger.debug("Output: " + '\n'.join(stdout))
 
 
+#TODO not used delete me
 def deflate_file(srcpath, destpath, debug):
     """it gunzip a file """
     logger.info("Uncompressing file " + srcpath + " in " + destpath)
@@ -370,8 +334,7 @@ def deflate_file(srcpath, destpath, debug):
     input.close()
     output.close()
     logger.info("File " + destpath + " uncompressed.")
-    
-    
+
 
 
 if __name__ == "__main__":
