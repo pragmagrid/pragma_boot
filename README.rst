@@ -9,7 +9,7 @@ It accepts the following agruments:
 * **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
 * **--base_path path**   the base path of the VM database 
 * **--key path**         The ssh key that will be authorized on the frontned of
-                         the cluster (default is /root/.ssh/id_rsa.pub)
+  the cluster (default is /root/.ssh/id_rsa.pub)
 
 
 
@@ -28,7 +28,7 @@ staging all VM images
   * **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
   * **temp_directory** the temporary directory used to place all the temporary virtual 
   * **node_type**      a command separated list of node type to be prepared 
-                       (e.g. "frontend,computenode")
+    (e.g. "frontend,computenode")
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough 
   resoureces to satisfy the user request, if so it will also allocate public IP, 
@@ -42,7 +42,7 @@ staging all VM images
   * **vc_out_path**    this should point to the path where the frontend vc-out.xml will be saved
   * **temp_directory** the temporary directory used to place all the temporary virtual 
   * **key**            The path to the ssh public key that will be authorized to the 
-                       frontend root account
+    frontend root account
 
 
 * **ve_driver/boot** it takes care of starting the VM on the local virtualization 
@@ -53,7 +53,7 @@ staging all VM images
   * **temp_directory** the temporary directory used to place all the temporary virtual 
   * **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
   * **key**            The path to the ssh public key that will be authorized to the 
-                       frontend root account
+    frontend root account
 
 
 The sequence of calls for the driver is the following:
@@ -207,8 +207,10 @@ To create a virtual cluster which is compatible with Pragma infrastrucutre the
 nodes must respect the following criteria (with the current versio of software):
 
 
-- All host can run inside kvm-based virtualization engine.
+- All host run inside kvm-based virtualization engine.
 - Each VM have a single disk image
+- VM disk images can be compressed using Lempel-Ziv coding (with extension .gz)
+- VM disk images must be in raw format (no cow, or other format supported)
 - The first partition is the / partition
 - No LVM/RAID or other fancy FS type is supported
 - Frontend VM contains 2 network interfaces. The first one connects to private
