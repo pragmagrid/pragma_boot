@@ -202,6 +202,9 @@ def main():
     client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
     dr_manager.set_client_base_path(script_base_dir + "/drivers/" + client_driver_name)
 
+
+    fe_temp_disk_path = get_temporary_disk_path(vc_in_filepath, "frontend", temp_directory)
+    comp_temp_disk_path = get_temporary_disk_path(vc_in_filepath, "compute", temp_directory)
     #
     # now we first call fix_image
     #
@@ -248,17 +251,14 @@ def main():
     #
     # deploy frontend
     #
-    disk_path = get_temporary_disk_path(vc_in_filepath, "frontend", temp_directory)
-    deployImage(disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug)
+    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
     if options.num_cpus > 0 :
         #
         # deploy nodes
         #
         for i in node_names:
-            disk_path = get_temporary_disk_path(vc_in_filepath, "compute", temp_directory)
-            deployImage(disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug)
-
+            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
 
 def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
