@@ -5,7 +5,7 @@ The pragma_boot script
 It accepts the following agruments:
 
 * **--list**             list the available images
-* **--num_compute N**    the number of compute node to start up (default to 0)
+* **--num_cpus N**       the number of compute node to start up (default to 0)
 * **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
 * **--base_path path**   the base path of the VM database 
 * **--key path**         The ssh key that will be authorized on the frontned of
@@ -25,9 +25,9 @@ staging all VM images
   (fix kernel, drivers, boot options, for current platform, etc.).
   It's input argumets are (in the following order):
 
-  * **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
-  * **temp_directory** the temporary directory used to place all the temporary virtual 
-  * **node_type**      a command separated list of node type to be prepared 
+  # **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
+  # **temp_directory** the temporary directory used to place all the temporary virtual 
+  # **node_type**      a command separated list of node type to be prepared 
     (e.g. "frontend,computenode")
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough 
@@ -37,22 +37,22 @@ staging all VM images
   If successful it will write a /root/vc-out.xml file inside the various virtual machines 
   images (see below for more info)
 
-  * **num_compute**    it specifies the number of CPU requested by the user. 
-  * **vc_in_path**     it points to the vc-in.xml of the selected cluster
-  * **vc_out_path**    this should point to the path where the frontend vc-out.xml will be saved
-  * **temp_directory** the temporary directory used to place all the temporary virtual 
-  * **key**            The path to the ssh public key that will be authorized to the 
+  # **num_cpus**       it specifies the number of CPU requested by the user. 
+  # **vc_in_path**     it points to the vc-in.xml of the selected cluster
+  # **vc_out_path**    this should point to the path where the frontend vc-out.xml will be saved
+  # **temp_directory** the temporary directory used to place all the temporary virtual 
+  # **key**            The path to the ssh public key that will be authorized to the 
     frontend root account
 
 
 * **ve_driver/boot** it takes care of starting the VM on the local virtualization 
   engine. Its input parameters are:
   
-  * **file_path**      the path where the vm image is
-  * **host_name**      the name of the host we want to boot
-  * **temp_directory** the temporary directory used to place all the temporary virtual 
-  * **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
-  * **key**            The path to the ssh public key that will be authorized to the 
+  # **file_path**      the path where the vm image is
+  # **host_name**      the name of the host we want to boot
+  # **temp_directory** the temporary directory used to place all the temporary virtual 
+  # **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
+  # **key**            The path to the ssh public key that will be authorized to the 
     frontend root account
 
 

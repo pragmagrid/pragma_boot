@@ -98,7 +98,7 @@ def main():
     # set up the option parser
     #
     runHelp = "\nRun \"pragma_boot -h\" for more help."
-    usage = "usage: %prog --list | --vcname vcname [--num_compute N] [--basepath path] [--key path]"
+    usage = "usage: %prog --list | --vcname vcname [--num_cpus N] [--basepath path] [--key path]"
     parser = OptionParser(usage, version="0.1")
 
 
