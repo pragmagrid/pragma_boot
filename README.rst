@@ -186,7 +186,7 @@ vc-out.xml file example for a frontend
    </network>
  </vc>
 
-vc-in.xml file example for a compute node
+vc-out.xml file example for a compute node
 
 ::
 
