@@ -7,15 +7,15 @@ It accepts the following agruments:
 * **--list**             list the available images
 * **--num_cpus N**       the number of compute node to start up (default to 0)
 * **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
-* **--base_path path**   the base path of the VM database 
+* **--base_path path**   the base path of the VM database
 * **--key path**         The ssh key that will be authorized on the frontned of
   the cluster (default is /root/.ssh/id_rsa.pub)
 
 
 
 pragma_boot ivokes the follwing subscripts which will be invoked in the order described below.
-In the commands below the ve_dirver will be replaced with the local Virtual Engine (VE) 
-driver (the base path used to find all the VE drivers can be configured in the file 
+In the commands below the ve_dirver will be replaced with the local Virtual Engine (VE)
+driver (the base path used to find all the VE drivers can be configured in the file
 site_conf.conf)
 site_conf.conf should be used also to set the path for the temporary_directory used for
 staging all VM images
@@ -25,35 +25,33 @@ staging all VM images
   (fix kernel, drivers, boot options, for current platform, etc.).
   It's input argumets are (in the following order):
 
-  # **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
-  # **temp_directory** the temporary directory used to place all the temporary virtual 
-  # **node_type**      a command separated list of node type to be prepared 
-    (e.g. "frontend,computenode")
+  1. **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
+  2. **temp_directory** the temporary directory used to place all the temporary virtual
+  3. **node_type**      a command separated list of node type to be prepared
+     (e.g. "frontend,computenode")
 
-* **ve_driver/allocate** this script takes care of verifying that there are enough 
-  resoureces to satisfy the user request, if so it will also allocate public IP, 
-  private IPs, MAC addresses, and computing resources. If the system can create 
+* **ve_driver/allocate** this script takes care of verifying that there are enough
+  resoureces to satisfy the user request, if so it will also allocate public IP,
+  private IPs, MAC addresses, and computing resources. If the system can create
   SMP nodes it can allocate less compute node with multiple cpus in each node.
-  If successful it will write a /root/vc-out.xml file inside the various virtual machines 
+  If successful it will write a /root/vc-out.xml file inside the various virtual machines
   images (see below for more info)
 
-  # **num_cpus**       it specifies the number of CPU requested by the user. 
-  # **vc_in_path**     it points to the vc-in.xml of the selected cluster
-  # **vc_out_path**    this should point to the path where the frontend vc-out.xml will be saved
-  # **temp_directory** the temporary directory used to place all the temporary virtual 
-  # **key**            The path to the ssh public key that will be authorized to the 
-    frontend root account
+  1. **num_cpus**       it specifies the number of CPU requested by the user.
+  2. **vc_in_path**     it points to the vc-in.xml of the selected cluster
+  3. **vc_out_path**    this should point to the path where the frontend vc-out.xml will be saved
+  4. **temp_directory** the temporary directory used to place all the temporary virtual
+  5. **key**            The path to the ssh public key that will be authorized to the
+     frontend root account
 
 
-* **ve_driver/boot** it takes care of starting the VM on the local virtualization 
+* **ve_driver/boot** it takes care of starting the VM on the local virtualization
   engine. Its input parameters are:
   
-  # **file_path**      the path where the vm image is
-  # **host_name**      the name of the host we want to boot
-  # **temp_directory** the temporary directory used to place all the temporary virtual 
-  # **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
-  # **key**            The path to the ssh public key that will be authorized to the 
-    frontend root account
+  1. **file_path**      the path where the vm image is
+  2. **host_name**      the name of the host we want to boot
+  3. **temp_directory** the temporary directory used to place all the temporary virtual
+  4. **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
 
 
 The sequence of calls for the driver is the following:
@@ -66,7 +64,7 @@ The sequence of calls for the driver is the following:
 input and output XML file example
 =================================
 
-           
+
 vc-in.xml file example. This xml file is a concatenation of the libvirt xml
 of a frontend and of a compute node (encolsed between the ``frontend`` and
 ``compute`` tag) with few extra tags added at the beginning and at the end.
@@ -175,7 +173,7 @@ vc-out.xml file example for a frontend
  <vc>
    <frontend>
      <public fqdn="calit2-119-222.ucsd.edu" ip="137.110.119.222" netmask="255.255.255.0" gw="137.110.119.1"/>
-     <private ip="10.1.0.0" netmask="255.255.0.0"/>
+     <private ip="10.1.1.1" netmask="255.255.0.0"/>
    </frontend>
    <compute count="2">
      <node name="hosted-vm-0-1-0" mac="7a:77:6e:40:00:15" ip="10.1.0.254" cpus="2"/>
