@@ -27,7 +27,6 @@ vc_in=$1
 temp_path=$2
 node_type=$3 # not used at the moment
 
-
 base_path=`dirname $vc_in`
 
 fe_disk_path=`echo "cat /vc/frontend/domain/devices/disk/source/@file" | xmllint --shell $vc_in | grep = | awk -F \" '{print $2}'`
@@ -39,9 +38,6 @@ comp_disk_path=`echo "cat /vc/compute/domain/devices/disk/source/@file" | xmllin
 comp_source_disk=$base_path/$comp_disk_path
 
 uncompress "$comp_source_disk" "$temp_path/${comp_disk_path%.gz}"
-
-
-
 
 
 

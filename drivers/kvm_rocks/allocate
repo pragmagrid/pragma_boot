@@ -39,7 +39,6 @@ SCRIPTPATH=`pwd`
 popd > /dev/null
 
 
-
 #The network configuration file will contains the self explicative elements:
 # public_ip="123.123.123.123"
 # netmask="255.255.255.0"
@@ -79,6 +78,17 @@ for i in `rocks list cluster calit2-119-222.ucsd.edu | awk '{print $2}'|grep ^ho
         ip=$temp_ip.$counter
 	echo "    <node name=\"$i\" mac=\"$mac\" ip=\"$ip\" cpus=\"$cpus_per_node\"/>" >> $vc_out
         counter=$(( $counter - 1 ))	
+
+	node_xml="$temp_directory/$i.xml"
+	# we generate the vc-out for the compute node here since we already have all the info
+	echo -e "<vc>\n  <compute>" > $node_xml
+	echo "    <private fqdn=\"$i\" ip=\"$ip\" netmask=\"$private_netmask\" gw=\"$private_ip\" mac=\"$mac\"/>" >> $node_xml
+	echo -e "  </compute>\n  <network>" >> $node_xml
+	echo "    <dns ip=\"$dns\" search=\"local\" domain=\"\"/>" >> $node_xml
+	echo "  </network>" >> $node_xml
+	echo "  <key>`cat $key`</key>" >> $node_xml
+	echo "</vc>" >> $node_xml
+
 done
 
 echo "  </compute>" >> $vc_out
