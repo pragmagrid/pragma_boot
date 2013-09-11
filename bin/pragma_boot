@@ -216,7 +216,7 @@ def main():
     #
     vc_out_filepath = temp_directory + "/vc-out.xml"
     cmdline = [dr_manager.allocate(), str(options.num_cpus), vc_in_filepath, 
-            vc_out_filepath]
+            vc_out_filepath, temp_directory, options.key]
     if not options.debug :
         (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     else:
