@@ -85,5 +85,6 @@ echo "  </compute>" >> $vc_out
 echo "  <network>" >> $vc_out
 echo "    <dns ip=\"$dns\" search=\"local\" domain=\"\"/>" >> $vc_out
 echo "  </network>" >> $vc_out
+echo "  <key>`cat $key`</key>" >> $vc_out
 echo "</vc>" >> $vc_out
 
