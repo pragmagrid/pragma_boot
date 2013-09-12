@@ -28,7 +28,7 @@ staging all VM images
   1. **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
   2. **temp_directory** the temporary directory used to place all the temporary virtual
   3. **node_type**      a command separated list of node type to be prepared
-     (e.g. "frontend,computenode")
+     (e.g. "frontend,compute")
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough
   resoureces to satisfy the user request, if so it will also allocate public IP,
