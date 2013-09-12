@@ -74,9 +74,11 @@ localhost=`hostname -s`
 echo Destination disk path is $container:$disk_path
 
 if [ "$container" == "$localhost" ];then
-	dd $temp_disk_path $disk_path \
+	echo dd if=$temp_disk_path of=$disk_path bs=1M
+	dd if=$temp_disk_path of=$disk_path bs=1M \
 		|| error "unable to copy the disk image $temp_disk_path to $disk_path"
 else
+	echo scp $temp_disk_path $container:$disk_path
 	scp $temp_disk_path $container:$disk_path \
 		|| error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
 fi
