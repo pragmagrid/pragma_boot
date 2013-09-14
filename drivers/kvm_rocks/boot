@@ -53,7 +53,7 @@ else
 fi
 
 # copy the vc-out.xml
-cp $xml_file $tmp_folder/root/
+cp $xml_file $tmp_folder/root/vc-out.xml
 
 fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
 rmdir $tmp_folder
