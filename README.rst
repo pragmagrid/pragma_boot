@@ -172,7 +172,7 @@ vc-out.xml file example for a frontend
 
  <vc>
    <frontend>
-     <public fqdn="calit2-119-222.ucsd.edu" ip="137.110.119.222" netmask="255.255.255.0" gw="137.110.119.1"/>
+     <public fqdn="somehost.ucsd.edu" ip="123.123.123.123" netmask="255.255.255.0" gw="123.123.123.1"/>
      <private ip="10.1.1.1" netmask="255.255.0.0"/>
    </frontend>
    <compute count="2">
@@ -182,7 +182,7 @@ vc-out.xml file example for a frontend
    <network>
      <dns ip="8.8.8.8" search="local" domain=""/>
    </network>
-   <key>ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6vUe5tX+DztYyvUf6n+diFGbOOU9hcGLuXIY/NeLpIHePzpCyoS3ADM3HjjTiIekReUFIwgdWVaFqWtfYp4GpgqAdUThzoCNJqsENY884NTsoUV86Eou/E6fXIr3A2Z0Mr4vI8K5AouRMHLeoFZXgDyNZ7xJnRP0h2aTQNmx3lh8yUt2J/t7J5MphftPWEoYlfS9CdzXpxjxq2srWnDDwPMp7k9vOI8RaVKwfDBEGT6TITtzwNc5gRzTOv6OIcUr3z5n7MI6i5kiKDjmXSpd28gq/IgpTBZ6Ur0/Eq0EufrEHoSWHXdTF5/cAYrqhJJaqr6Movku0eeElvOCBxjTDw== root@somehost.ucsd.edu</key>
+   <key>ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6vUe5tX+DztYyvUf6n+diFGbOOU9hcGLuXIY/NeLpIHePzpCyoS3Axx3HjjTiIekReUFIwgdWVaFqWtfYp4GpgqAdUThzoCNJqsENY884NTsoUV86Eou/E6fXIr3A2Z0Mr4vI8K5AouRMHLeoFZXgDyNZ7xJnRP0h2aTQNmx3lh8yUt2J/t7J5MphftPWEoYlfS9CdzXpxjxq2srWnDDwPMp7k9vOI8RaVKwfDBEGT6TITtzwNc5gRzTOv6OxxUr3z5n7MI6i5kiKDjmXSpd28gq/IgpTBZ6Ur0/Eq0EufrEHoSWHXdTF5/cAYrqhJJaqr6Movku0eeElvOCBxjTDw== root@somehost.ucsd.edu</key>
  </vc>
 
 vc-out.xml file example for a compute node
@@ -190,13 +190,16 @@ vc-out.xml file example for a compute node
 ::
 
  <vc>
+   <frontend>
+     <public fqdn="somehost.ucsd.edu"/>
+   </frontend>
    <compute>
      <private fqdn="compute-0" ip="10.1.1.30" netmask="255.255.0.0" gw="10.1.1.1"/>
    </compute>
    <network>
      <dns ip="8.8.8.8" search="local" domain=""/>
    </network>
-   <key>ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6vUe5tX+DztYyvUf6n+diFGbOOU9hcGLuXIY/NeLpIHePzpCyoS3ADM3HjjTiIekReUFIwgdWVaFqWtfYp4GpgqAdUThzoCNJqsENY884NTsoUV86Eou/E6fXIr3A2Z0Mr4vI8K5AouRMHLeoFZXgDyNZ7xJnRP0h2aTQNmx3lh8yUt2J/t7J5MphftPWEoYlfS9CdzXpxjxq2srWnDDwPMp7k9vOI8RaVKwfDBEGT6TITtzwNc5gRzTOv6OIcUr3z5n7MI6i5kiKDjmXSpd28gq/IgpTBZ6Ur0/Eq0EufrEHoSWHXdTF5/cAYrqhJJaqr6Movku0eeElvOCBxjTDw== root@somehost.ucsd.edu</key>
+   <key>ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6vUe5tX+DztYyvUf6n+diFGbOOU9hcGLuXIY/NeLpIHePzpCyoS3Axx3HjjTiIekReUFIwgdWVaFqWtfYp4GpgqAdUThzoCNJqsENY884NTsoUV86Eou/E6fXIr3A2Z0Mr4vI8K5AouRMHLeoFZXgDyNZ7xJnRP0h2aTQNmx3lh8yUt2J/t7J5MphftPWEoYlfS9CdzXpxjxq2srWnDDwPMp7k9vOI8RaVKwfDBEGT6TITtzwNc5gRzTOv6OxxUr3z5n7MI6i5kiKDjmXSpd28gq/IgpTBZ6Ur0/Eq0EufrEHoSWHXdTF5/cAYrqhJJaqr6Movku0eeElvOCBxjTDw== root@somehost.ucsd.edu</key>
  </vc>
 
 
