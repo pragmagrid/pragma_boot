@@ -40,9 +40,6 @@ fe_fqdn=`echo "cat /vc/frontend/public/@fqdn" | xmllint --shell $vc_out_filepath
 
 guestmount -a $temp_disk_path -m /dev/sda1 $tmp_folder || error "unable to mount guest FS"
 
-#TODO remove this now it's in the vc-out
-cat $ssh_key >> $tmp_folder/root/.ssh/authorized_keys
-
 if [ "x$fqdn" = "x$fe_fqdn" ]; then
 	# this is a frontend
 	xml_file="$vc_out_filepath"
