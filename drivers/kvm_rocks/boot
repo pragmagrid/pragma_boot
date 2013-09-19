@@ -43,7 +43,7 @@ guestmount -a $temp_disk_path -m /dev/sda1 $tmp_folder || error "unable to mount
 #TODO remove this now it's in the vc-out
 cat $ssh_key >> $tmp_folder/root/.ssh/authorized_keys
 
-if [ "x$fqdn" == "x$fe_fqdn" ]; then
+if [ "x$fqdn" = "x$fe_fqdn" ]; then
 	# this is a frontend
 	xml_file="$vc_out_filepath"
 else 
@@ -73,7 +73,7 @@ localhost=`hostname -s`
 
 echo Destination disk path is $container:$disk_path
 
-if [ "$container" == "$localhost" ];then
+if [ "$container" = "$localhost" ];then
 	echo dd if=$temp_disk_path of=$disk_path bs=1M
 	dd if=$temp_disk_path of=$disk_path bs=1M \
 		|| error "unable to copy the disk image $temp_disk_path to $disk_path"
