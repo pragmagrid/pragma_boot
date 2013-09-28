@@ -14,7 +14,7 @@ def getOutputAsList(cmdline, inputString=None):
     if isinstance(cmdline, str):
         # needs to make a list
         cmdline = shlex.split(cmdline)
-    p = Popen(cmdline, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    p = Popen(cmdline, stdin=PIPE, stdout=PIPE, stderr=subprocess.STDOUT)
     grep_stdout = p.communicate(input=inputString)[0]
     p.wait()
     return (grep_stdout.split('\n'), p.returncode)
