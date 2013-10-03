@@ -1,4 +1,5 @@
-public_ip="123.123.123.123"
+# public_ips a comman separated list of free ips
+public_ips="123.123.123.123,123.123.123.122,123.123.123.121"
 netmask="255.255.255.0"
 gw="123.123.123.1"
 dns="8.8.8.8"

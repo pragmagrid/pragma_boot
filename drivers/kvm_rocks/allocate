@@ -40,7 +40,7 @@ popd > /dev/null
 
 
 #The network configuration file will contains the self explicative elements:
-# public_ip="123.123.123.123"
+# public_ips="123.123.123.123"
 # netmask="255.255.255.0"
 # gw="123.123.123.1"
 # dns="8.8.8.8"
@@ -48,6 +48,21 @@ popd > /dev/null
 #
 . $SCRIPTPATH/net_conf.conf
 
+#
+# need to find a free IP
+#
+rocks list host interface |awk '{print $5}' > /tmp/usedIP
+for i in `echo $public_ips | tr ',' ' ' `; do
+	if ! grep $i /tmp/usedIP > /dev/null ; then
+		public_ip=$i
+		break
+	fi
+done
+
+if [ ! "$public_ip" ] ; then
+	echo Unable to find an available public IP
+	echo All IPs are already allocated
+fi
 
 fe_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
 
