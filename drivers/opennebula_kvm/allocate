@@ -72,6 +72,7 @@ class Allocator
     end
 
     def instantiate
+        $logger.info "Instantiating..."
         json_str = Service.build_json_action('instantiate')
         response = @cloud_client.post("/service_template/#{@flow["DOCUMENT"]["ID"]}/action", json_str)
         if CloudClient::is_error?(response)
@@ -83,6 +84,7 @@ class Allocator
     private
 
     def allocate_network
+        $logger.info "Allocating network..."
         network = @vc_in.search("//vc/networks/network")[0]  # Assume there is only 1 network entry
         template = <<-EOT
         NAME = #{network["name"]}
@@ -110,6 +112,7 @@ class Allocator
     end
 
     def allocate_image(disk, persistent=false)
+        $logger.info "Allocating image..."
         image_file = File.join(@basepath, disk.search("source")[0]["file"])
         inject_context_script image_file
 
@@ -142,7 +145,7 @@ class Allocator
     end
 
     def allocate_template(vm)
-
+        $logger.info "Allocating template..."
         # Create cluster_hosts
         # e.g.
         #192.168.57.204   hosted-vm-0-0-1
@@ -216,6 +219,7 @@ class Allocator
     end
 
     def allocate_frontend
+        $logger.info "Allocating frontend..."
         @frontend = {}
         @frontend["image"] = allocate_image(@vc_in.search("//vc/frontend/domain/devices/disk")[0], persistent=true)
         @frontend["template"] = allocate_template @vc_in.search("//vc/frontend")[0]
@@ -223,6 +227,7 @@ class Allocator
     end
 
     def allocate_compute
+        $logger.info "Allocating compute..."
         @compute = {}
         @compute["image"] = allocate_image @vc_in.search("//vc/compute/domain/devices/disk")[0]
         @compute["template"] = allocate_template @vc_in.search("//vc/compute")[0]
@@ -230,6 +235,7 @@ class Allocator
     end
 
     def allocate_flow
+        $logger.info "Allocating flow..."
         template = <<-EOT
         {
             "name": "#{@name}",
@@ -285,6 +291,7 @@ class Allocator
     end
 
     def generate_leases
+        $logger.info "Generating leases..."
         leases = []
         network = @vc_in.search("//vc/networks/network/ipaddress")[0].content
         netmask = @vc_in.search("//vc/networks/network/netmask")[0].content
