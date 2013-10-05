@@ -28,12 +28,13 @@ class Allocator
 
     public
 
-    def initialize(vc_in, num_compute)
+    def initialize(vc_in, num_compute, temp_path)
+        @temp_path = temp_path
         @name = File.basename(vc_in, ".*")
         @vc_in = Nokogiri::XML(open(vc_in))
         @basepath = File.dirname(vc_in)
         @num_compute = Integer(num_compute)
-        @client = Client.new(CREDENTIALS, ENDPOINT, {:timeout => 9999999})
+        @client = Client.new(CREDENTIALS, ENDPOINT, {:timeout => TIMEOUT})
         username, password = CREDENTIALS.split(":")
         @cloud_client = Service::Client.new(
             :username   => username,
@@ -118,7 +119,7 @@ class Allocator
 
         if File.extname(image_file) == ".gz"
             $logger.info "Decompressing image..."
-            image_file = decompress(image_file, TEMP_PATH)
+            image_file = decompress(image_file, @temp_path)
         end
 
         template = <<-EOT
@@ -314,6 +315,7 @@ end
 
 num_compute = Integer(ARGV[0])
 vc_in = ARGV[1]
+temp_path = ARGV[3]
 allocator = Allocator.new(vc_in, num_compute)
 allocator.instantiate
 File.open(ARGV[2], "w") do |file|
