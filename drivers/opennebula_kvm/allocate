@@ -33,7 +33,7 @@ class Allocator
         @vc_in = Nokogiri::XML(open(vc_in))
         @basepath = File.dirname(vc_in)
         @num_compute = Integer(num_compute)
-        @client = Client.new(CREDENTIALS, ENDPOINT)
+        @client = Client.new(CREDENTIALS, ENDPOINT, {:timeout => 9999999})
         username, password = CREDENTIALS.split(":")
         @cloud_client = Service::Client.new(
             :username   => username,
@@ -117,6 +117,7 @@ class Allocator
         inject_context_script image_file
 
         if File.extname(image_file) == ".gz"
+            $logger.info "Decompressing image..."
             image_file = decompress(image_file, TEMP_PATH)
         end
 
@@ -131,6 +132,7 @@ class Allocator
             template << "PERSISTENT = YES\n"
         end
 
+        $logger.info "Registering image..."
         xml = OpenNebula::Image.build_xml
         image = OpenNebula::Image.new(xml, @client)
         response = image.allocate(template, DATASTORE_ID)
