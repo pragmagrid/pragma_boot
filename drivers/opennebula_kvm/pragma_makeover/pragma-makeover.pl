@@ -283,6 +283,9 @@ sub makeover {
             return 0;
         };
 
+        # my $decompressed_image = decomp_file($vm->{imgfile})
+
+        # my @mappedfiles = attach_file($loopfile, $decompressed_image) or do {
         my @mappedfiles = attach_file($loopfile, $vm->{imgfile}) or do {
             print "file attach failed\n";
             return 0;
