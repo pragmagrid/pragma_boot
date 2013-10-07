@@ -1,11 +1,12 @@
-CREDENTIALS = "oneadmin:6e6a90f1447984610f1898876e2b3a39"
+CREDENTIALS = "oneadmin:e7924d87d503411429a2cd4f72ef264f"
 ENDPOINT    = "http://localhost:2633/RPC2"
 ONEFLOW_URL = "http://localhost:2474"
 USER_AGENT = "PRAGMA"
-PUBLIC_NETWORK = "pragmapub"
-PRIVATE_BRIDGE = "pragmapriv"
+PUBLIC_NETWORK = "defaultpub"
+PRIVATE_BRIDGE = "br0"
 LOG_FILE = "/tmp/opennebula_kvm.log"
 DATASTORE_ID = 1
 # TODO: Think of a better way to assign FQDN dynamically
 FQDN = "foobar"
-TEMP_PATH = "/tmp"
+#TEMP_PATH = "/srv/cloud/tmp"
+TIMEOUT = 999999

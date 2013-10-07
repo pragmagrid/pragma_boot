@@ -33,7 +33,7 @@ class Allocator
         @vc_in = Nokogiri::XML(open(vc_in))
         @basepath = File.dirname(vc_in)
         @num_compute = Integer(num_compute)
-        @client = Client.new(CREDENTIALS, ENDPOINT, {:timeout => 9999999})
+        @client = Client.new(CREDENTIALS, ENDPOINT, {:timeout => TIMEOUT})
         username, password = CREDENTIALS.split(":")
         @cloud_client = Service::Client.new(
             :username   => username,
@@ -41,6 +41,7 @@ class Allocator
             :url        => ONEFLOW_URL,
             :user_agent => USER_AGENT
         )
+        @cloud_client.set_timeout TIMEOUT
 
         # Modify images with pragma-makeover
         driver_dir = File.dirname File.expand_path __FILE__
@@ -182,6 +183,10 @@ class Allocator
             PRAGMA_PUB_NETMASK     = "$NIC[NETWORK_MASK, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
             PRAGMA_PUB_NETWORK     = "$NIC[NETWORK_ADDRESS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
             PRAGMA_CONTEXT          = "true"
+        ]
+        GRAPHICS = [ 
+            TYPE    = "vnc",
+            LISTEN  = "0.0.0.0"
         ]
         EOT
         if vm.name == "frontend"
