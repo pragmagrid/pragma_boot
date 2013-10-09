@@ -52,7 +52,9 @@ popd > /dev/null
 # need to find a free IP
 #
 rocks list host interface |awk '{print $5}' > /tmp/usedIP
+counter=0
 for i in `echo $public_ips | tr ',' ' ' `; do
+	counter=$(( $counter + 1 ))
 	if ! grep $i /tmp/usedIP > /dev/null ; then
 		public_ip=$i
 		break
@@ -93,16 +95,17 @@ temp_ip=`echo "$private_ip" | awk '{split($1,a,"."); print a[1]"."a[2]"."a[3]}'`
 for i in `rocks list cluster $fe_hostname | awk '{print $2}'|grep ^hosted`; do
 	mac=`rocks list host interface $i |awk '{print $3}' | tail -n 1`
         ip=$temp_ip.$counter
-	echo "    <node name=\"$i\" mac=\"$mac\" ip=\"$ip\" cpus=\"$cpus_per_node\"/>" >> $vc_out
+	internal_compute_name="compute-$(( 254 - $counter ))"
+	echo "    <node name=\"$internal_compute_name\" mac=\"$mac\" ip=\"$ip\" cpus=\"$cpus_per_node\"/>" >> $vc_out
         counter=$(( $counter - 1 ))	
 
-	node_xml="$temp_directory/$i.xml"
+	node_xml="$temp_directory/$internal_compute_name.xml"
 	# we generate the vc-out for the compute node here since we already have all the info
 	echo -e "<vc>\n  <frontend>" > $node_xml
 	echo "    <public fqdn=\"$fqdn\"/>" >> $node_xml
 	echo "  </frontend>" >> $node_xml
 	echo "  <compute>" >> $node_xml
-	echo "    <private fqdn=\"$i\" ip=\"$ip\" netmask=\"$private_netmask\" gw=\"$private_ip\" mac=\"$mac\"/>" >> $node_xml
+	echo "    <private fqdn=\"$internal_compute_name\" ip=\"$ip\" netmask=\"$private_netmask\" gw=\"$private_ip\" mac=\"$mac\"/>" >> $node_xml
 	echo -e "  </compute>\n  <network>" >> $node_xml
 	echo "    <dns ip=\"$dns\" search=\"local\" domain=\"\"/>" >> $node_xml
 	echo "  </network>" >> $node_xml

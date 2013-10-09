@@ -43,10 +43,14 @@ guestmount -a $temp_disk_path -m /dev/sda1 $tmp_folder || error "unable to mount
 if [ "x$fqdn" = "x$fe_fqdn" ]; then
 	# this is a frontend
 	xml_file="$vc_out_filepath"
+	node_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
 else 
 	# this is a compute node and we have created all the xml file in allocate
 	# they are in temp_dir/hostname.xml
 	xml_file="$temp_directory/$fqdn.xml"
+	node_number=${fqdn#compute-}
+	cluster_name=`echo $fe_fqdn |awk -F. '{ print $1 }'`
+	node_hostname=`rocks list cluster $cluster_name | awk -v node=$node_number 'NR >= (node + 3) && NR < (node + 4) {print $2} '`
 fi
 
 # copy the vc-out.xml
@@ -60,7 +64,6 @@ rmdir $tmp_folder
 #    ----------------       deploying disk image and booting  -------------------
 #
 # match everything except 'HOST' and a line of -----
-node_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
 container=`rocks list host vm $node_hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
 disk_path=`rocks list host vm $node_hostname showdisks=1 | awk ' {if (/file/) print $7}'`
 # remove useless stuff from file path
