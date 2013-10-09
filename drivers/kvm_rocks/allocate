@@ -60,11 +60,19 @@ for i in `echo $public_ips | tr ',' ' ' `; do
 		break
 	fi
 done
-
 if [ ! "$public_ip" ] ; then
 	echo Unable to find an available public IP
 	echo All IPs are already allocated
+	exit 1
 fi
+
+fqdn=`nslookup $public_ip | sed -n "s/.*arpa.*name = \(.*\)./\1/p"`
+if [ ! "$fqdn" ] ; then
+        echo Unable to find a FQDN
+        echo terinating
+	exit 1
+fi
+
 
 fe_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
 
