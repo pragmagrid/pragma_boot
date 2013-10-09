@@ -19,7 +19,8 @@ function error(){
 function uncompress(){
     #TODO check if the image is really gzipped
     echo Uncompressing $1
-    gunzip -c "$1" > "$2" || error "Unable to uncompress virtual image"
+    which unpigz && cmd="unpigz" || cmd="gunzip"
+    $cmd -c "$1" > "$2" || error "Unable to uncompress virtual image"
 }
 
 # tree required arguments
