@@ -172,8 +172,8 @@ vc-out.xml file example for a frontend
 
  <vc>
    <frontend>
-     <public fqdn="somehost.ucsd.edu" ip="123.123.123.123" netmask="255.255.255.0" gw="123.123.123.1"/>
-     <private ip="10.1.1.1" netmask="255.255.0.0"/>
+     <public fqdn="somehost.ucsd.edu" ip="123.123.123.123" netmask="255.255.255.0" gw="123.123.123.1" mac="7a:77:6e:40:00:10"/>
+     <private ip="10.1.1.1" netmask="255.255.0.0" mac="7a:77:6e:40:00:09"/>
    </frontend>
    <compute count="2">
      <node name="hosted-vm-0-1-0" mac="7a:77:6e:40:00:15" ip="10.1.0.254" cpus="2"/>
@@ -194,7 +194,7 @@ vc-out.xml file example for a compute node
      <public fqdn="somehost.ucsd.edu"/>
    </frontend>
    <compute>
-     <private fqdn="compute-0" ip="10.1.1.30" netmask="255.255.0.0" gw="10.1.1.1"/>
+     <private fqdn="hosted-vm-0-1-0" ip="10.1.1.30" netmask="255.255.0.0" gw="10.1.1.1" mac="7a:77:6e:40:00:15"/>
    </compute>
    <network>
      <dns ip="8.8.8.8" search="local" domain=""/>
