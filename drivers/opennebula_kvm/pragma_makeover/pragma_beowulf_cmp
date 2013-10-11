@@ -42,48 +42,48 @@ start() {
 
     ### for RHEL6 family
     ### overwrite udev rule, and reload.
-    grep -q '6\.' /etc/redhat-release
-    if [ $? -eq 0 ]; then
-        reconfig_udev
-    fi
+    # grep -q '6\.' /etc/redhat-release
+    # if [ $? -eq 0 ]; then
+    #     reconfig_udev
+    # fi
 
     ### generate ifcfg-eth*
-    _priv_mac=`/sbin/ifconfig ${PRAGMA_CMP_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    modify_ifcfg \
-        ${PRAGMA_CMP_PRIV_NIC} \
-        ${_priv_mac} \
-        ${PRAGMA_PRIV_NETMASK} \
-        ${PRAGMA_PRIV_NETWORK} \
-        ${PRAGMA_PRIV_BROADCAST} \
-        /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_CMP_PRIV_NIC}
+    # _priv_mac=`/sbin/ifconfig ${PRAGMA_CMP_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
+    # modify_ifcfg \
+    #     ${PRAGMA_CMP_PRIV_NIC} \
+    #     ${_priv_mac} \
+    #     ${PRAGMA_PRIV_NETMASK} \
+    #     ${PRAGMA_PRIV_NETWORK} \
+    #     ${PRAGMA_PRIV_BROADCAST} \
+    #     /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_CMP_PRIV_NIC}
 
     ### generate /etc/resolv.conf
-    echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
-    for _d in ${PRAGMA_PRIV_DNS} ${PRAGMA_PUB_DNS}
-    do
-        echo "nameserver ${_d}" >>/etc/resolv.conf
-    done
+    # echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
+    # for _d in ${PRAGMA_PRIV_DNS} ${PRAGMA_PUB_DNS}
+    # do
+    #     echo "nameserver ${_d}" >>/etc/resolv.conf
+    # done
 
     ### generate /etc/hosts
-    echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
-    echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
-    echo ""         >> /etc/hosts
-    echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
+    # echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
+    # echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
+    # echo ""         >> /etc/hosts
+    # echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
 
     ### set hostname
-    _myip=`mac2ip ${_priv_mac}`
-    _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
-    hostname ${_myname}
+    # _myip=`mac2ip ${_priv_mac}`
+    # _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
+    # hostname ${_myname}
 
     ### modify /etc/sysconfig/network
-    _beowulf_gw=`grep "$PRAGMA_FE_SHORTNAME[ 	]*$" /etc/hosts | awk '{print $1}'`
-    sed -i \
-        -e "s/^\(GATEWAY=\).*$/\1${_beowulf_gw}/" \
-        -e "s/^\(HOSTNAME=\).*$/\1${_myname}/" \
-        /etc/sysconfig/network
+    # _beowulf_gw=`grep "$PRAGMA_FE_SHORTNAME[ 	]*$" /etc/hosts | awk '{print $1}'`
+    # sed -i \
+    #     -e "s/^\(GATEWAY=\).*$/\1${_beowulf_gw}/" \
+    #     -e "s/^\(HOSTNAME=\).*$/\1${_myname}/" \
+    #     /etc/sysconfig/network
 
     ### modify /etc/ssh/sshd_config
-    modify_sshd_cfg
+    # modify_sshd_cfg
 
     ### make /root/vc-out.xml
     make_vcout > /root/vc-out.xml
@@ -207,9 +207,11 @@ __EOF__
     ### frontend
     _xml_fe_shortname=${PRAGMA_FE_SHORTNAME}
     _xml_pub_lower=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
-    _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
+    _xml_pub_higher=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
     _xml_priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
-    _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+    _xml_priv_higher=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
 
     if [ -z "${_xml_fe_shortname}" ]; then
         _xml_fe_shortname=`hostname`

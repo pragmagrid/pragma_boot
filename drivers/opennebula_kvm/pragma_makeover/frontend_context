@@ -41,16 +41,18 @@ start() {
     check_context
 
     ### generate /etc/hosts
-    echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
-    echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
-    echo ""         >> /etc/hosts
-    echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
+    # echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
+    # echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
+    # echo ""         >> /etc/hosts
+    # echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
 
     ### set hostname
-    _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    _myip=`mac2ip ${_pub_mac}`
-    _myname=`grep "^${_myip}[   ]" /etc/hosts | awk '{print $2}'`
-    hostname "${_myname}"
+    # _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
+    # _myip=`mac2ip ${_pub_mac}`
+    # _myname=`grep "^${_myip}[   ]" /etc/hosts | awk '{print $2}'`
+    # hostname "${_myname}"
+
+    eval ${PRAGMA_FE_MAC_ARRAY}
 
     ### make /root/vc-out.xml
     make_vcout > /root/vc-out.xml
@@ -84,60 +86,76 @@ make_vcout() {
 __EOF__
 
     ## Calculate BROADCAST from NETMASK
-    IFS=. read -r m1 m2 m3 m4 <<< ${PRAGMA_PUB_NETMASK}
-    PRAGMA_PUB_BROADCAST="$((255 ^ m1)).$((255 ^ m2)).$((255 ^ m3)).$((255 ^ m4))"
-    IFS=. read -r m1 m2 m3 m4 <<< ${PRAGMA_PRIV_NETMASK}
-    PRAGMA_PRIV_BROADCAST="$((255 ^ m1)).$((255 ^ m2)).$((255 ^ m3)).$((255 ^ m4))"
+    # IFS=. read -r m1 m2 m3 m4 <<< ${PRAGMA_PUB_NETMASK}
+    # PRAGMA_PUB_BROADCAST="$((255 ^ m1)).$((255 ^ m2)).$((255 ^ m3)).$((255 ^ m4))"
+    # IFS=. read -r m1 m2 m3 m4 <<< ${PRAGMA_PRIV_NETMASK}
+    # PRAGMA_PRIV_BROADCAST="$((255 ^ m1)).$((255 ^ m2)).$((255 ^ m3)).$((255 ^ m4))"
 
     ### frontend
-    _xml_fe_shortname=${PRAGMA_FE_SHORTNAME}
-    _xml_pub_lower=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
-    _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
-    _xml_priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
-    _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_fe_shortname=${PRAGMA_FE_SHORTNAME}
+    # _xml_pub_lower=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
+    # # _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_pub_higher=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
+    # _xml_priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
+    # # _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_priv_higher=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
 
-    if [ -z "${_xml_fe_shortname}" ]; then
-        _xml_fe_shortname=`hostname`
-    fi
+    # if [ -z "${_xml_fe_shortname}" ]; then
+    #     _xml_fe_shortname=`hostname`
+    # fi
 
-    for i in `grep "${_xml_fe_shortname}" /etc/hosts | awk '{print $1}'`
-    do
-        echo "${i}" | grep -q "${_xml_pub_lower}"
-        _ret_l=$?
-        echo "${i}" | grep -q "${_xml_pub_higher}"
-        _ret_h=$?
-        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
-            _xml_fe_pub_ip=${i}
-        fi
+    # for i in `grep "${_xml_fe_shortname}" /etc/hosts | awk '{print $1}'`
+    # do
+    #     echo "${i}" | grep -q "${_xml_pub_lower}"
+    #     _ret_l=$?
+    #     echo "${i}" | grep -q "${_xml_pub_higher}"
+    #     _ret_h=$?
+    #     if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
+    #         _xml_fe_pub_ip=${i}
+    #     fi
 
-        echo "${i}" | grep -q "${_xml_priv_lower}"
-        _ret_l=$?
-        echo "${i}" | grep -q "${_xml_priv_higher}"
-        _ret_h=$?
-        if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
-            _xml_fe_priv_ip=${i}
-        fi
-    done
+    #     echo "${i}" | grep -q "${_xml_priv_lower}"
+    #     _ret_l=$?
+    #     echo "${i}" | grep -q "${_xml_priv_higher}"
+    #     _ret_h=$?
+    #     if [ "${_ret_l}" -eq 0 -o ${_ret_h} -eq 0 ]; then
+    #         _xml_fe_priv_ip=${i}
+    #     fi
+    # done
 
-    echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${_xml_fe_pub_ip}'/>"
+    # echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${_xml_fe_pub_ip}'/>"
+    echo "  <frontend>"
+    echo "    <public fqdn='${PRAGMA_FE_NAME}.${PRAGMA_DOMAIN}' ip='${ETH1_IP}' netmask='${PRAGMA_PUB_NETMASK}' gw='${ETH1_GATEWAY}' mac='${PRAGMA_FE_MAC[${ETH1_IP}]}'/>"
+    echo "    <private ip='${PRAGMA_FE_PRIV_IP}' netmask='${PRAGMA_PRIV_NETMASK}' mac='${PRAGMA_FE_PRIV_MAC}'/>"
+    echo "  </frontend>"
 
     ### compute
-    _xml_mac_prefix=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{gsub(/..:..:..:..$/,"", $5); print $5}'`
+    # _xml_mac_prefix=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{gsub(/..:..:..:..$/,"", $5); print $5}'`
 
-    _xml_cmp_count=`egrep -vic "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts`
-    echo "  <compute count='${_xml_cmp_count}'>" 
+    # _xml_cmp_count=`egrep -vic "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts`
+    # echo "  <compute count='${_xml_cmp_count}'>" 
+    echo "  <compute count='${PRAGMA_NUM_COMPUTE}'>" 
 
-    for i in `egrep -vi "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts | awk '{print $1}'`
-    do
-        # IP address to MAC address
-        _xml_cmp_priv_mac=`echo ${i} | awk -F'.' '{printf("%x:%x:%x:%x\n", $1, $2, $3, $4)}'`
-        _xml_cmp_hostname=`grep "^${i}[ 	]" /etc/hosts | awk '{print $2}'`
-        echo "    <node name='${_xml_cmp_hostname}' mac='${_xml_mac_prefix}${_xml_cmp_priv_mac}' private_ip='${i}' public_ip=''/>" 
-    done
+    # for i in `egrep -vi "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts | awk '{print $1}'`
+    # do
+    #     # IP address to MAC address
+    #     _xml_cmp_priv_mac=`echo ${i} | awk -F'.' '{printf("%x:%x:%x:%x\n", $1, $2, $3, $4)}'`
+    #     _xml_cmp_hostname=`grep "^${i}[ 	]" /etc/hosts | awk '{print $2}'`
+    #     # echo "    <node name='${_xml_cmp_hostname}' mac='${_xml_mac_prefix}${_xml_cmp_priv_mac}' private_ip='${i}' public_ip=''/>" 
+    #     echo "    <node name='${_xml_cmp_hostname}' mac='${_xml_mac_prefix}${_xml_cmp_priv_mac}' ip='${i}'/>" 
+    # done
+
+    echo ${PRAGMA_COMPUTES_XML}
+
+    echo "  </compute>"
+
+    echo "  <network>"
+    echo "    <dns ip='${ETH1_DNS}' search='local' domain=''/>"
+    echo "  </network>"
+    echo "  <key>${SSH_PUBLIC_KEY}</key>"
 
     ### footer
     cat << __EOF__
-  </compute>
 </vc>
 __EOF__
 

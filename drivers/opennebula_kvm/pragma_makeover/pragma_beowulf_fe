@@ -42,53 +42,80 @@ start() {
 
     ### for RHEL6 family
     ### overwrite udev rule, and reload.
-    grep -q '6\.' /etc/redhat-release
-    if [ $? -eq 0 ]; then
-        reconfig_udev
-    fi
+    # grep -q '6\.' /etc/redhat-release
+    # if [ $? -eq 0 ]; then
+    #     reconfig_udev
+    # fi
 
     ### generate ifcfg-eth*
-    _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    modify_ifcfg \
-        ${PRAGMA_FE_PUB_NIC} \
-        ${_pub_mac} \
-        ${PRAGMA_PUB_NETMASK} \
-        ${PRAGMA_PUB_NETWORK} \
-        ${PRAGMA_PUB_BROADCAST} \
-        /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_FE_PUB_NIC}
+    # _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
+    # modify_ifcfg \
+    #     ${PRAGMA_FE_PUB_NIC} \
+    #     ${_pub_mac} \
+    #     ${PRAGMA_PUB_NETMASK} \
+    #     ${PRAGMA_PUB_NETWORK} \
+    #     ${PRAGMA_PUB_BROADCAST} \
+    #     /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_FE_PUB_NIC}
 
-    _priv_mac=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    modify_ifcfg \
-        ${PRAGMA_FE_PRIV_NIC} \
-        ${_priv_mac} \
-        ${PRAGMA_PRIV_NETMASK} \
-        ${PRAGMA_PRIV_NETWORK} \
-        ${PRAGMA_PRIV_BROADCAST} \
-        /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_FE_PRIV_NIC}
+    # _priv_mac=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
+    # modify_ifcfg \
+    #     ${PRAGMA_FE_PRIV_NIC} \
+    #     ${_priv_mac} \
+    #     ${PRAGMA_PRIV_NETMASK} \
+    #     ${PRAGMA_PRIV_NETWORK} \
+    #     ${PRAGMA_PRIV_BROADCAST} \
+    #     /etc/sysconfig/network-scripts/ifcfg-${PRAGMA_FE_PRIV_NIC}
+
+    ### generate ifcfg-eth*
+    # _pub_mac=`/sbin/ifconfig eth1 | head -n 1 | awk '{print(tolower($5))}'`
+    # modify_ifcfg \
+    #     eth1 \
+    #     ${_pub_mac} \
+    #     ${ETH1_MASK} \
+    #     ${ETH1_NETWORK} \
+    #     ${ETH1_IP} \
+    #     /etc/sysconfig/network-scripts/ifcfg-eth1
+
+    # _priv_mac=`/sbin/ifconfig eth0 | head -n 1 | awk '{print(tolower($5))}'`
+    # modify_ifcfg \
+    #     eth0 \
+    #     ${_priv_mac} \
+    #     ${ETH0_MASK} \
+    #     ${ETH0_NETWORK} \
+    #     ${ETH0_IP} \
+    #     /etc/sysconfig/network-scripts/ifcfg-eth0
 
     ### generate /etc/resolv.conf
-    echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
-    for _d in ${PRAGMA_PRIV_DNS} ${PRAGMA_PUB_DNS}
-    do
-        echo "nameserver ${_d}" >>/etc/resolv.conf
-    done
+    # echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
+    # for _d in ${PRAGMA_PRIV_DNS} ${PRAGMA_PUB_DNS}
+    # do
+    #     echo "nameserver ${_d}" >>/etc/resolv.conf
+    # done
+
+    ### generate /etc/resolv.conf
+    # echo "search ${PRAGMA_DOMAINNAME}" >/etc/resolv.conf
+    # for _d in ${ETH0_DNS} ${ETH1_DNS}
+    # do
+    #     echo "nameserver ${_d}" >>/etc/resolv.conf
+    # done
 
     ### generate /etc/hosts
-    echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
-    echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
-    echo ""         >> /etc/hosts
-    echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
+    # echo "127.0.0.1     localhost.localdomain localhost"    >  /etc/hosts
+    # echo "::1           localhost6.localdomain6 localhost6" >> /etc/hosts
+    # echo ""         >> /etc/hosts
+    # echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
 
     ### set hostname
-    _myip=`mac2ip ${_pub_mac}`
-    _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
-    hostname "${_myname}"
+    # _myip=`mac2ip ${_pub_mac}`
+    # _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
+    # hostname "${_myname}"
 
     ### modify /etc/sysconfig/network
-    sed -i \
-        -e "s/^\(GATEWAY=\).*$/\1${PRAGMA_GATEWAY}/" \
-        -e "s/^\(HOSTNAME=\).*$/\1${_myname}/" \
-        /etc/sysconfig/network
+    # sed -i \
+    #     # -e "s/^\(GATEWAY=\).*$/\1${PRAGMA_GATEWAY}/" \
+    #     -e "s/^\(GATEWAY=\).*$/\1${ETH1_GATEWAY}/" \
+    #     -e "s/^\(HOSTNAME=\).*$/\1${_myname}/" \
+    #     /etc/sysconfig/network
 
     ### modify /etc/ssh/sshd_config
     modify_sshd_cfg
@@ -182,10 +209,11 @@ modify_ifcfg() {
     _mac=$2
     _mask=$3
     _nw=$4
-    _bc=$5
+    # _bc=$5
+    _ip=$5
     _conf=$6
 
-    _ip=`mac2ip ${_mac}`
+    # _ip=`mac2ip ${_mac}`
 
     sed -i \
         -e "s/^\(DEVICE=\).*$/\1${_ifid}/" \
@@ -193,7 +221,7 @@ modify_ifcfg() {
         -e "s/^\(IPADDR=\).*$/\1${_ip}/" \
         -e "s/^\(NETMASK=\).*$/\1${_mask}/" \
         -e "s/^\(NETWORK=\).*$/\1${_nw}/" \
-        -e "s/^\(BROADCAST=\).*$/\1${_bc}/" \
+        # -e "s/^\(BROADCAST=\).*$/\1${_bc}/" \
         ${_conf}
 
     return 0
@@ -226,9 +254,11 @@ __EOF__
     ### frontend
     _xml_fe_shortname=${PRAGMA_FE_SHORTNAME}
     _xml_pub_lower=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
-    _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_pub_higher=`echo ${PRAGMA_PUB_BROADCAST} | sed 's/\(\.255\)*$//'`
+    _xml_pub_higher=`echo ${PRAGMA_PUB_NETWORK} | sed 's/\(\.0\)*$//'`
     _xml_priv_lower=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
-    _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+    # _xml_priv_higher=`echo ${PRAGMA_PRIV_BROADCAST} | sed 's/\(\.255\)*$//'`
+    _xml_priv_higher=`echo ${PRAGMA_PRIV_NETWORK} | sed 's/\(\.0\)*$//'`
 
     if [ -z "${_xml_fe_shortname}" ]; then
         _xml_fe_shortname=`hostname`
@@ -253,7 +283,8 @@ __EOF__
         fi
     done
 
-    echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${_xml_fe_pub_ip}'/>"
+    # echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${_xml_fe_pub_ip}'/>"
+    echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${ETH1_IP}'/>"
 
     ### compute
     _xml_mac_prefix=`/sbin/ifconfig ${PRAGMA_FE_PRIV_NIC} | head -n 1 | awk '{gsub(/..:..:..:..$/,"", $5); print $5}'`

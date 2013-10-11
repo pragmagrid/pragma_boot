@@ -28,8 +28,10 @@ class Allocator
 
     public
 
-    def initialize(vc_in, num_compute, temp_path)
+    def initialize(vc_in, num_compute, temp_path, public_key)
+        # TODO: Handle incorrect pubkey path
         @temp_path = temp_path
+        @public_key = File.read(public_key)
         @name = File.basename(vc_in, ".*")
         @vc_in = Nokogiri::XML(open(vc_in))
         @basepath = File.dirname(vc_in)
@@ -94,6 +96,7 @@ class Allocator
         TYPE = FIXED
         NETWORK_ADDRESS = #{network.search("ipaddress")[0].content}
         NETWORK_MASK = #{network.search("netmask")[0].content}
+        DNS = #{@leases[0][0]}
         BRIDGE = #{PRIVATE_BRIDGE}
         EOT
         @leases.each do |lease|
@@ -156,15 +159,37 @@ class Allocator
         #192.168.57.204   hosted-vm-0-0-1
         #192.168.57.205   hosted-vm-0-0-2
         frontend, *computes = @leases
+
         cluster_hosts = <<-EOT
-        #{frontend[0]}    #{@vc_in.search("//vc/frontend/domain/name")[0].content}
+#{frontend[0]}    #{@vc_in.search("//vc/frontend/domain/name")[0].content}
         EOT
+        computes_xml = <<-EOT
+        EOT
+        hostname_array = "declare -A PRAGMA_CMP_HOSTNAME=( "
+        cmp_mac_array = "declare -A PRAGMA_CMP_MAC=( "
+
         computes.each_with_index do |lease, index|
+            hostname = "#{@vc_in.search("//vc/compute/domain/name")[0].content}-#{index}"
             cluster_hosts << <<-EOT
-            #{lease[0]}    #{@vc_in.search("//vc/compute/domain/name")[0].content}-#{index}
+#{lease[0]}    #{hostname}
             EOT
+            computes_xml << <<-EOT
+<node name='#{hostname}' mac='#{lease[1]}' ip='#{lease[0]}' cpus='#{@num_compute}'/>
+            EOT
+            hostname_array << "['#{lease[0]}']='#{hostname}' "
+            cmp_mac_array << "['#{lease[0]}']='#{lease[1]}' "
         end
 
+        hostname_array << ")"
+        cmp_mac_array << ")"
+
+        fe_mac_array = "declare -A PRAGMA_FE_MAC=( "
+        PUBLIC_NETWORK_LEASES.each do |ip, mac|
+            fe_mac_array << "['#{ip}']='#{mac}' "
+        end
+        fe_mac_array << ")"
+
+        # TODO: Import SSH PUBKEY
         template = <<-EOT
         NAME = "#{vm.search("domain/name")[0].content}"
         CPU = #{vm.search("domain/vcpu")[0].content}
@@ -173,31 +198,48 @@ class Allocator
         OS = [ BOOT = "hd", ARCH = "x86_64" ]
         CONTEXT = [
             NETWORK                 = "YES",
+            PRAGMA_DOMAIN           = "#{DOMAIN}",
             PRAGMA_CLUSTER_HOSTS    = "#{cluster_hosts}",
+            PRAGMA_NUM_COMPUTE      = "#{@num_compute}",
             PRAGMA_FE_NAME          = "#{@vc_in.search("//vc/frontend/domain/name")[0].content}",
             PRAGMA_FE_SHORTNAME     = "#{@vc_in.search("//vc/frontend/domain/name")[0].content}",
-            PRAGMA_FE_PRIV_NIC      = "eth0",
             PRAGMA_FE_PUB_NIC       = "eth1",
-            PRAGMA_PRIV_DNS         = "$NIC[DNS, NETWORK=\\"#{@network.name}\\"]",
-            PRAGMA_PRIV_NETMASK     = "$NIC[NETWORK_MASK, NETWORK=\\"#{@network.name}\\"]",
-            PRAGMA_PRIV_NETWORK     = "$NIC[NETWORK_ADDRESS, NETWORK=\\"#{@network.name}\\"]",
-            PRAGMA_PUB_DNS         = "$NIC[DNS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
-            PRAGMA_PUB_NETMASK     = "$NIC[NETWORK_MASK, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
-            PRAGMA_PUB_NETWORK     = "$NIC[NETWORK_ADDRESS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
-            PRAGMA_CONTEXT          = "true"
+            PRAGMA_FE_PRIV_NIC      = "eth0",
+            PRAGMA_FE_PRIV_MAC      = "#{frontend[1]}",
+            PRAGMA_FE_PRIV_IP       = "#{frontend[0]}",
+            PRAGMA_FE_MAC_ARRAY     = "#{fe_mac_array}",
+            PRAGMA_CMP_PRIV_NIC     = "eth0",
+            PRAGMA_CMP_HOSTNAME_ARRAY = "#{hostname_array}",
+            PRAGMA_CMP_MAC_ARRAY    = "#{cmp_mac_array}",
+            PRAGMA_PRIV_DNS         = "$NETWORK[DNS, NETWORK=\\"#{@network.name}\\"]",
+            PRAGMA_PRIV_NETMASK     = "$NETWORK[NETWORK_MASK, NETWORK=\\"#{@network.name}\\"]",
+            PRAGMA_PRIV_NETWORK     = "$NETWORK[NETWORK_ADDRESS, NETWORK=\\"#{@network.name}\\"]",
+            PRAGMA_PUB_DNS          = "$NETWORK[DNS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
+            PRAGMA_PUB_NETMASK      = "$NETWORK[NETWORK_MASK, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
+            PRAGMA_PUB_NETWORK      = "$NETWORK[NETWORK_ADDRESS, NETWORK=\\"#{PUBLIC_NETWORK}\\"]",
+            PRAGMA_CONTEXT          = "true",
+            PRAGMA_COMPUTES_XML     = "#{computes_xml}",
+            SSH_PUBLIC_KEY          = "#{@public_key}"
         ]
         GRAPHICS = [ 
             TYPE    = "vnc",
             LISTEN  = "0.0.0.0"
         ]
         EOT
+
+        # NIC = [ 
+        #     NETWORK = #{@network.name},
+        #     MODEL = #{vm.search("domain/devices/interface/model")[0]["type"]},
+        #     MAC = #{frontend[1]}
+        # ]
+
         if vm.name == "frontend"
             template << <<-EOT
             DISK = [ IMAGE = #{@frontend["image"].name} ]
             NIC = [ 
                 NETWORK = #{@network.name},
                 MODEL = #{vm.search("domain/devices/interface/model")[0]["type"]},
-                MAC = #{@leases.first[1]}
+                IP = #{frontend[0]}
             ]
             NIC = [
                 NETWORK = #{PUBLIC_NETWORK},
@@ -306,10 +348,12 @@ class Allocator
         netmask = @vc_in.search("//vc/networks/network/netmask")[0].content
         ip = IPAddr.new("#{network}/#{netmask}")
         ip = ip.succ  # Skip to frontend ip
-        leases << [ip, (1..6).map{"%0.2X"%rand(256)}.join(":")]
+        # Note, there are some restriction for generating MAC
+        # See http://en.wikipedia.org/wiki/MAC_address
+        leases << [ip, "fe:" + (1..5).map{"%0.2X"%rand(256)}.join(":").downcase]
         ip = ip.succ  # Skip to compute ip range
         (@num_compute).times do |count|
-            leases << [ip, (1..6).map{"%0.2X"%rand(256)}.join(":")]
+            leases << [ip, "fe:" + (1..5).map{"%0.2X"%rand(256)}.join(":").downcase]
             ip = ip.succ
         end
         $logger.debug leases
@@ -322,7 +366,8 @@ end
 num_compute = Integer(ARGV[0])
 vc_in = ARGV[1]
 temp_path = ARGV[3]
-allocator = Allocator.new(vc_in, num_compute)
+public_key = ARGV[4]
+allocator = Allocator.new(vc_in, num_compute, temp_path, public_key)
 allocator.instantiate
 File.open(ARGV[2], "w") do |file|
     file.write(allocator.vc_out.to_xml)
