@@ -167,6 +167,8 @@ class Allocator
         EOT
         hostname_array = "declare -A PRAGMA_CMP_HOSTNAME=( "
         cmp_mac_array = "declare -A PRAGMA_CMP_MAC=( "
+        # hostname_array = "PRAGMA_CMP_HOSTNAME=( "
+        # cmp_mac_array = "PRAGMA_CMP_MAC=( "
 
         computes.each_with_index do |lease, index|
             hostname = "#{@vc_in.search("//vc/compute/domain/name")[0].content}-#{index}"
@@ -174,18 +176,23 @@ class Allocator
 #{lease[0]}    #{hostname}
             EOT
             computes_xml << <<-EOT
-<node name='#{hostname}' mac='#{lease[1]}' ip='#{lease[0]}' cpus='#{@num_compute}'/>
+<node name='#{hostname}' mac='#{lease[1]}' ip='#{lease[0]}' cpus='1'/>
             EOT
             hostname_array << "['#{lease[0]}']='#{hostname}' "
             cmp_mac_array << "['#{lease[0]}']='#{lease[1]}' "
+            # hostname_array << "'#{lease[0]}'='#{hostname}' "
+            # cmp_mac_array << "'#{lease[0]}'='#{lease[1]}' "
+
         end
 
         hostname_array << ")"
         cmp_mac_array << ")"
 
         fe_mac_array = "declare -A PRAGMA_FE_MAC=( "
+        # fe_mac_array = "PRAGMA_FE_MAC=( "
         PUBLIC_NETWORK_LEASES.each do |ip, mac|
             fe_mac_array << "['#{ip}']='#{mac}' "
+            # fe_mac_array << "'#{ip}'='#{mac}' "
         end
         fe_mac_array << ")"
 
@@ -350,10 +357,10 @@ class Allocator
         ip = ip.succ  # Skip to frontend ip
         # Note, there are some restriction for generating MAC
         # See http://en.wikipedia.org/wiki/MAC_address
-        leases << [ip, "fe:" + (1..5).map{"%0.2X"%rand(256)}.join(":").downcase]
+        leases << [ip, "02:00:" + (1..4).map{"%0.2X"%rand(256)}.join(":").downcase]
         ip = ip.succ  # Skip to compute ip range
         (@num_compute).times do |count|
-            leases << [ip, "fe:" + (1..5).map{"%0.2X"%rand(256)}.join(":").downcase]
+            leases << [ip, "02:00:" + (1..4).map{"%0.2X"%rand(256)}.join(":").downcase]
             ip = ip.succ
         end
         $logger.debug leases

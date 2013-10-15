@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 #
 # chkconfig: 35 1 90
-# description: reconfigure Beowulf frontend node
+# description: reconfigure Beowulf compute node
 #
 
 set -x
@@ -47,12 +47,13 @@ start() {
     # echo "${PRAGMA_CLUSTER_HOSTS}" >> /etc/hosts
 
     ### set hostname
-    # _pub_mac=`/sbin/ifconfig ${PRAGMA_FE_PUB_NIC} | head -n 1 | awk '{print(tolower($5))}'`
-    # _myip=`mac2ip ${_pub_mac}`
-    # _myname=`grep "^${_myip}[   ]" /etc/hosts | awk '{print $2}'`
-    # hostname "${_myname}"
+    # _priv_mac=`/sbin/ifconfig ${PRAGMA_CMP_PRIV_NIC} | head -n 1 | awk '{print(tolower($5))}'`
+    # _myip=`mac2ip ${_priv_mac}`
+    # _myname=`grep "^${_myip}[ 	]" /etc/hosts | awk '{print $2}'`
+    # hostname ${_myname}
 
-    eval ${PRAGMA_FE_MAC_ARRAY}
+    eval ${PRAGMA_CMP_HOSTNAME_ARRAY}
+    eval ${PRAGMA_CMP_MAC_ARRAY}
 
     ### make /root/vc-out.xml
     make_vcout > /root/vc-out.xml
@@ -82,6 +83,45 @@ mac2ip() {
     ip_c=0x`echo $mac | cut -d: -f 5`
     ip_d=0x`echo $mac | cut -d: -f 6`
     printf "%d.%d.%d.%d" $ip_a $ip_b $ip_c $ip_d
+
+    return 0
+}
+
+# modify ifcfg-eth*
+modify_ifcfg() {
+    _ifid=$1
+    _mac=$2
+    _mask=$3
+    _nw=$4
+    _bc=$5
+    _conf=$6
+
+    _ip=`mac2ip ${_mac}`
+
+    sed -i \
+        -e "s/^\(DEVICE=\).*$/\1${_ifid}/" \
+        -e "s/^\(HWADDR=\).*$/\1${_mac}/" \
+        -e "s/^\(IPADDR=\).*$/\1${_ip}/" \
+        -e "s/^\(NETMASK=\).*$/\1${_mask}/" \
+        -e "s/^\(NETWORK=\).*$/\1${_nw}/" \
+        -e "s/^\(BROADCAST=\).*$/\1${_bc}/" \
+        ${_conf}
+
+    return 0
+}
+
+# modify /etc/ssh/sshd_config
+modify_sshd_cfg() {
+    sed -i \
+        -e "s/^\(PasswordAuthentication\).*$/\1 no/" \
+        -e "s/^\(ChallengeResponseAuthentication\).*$/\1 no/" \
+        -e "s/^\(UsePAM\).*$/\1 no/" \
+        /etc/ssh/sshd_config
+
+    grep -q '^PasswordAuthentication' /etc/ssh/sshd_config
+    if [ "$?" -ne 0 ]; then
+        echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+    fi
 
     return 0
 }
@@ -134,8 +174,7 @@ __EOF__
 
     # echo "  <frontend name='${_xml_fe_shortname}' fqdn='${PRAGMA_FE_NAME}' private_ip='${_xml_fe_priv_ip}' public_ip='${_xml_fe_pub_ip}'/>"
     echo "  <frontend>"
-    echo "    <public fqdn='${PRAGMA_FE_NAME}.${PRAGMA_DOMAIN}' ip='${ETH1_IP}' netmask='${PRAGMA_PUB_NETMASK}' gw='${ETH1_GATEWAY}' mac='${PRAGMA_FE_MAC[${ETH1_IP}]}'/>"
-    # echo "    <public fqdn='${PRAGMA_FE_NAME}.${PRAGMA_DOMAIN}' ip='${ETH1_IP}' netmask='${PRAGMA_PUB_NETMASK}' gw='${ETH1_GATEWAY}' mac='`hash_get 'PRAGMA_FE_MAC' '${ETH1_IP}'`'/>"
+    echo "    <public fqdn='${PRAGMA_FE_NAME}' ip='' netmask='${PRAGMA_PUB_NETMASK}' gw='' mac=''/>"
     echo "    <private ip='${PRAGMA_FE_PRIV_IP}' netmask='${PRAGMA_PRIV_NETMASK}' mac='${PRAGMA_FE_PRIV_MAC}'/>"
     echo "  </frontend>"
 
@@ -145,6 +184,8 @@ __EOF__
     # _xml_cmp_count=`egrep -vic "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts`
     # echo "  <compute count='${_xml_cmp_count}'>" 
     echo "  <compute count='${PRAGMA_NUM_COMPUTE}'>" 
+    echo "    <private fqdn='${PRAGMA_CMP_HOSTNAME[${ETH0_IP}]}' ip='${ETH0_IP}' netmask='${PRAGMA_PRIV_NETMASK}' gw='${PRAGMA_FE_PRIV_IP}' mac='${PRAGMA_CMP_MAC[${ETH0_IP}]}'/>"
+    # echo "    <private fqdn='`hash_get 'PRAGMA_CMP_HOSTNAME' '${ETH0_IP}'`' ip='${ETH0_IP}' netmask='${PRAGMA_PRIV_NETMASK}' gw='${PRAGMA_FE_PRIV_IP}' mac='`hash_get PRAGMA_CMP_MAC '${ETH0_IP}'`'/>"
 
     # for i in `egrep -vi "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts | awk '{print $1}'`
     # do
@@ -154,13 +195,13 @@ __EOF__
     #     # echo "    <node name='${_xml_cmp_hostname}' mac='${_xml_mac_prefix}${_xml_cmp_priv_mac}' private_ip='${i}' public_ip=''/>" 
     #     echo "    <node name='${_xml_cmp_hostname}' mac='${_xml_mac_prefix}${_xml_cmp_priv_mac}' ip='${i}'/>" 
     # done
-
+    
     echo ${PRAGMA_COMPUTES_XML}
 
     echo "  </compute>"
 
     echo "  <network>"
-    echo "    <dns ip='${ETH1_DNS}' search='local' domain=''/>"
+    echo "    <dns ip='${PRAGMA_FE_PRIV_IP}' search='local' domain=''/>"
     echo "  </network>"
     echo "  <key>${SSH_PUBLIC_KEY}</key>"
 

@@ -66,6 +66,15 @@ stop () {
     return 0
 }
 
+# Taken from http://vstone.eu/simulating_hash_tables_in_bash/
+hash_get() {
+    local _table="$1";
+    local _key="$2";
+    local _value="${_table}[@]";
+    local "${!_value}";
+    eval echo "\$${_key}";
+}
+
 # Gets IP address from a given MAC
 mac2ip() {
     mac=$1
@@ -176,6 +185,7 @@ __EOF__
     # echo "  <compute count='${_xml_cmp_count}'>" 
     echo "  <compute count='${PRAGMA_NUM_COMPUTE}'>" 
     echo "    <private fqdn='${PRAGMA_CMP_HOSTNAME[${ETH0_IP}]}' ip='${ETH0_IP}' netmask='${PRAGMA_PRIV_NETMASK}' gw='${PRAGMA_FE_PRIV_IP}' mac='${PRAGMA_CMP_MAC[${ETH0_IP}]}'/>"
+    # echo "    <private fqdn='`hash_get 'PRAGMA_CMP_HOSTNAME' '${ETH0_IP}'`' ip='${ETH0_IP}' netmask='${PRAGMA_PRIV_NETMASK}' gw='${PRAGMA_FE_PRIV_IP}' mac='`hash_get PRAGMA_CMP_MAC '${ETH0_IP}'`'/>"
 
     # for i in `egrep -vi "(^127\.0\.0\.1|^::1|^#|${_xml_fe_shortname}|^[ 	]*$)" /etc/hosts | awk '{print $1}'`
     # do
