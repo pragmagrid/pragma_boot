@@ -36,7 +36,8 @@ fe_source_disk=$base_path/$fe_disk_path
 if [ "x${fe_source_disk:(-3)}" = "x.gz" ]; then
 	uncompress "$fe_source_disk" "$temp_path/${fe_disk_path%.gz}"
 else
-	dd if="$fe_source_disk" of="$temp_path/$fe_disk_path" bs=1M
+	#dd if="$fe_source_disk" of="$temp_path/$fe_disk_path" bs=1M
+	cp --sparse=always "$fe_source_disk" "$temp_path/$fe_disk_path"
 fi
 
 comp_disk_path=`echo "cat /vc/compute/domain/devices/disk/source/@file" | xmllint --shell $vc_in | grep = | awk -F \" '{print $2}'`
@@ -45,6 +46,7 @@ comp_source_disk=$base_path/$comp_disk_path
 if [ "x${comp_disk_path:(-3)}" = "x.gz" ]; then
 	uncompress "$comp_source_disk" "$temp_path/${comp_disk_path%.gz}"
 else
-	dd if="$comp_source_disk" of="$temp_path/${comp_disk_path}" bs=1M
+	#dd if="$comp_source_disk" of="$temp_path/${comp_disk_path}" bs=1M
+	cp --sparse=always "$comp_source_disk" "$temp_path/${comp_disk_path}"
 fi
 
