@@ -50,7 +50,7 @@ else
 	xml_file="$temp_directory/$fqdn.xml"
 	node_number=${fqdn#compute-}
 	cluster_name=`echo $fe_fqdn |awk -F. '{ print $1 }'`
-	node_hostname=`rocks list cluster $cluster_name | awk -v node=$node_number 'NR >= (node + 3) && NR < (node + 4) {print $2} '`
+	node_hostname=`/opt/rocks/bin/rocks list cluster $cluster_name | awk -v node=$node_number 'NR >= (node + 3) && NR < (node + 4) {print $2} '`
 fi
 
 # copy the vc-out.xml
@@ -64,8 +64,8 @@ rmdir $tmp_folder
 #    ----------------       deploying disk image and booting  -------------------
 #
 # match everything except 'HOST' and a line of -----
-container=`rocks list host vm $node_hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
-disk_path=`rocks list host vm $node_hostname showdisks=1 | awk ' {if (/file/) print $7}'`
+container=`/opt/rocks/bin/rocks list host vm $node_hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
+disk_path=`/opt/rocks/bin/rocks list host vm $node_hostname showdisks=1 | awk ' {if (/file/) print $7}'`
 # remove useless stuff from file path
 disk_path=${disk_path#file:}
 disk_path=${disk_path/,*/}
@@ -87,6 +87,6 @@ else
 fi
 
 # do not install just boot the system as it is
-rocks set host boot $node_hostname action=os
-rocks start host vm $node_hostname
+/opt/rocks/bin/rocks set host boot $node_hostname action=os
+/opt/rocks/bin/rocks start host vm $node_hostname
 
