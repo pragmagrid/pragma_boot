@@ -148,6 +148,18 @@ def main():
         parser.error("The file " + vc_db_filepath + " does not exist/\n"
             "Your basepath should point to a valid pragma virtaul cluster repository")
 
+    #
+    # list cluster and exit
+    #
+    if options.list:
+        print "Available virtual cluters:"
+        with open(vc_db_filepath, 'r') as vc_db:
+            for line in vc_db:
+                (vcname, temp_path) = line.split(',')
+                if os.path.isfile(options.basepath + "/" + temp_path.strip()):
+                    print vcname
+        sys.exit(0)
+
     # 
     # create logger
     # 
@@ -168,18 +180,6 @@ def main():
 
     dr_manager = drivers_manager()
     dr_manager.set_ve_base_path(script_base_dir + "/drivers/" + site_ve_driver)
-
-    #
-    # list cluster and exit
-    #
-    if options.list:
-        print "Available virtual cluters:"
-        with open(vc_db_filepath, 'r') as vc_db:
-            for line in vc_db:
-                (vcname, temp_path) = line.split(',')
-                if os.path.isfile(options.basepath + "/" + temp_path.strip()):
-                    print vcname
-        sys.exit(0)
 
     #
     # look up requested image in the vcdb.txt database
