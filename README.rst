@@ -1,7 +1,7 @@
 The pragma_boot script
 ----------------------
 
-**pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
+**pragma_boot** is the main program to instantiate Virtual Machine in PRAGMA.
 It accepts the following agruments:
 
 * **--list**             list the available images
@@ -203,13 +203,13 @@ vc-out.xml file example for a compute node
  </vc>
 
 
-Prgma Virtual Clutser Requirements
+PRAGMA Virtual Cluster Requirements
 ==================================
 
-To create a virtual cluster which is compatible with Pragma infrastrucutre the 
+To create a virtual cluster which is compatible with PRAGMA infrastructure the 
 nodes must respect the following criteria (with the current versio of software):
 
-
+- Physical frontend must have fuse
 - All host run inside kvm-based virtualization engine.
 - Each VM have a single disk image
 - VM disk images can be compressed using Lempel-Ziv coding (with extension .gz)
