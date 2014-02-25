@@ -93,6 +93,14 @@ class drivers_manager:
 
 
 def main():
+    # this imports the following values
+    # site_ve_driver
+    # temp_directory
+    # image repository
+    execfile(script_base_dir + "/site_conf.conf", {}, globals())
+    images_path = image_repository
+    if not images_path.startswith("/"):
+      images_path = os.path.join(script_base_dir, image_repository)
 
     #
     # set up the option parser
@@ -112,9 +120,9 @@ def main():
                     help="list available virtual machines")
 
     #various option
-    parser.add_option("--basepath", dest="basepath", default="/gfarm/vm-images",
+    parser.add_option("--basepath", dest="basepath", default=images_path,
                     help="The base path used to find all the cluster images "
-                    "(default is /gfarm/vm-images)")
+                    "(default is " + images_path + ")")
     parser.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
                     help="The ssh key that will be authorized on the frontned "
                     "of the cluster (default is /root/.ssh/id_rsa.pub)")
@@ -158,6 +166,9 @@ def main():
         ch.setLevel(logging.ERROR)
     logger.addHandler(ch)
 
+    dr_manager = drivers_manager()
+    dr_manager.set_ve_base_path(script_base_dir + "/drivers/" + site_ve_driver)
+
     #
     # list cluster and exit
     #
@@ -169,13 +180,6 @@ def main():
                 if os.path.isfile(options.basepath + "/" + temp_path.strip()):
                     print vcname
         sys.exit(0)
-
-    # this imports the following values
-    # site_ve_driver
-    # temp_directory
-    execfile(script_base_dir + "/site_conf.conf", {}, globals())
-    dr_manager = drivers_manager()
-    dr_manager.set_ve_base_path(script_base_dir + "/drivers/" + site_ve_driver)
 
     #
     # look up requested image in the vcdb.txt database

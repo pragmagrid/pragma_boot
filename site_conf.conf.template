@@ -5,5 +5,9 @@ site_ve_driver="kvm_rocks"
 
 # this is the temporary directory for staging vm images 
 # disk before deployment
-temp_directory="/state/partition2/temp"
+temp_directory="/state/partition1/temp"
+
+# path to cluster image repository (either absolute or
+# relative to pragma_boot directory)
+image_repository="vm-images"
 
