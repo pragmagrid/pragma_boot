@@ -1,5 +1,3 @@
-
-
 # this is the vritualization engine driver base path
 site_ve_driver="kvm_rocks"
 
@@ -7,3 +5,10 @@ site_ve_driver="kvm_rocks"
 # disk before deployment
 temp_directory="/state/partition2/temp"
 
+# this is a repository class to use
+repository_class = "repository.cloudfront.CloudFront"
+
+# this is a configuration dict for repository class
+repository_settings = {
+    "basepath": "/tmp/path/to/repo",
+}
