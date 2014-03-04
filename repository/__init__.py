@@ -1,27 +1,31 @@
 import os
 import shutil
 import logging
-global logger
+import json
 
 
 logger = logging.getLogger('pragma_boot')
 
 
 class BaseRepository(object):
-    """BaseRepository is an abstract class"""
+    """
+    BaseRepository is an abstract class
+
+    requires "repodir" in settings
+    """
     # TODO: Think of a better name than "repodir"
     def __init__(self, settings={}):
         """
-        vcdb is a path to vcdb.txt
+        vcdb is a path to vcdb.json
 
-        vc_list is a list of vc in this format
-        [(name, path_to_meta_xml), (name, path_to_meta_xml), ... ]
+        parsed_vcdb is a list of vc in this format
+        {'vcname': '/path/to/meta.xml', ...}
         """
         super(BaseRepository, self).__init__()
         self.settings = settings
         self.repodir = self.settings["repodir"]
         self.vcdb = None
-        self.vc_list = None
+        self.parsed_vcdb = None
 
     def get_repodir(self):
         return self.repodir
@@ -32,23 +36,24 @@ class BaseRepository(object):
     def get_vcdb(self):
         return self.vcdb
 
-    def get_vc_list(self):
-        if self.vc_list is None:
-            self.update_vc_list()
-        return self.vc_list
+    def get_parsed_vcdb(self):
+        if self.parsed_vcdb is None:
+            self.parse_vcdb()
+        return self.parsed_vcdb
 
-    def update_vc_list(self):
-        self.vc_list = list()
-        with open(self.get_vcdb, 'r') as vcdb:
-            for line in vcdb:
-                vc = line.split(',')
-                self.vc_list.append(vc)
+    def get_parsed_vc(self, vcname):
+        return self.get_parsed_vcdb()[vcname]
 
-    def download_vc(self, vc_name):
+    def parse_vcdb(self):
+        with open(self.get_vcdb(), 'r') as vcdb:
+            self.parsed_vcdb = json.load(vcdb)
+        return True
+
+    def download_vc(self, vcname):
         """Download VC to repository cache"""
         raise NotImplementedError
 
-    def delete_vc(self, vc_name):
+    def delete_vc(self, vcname):
         """Delete VC from repository cache if exists"""
         raise NotImplementedError
 
@@ -59,3 +64,4 @@ class BaseRepository(object):
                 shutil.rmtree(the_file)
             except Exception as e:
                 logger.error(e)
+        return True
