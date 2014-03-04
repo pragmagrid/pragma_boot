@@ -10,5 +10,5 @@ repository_class = "repository.cloudfront.CloudFront"
 
 # this is a configuration dict for repository class
 repository_settings = {
-    "basepath": "/tmp/path/to/repo",
+    "repodir": "/tmp/path/to/repo",
 }
