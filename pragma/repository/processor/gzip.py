@@ -1,6 +1,10 @@
 from pragma.repository.processor.baseprocessor import BaseProcessor
 from pragma.utils import which
 import subprocess
+import logging
+
+
+logger = logging.getLogger('pragma_boot')
 
 
 class Gzip(BaseProcessor):
@@ -23,4 +27,6 @@ class Gzip(BaseProcessor):
 
     def process(self):
         for part in self.parts:
+            logger.info("Decompressing %s ..." % part)
+            logger.debug("Execute: %s %s" % (self.decompressor, part))
             subprocess.check_call([self.decompressor, part])

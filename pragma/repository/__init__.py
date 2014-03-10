@@ -4,6 +4,7 @@ import logging
 import json
 from pragma.repository.processor import process_file
 
+
 logger = logging.getLogger('pragma_boot')
 
 

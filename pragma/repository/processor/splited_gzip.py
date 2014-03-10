@@ -1,6 +1,10 @@
 from pragma.repository.processor.gzip import Gzip
 import os
 import subprocess
+import logging
+
+
+logger = logging.getLogger('pragma_boot')
 
 
 class SplitedGzip(Gzip):
@@ -10,10 +14,11 @@ class SplitedGzip(Gzip):
         self.filename = self.f.attrib["filename"]
 
     def process(self):
-        # NOTE: .gz is required for proper decompression
-        output = os.path.join(self.base_dir, "%s.gz" % self.filename)
-        with open(output, "w") as out:
-            subprocess.check_call((['cat'] + self.parts), stdout=out)
-        for part in self.parts:
-            os.remove(part)
-        subprocess.check_call([self.decompressor, output])
+        command = "cat %s | %s > %s" % (
+            " ".join(self.parts),
+            self.decompressor,
+            os.path.join(self.base_dir, self.filename)
+        )
+        logger.info("Decompressing splited gzip...")
+        logger.debug("Execute: %s" % command)
+        subprocess.check_call(command, shell=True)  # DANGER!!
