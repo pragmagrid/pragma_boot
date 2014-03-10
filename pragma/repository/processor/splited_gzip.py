@@ -22,3 +22,7 @@ class SplitedGzip(Gzip):
         logger.info("Decompressing splited gzip...")
         logger.debug("Execute: %s" % command)
         subprocess.check_call(command, shell=True)  # DANGER!!
+
+        logger.info("Deleting parts...")
+        for part in self.parts:
+            os.remove(part)
