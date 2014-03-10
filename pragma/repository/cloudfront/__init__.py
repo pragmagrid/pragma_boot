@@ -1,4 +1,4 @@
-from repository.http import Http
+from pragma.repository.http import Http
 from boto.cloudfront.distribution import Distribution
 import os
 

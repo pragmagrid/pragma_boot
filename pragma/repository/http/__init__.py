@@ -1,4 +1,4 @@
-from repository import BaseRepository
+from pragma.repository import BaseRepository
 import logging
 import os
 import urllib2
@@ -72,6 +72,8 @@ class Http(BaseRepository):
             local_path = os.path.join(self.cache_dir, relative_dir, filename.text)
             Http.download(remote_path, local_path, self.chunk_size)
 
-    def delete_vc(self, vcname):
-        for path in self.get_parsed_vc(vcname):
-            os.remove(path)
+    # TODO: Make delete_vc handle either unprocessed and
+    # processed VC
+    # def delete_vc(self, vcname):
+    #     for path in self.get_parsed_vc(vcname):
+    #         os.remove(path)

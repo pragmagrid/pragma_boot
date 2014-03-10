@@ -1,9 +1,8 @@
 import xml.etree.ElementTree as ET
 import os
-import shutil
 import logging
 import json
-
+from pragma.repository.processor import process_file
 
 logger = logging.getLogger('pragma_boot')
 
@@ -31,7 +30,7 @@ class BaseRepository(object):
         self.vc = None
 
     def download_vcdb_file(self):
-        pass
+        raise NotImplementedError
 
     def get_vcdb_file(self):
         if self.vcdb_file is None:
@@ -44,7 +43,7 @@ class BaseRepository(object):
         return self.vcdb
 
     def download_vc_file(self, vcname):
-        pass
+        raise NotImplementedError
 
     def get_vc_file(self, vcname):
         if self.vc_file is None:
@@ -53,7 +52,7 @@ class BaseRepository(object):
         return self.vc_file
 
     def get_vc(self, vcname):
-        return ET.parse(self.get_vc_file(vcname))
+         return ET.parse(self.get_vc_file(vcname))
 
     def is_downloaded(self):
         raise NotImplementedError
@@ -65,6 +64,15 @@ class BaseRepository(object):
     def delete_vc(self, vcname):
         """Delete VC from repository cache if exists"""
         raise NotImplementedError
+
+    def process_vc(self, vcname):
+        base_dir = os.path.dirname(os.path.join(self.cache_dir, self.get_vcdb()[vcname]))
+        for f in self.get_vc(vcname).findall("./files/file"):
+            process_file(base_dir, f)
+
+    def download_and_process_vc(self, vcname):
+        self.download_vc(vcname)
+        self.process_vc(vcname)
 
     def clear_cache(self):
         """Clear repository cache entirely"""
