@@ -1,6 +1,7 @@
 # Import processors
 from gzip import Gzip
 from splited_gzip import SplitedGzip
+from splited import Splited
 from raw import Raw
 
 
@@ -8,6 +9,7 @@ DEFAULT_PROCESSOR = "raw"
 PROCESSORS = {
     "gzip": Gzip,
     "splited_gzip": SplitedGzip,
+    "splited": Splited,
     "raw": Raw,
 }
 

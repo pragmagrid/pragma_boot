@@ -1,4 +1,4 @@
-from pragma.repository.processor.gzip import Gzip
+from pragma.repository.processor.baseprocessor import BaseProcessor
 import os
 import subprocess
 import logging
@@ -7,16 +7,15 @@ import logging
 logger = logging.getLogger('pragma_boot')
 
 
-class SplitedGzip(Gzip):
-    """docstring for SplitedGzip"""
+class Splited(BaseProcessor):
+    """Splited File Processor"""
     def __init__(self, base_dir, f):
-        super(SplitedGzip, self).__init__(base_dir, f)
+        super(Splited, self).__init__(base_dir, f)
         self.filename = self.f.attrib["filename"]
 
     def process(self):
-        command = "cat %s | %s > %s" % (
+        command = "cat %s > %s" % (
             " ".join(self.parts),
-            self.decompressor,
             os.path.join(self.base_dir, self.filename)
         )
         logger.info("Decompressing splited gzip...")
