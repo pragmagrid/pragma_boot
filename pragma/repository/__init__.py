@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 import os
 import logging
-import json
 from pragma.repository.processor import process_file
 
 
@@ -26,7 +25,7 @@ class BaseRepository(object):
         self.settings = settings
         self.cache_dir = self.settings["cache_dir"]
         self.vcdb_file = None
-        self.vcdb = None
+        self.vcdb = {}
         self.vc_file = {}
 
     def download_vcdb_file(self):
@@ -39,7 +38,9 @@ class BaseRepository(object):
 
     def get_vcdb(self):
         with open(self.get_vcdb_file(), 'r') as vcdb_file:
-            self.vcdb = json.load(vcdb_file)
+            for line in vcdb_file:
+                vcname, vc_file = line.strip().split(',')
+                self.vcdb[vcname] = vc_file
         return self.vcdb
 
     def download_vc_file(self, vcname):

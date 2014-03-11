@@ -6,7 +6,7 @@ import subprocess
 
 
 logger = logging.getLogger('pragma_boot')
-VCDB_FILENAME = "vcdb.json"
+VCDB_FILENAME = "vcdb.txt"
 
 
 class Http(BaseRepository):
