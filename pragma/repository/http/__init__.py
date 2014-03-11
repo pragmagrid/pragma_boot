@@ -1,8 +1,10 @@
 from pragma.repository import BaseRepository
+from pragma.utils import which
 import logging
 import os
 import urllib2
 import shutil
+import subprocess
 
 
 logger = logging.getLogger('pragma_boot')
@@ -18,24 +20,38 @@ class Http(BaseRepository):
     Just set "repository_url" in settings
     """
 
+    # @staticmethod
+    # def download(remote_path, local_path, chunk_size=CHUNK_SIZE):
+    #     """
+    #     Download file from remote_path to local_path
+    #     """
+    #     logger.info("Downloading %s to %s ..." % (remote_path, local_path))
+
+    #     # Create directories if neccesary
+    #     local_dir = os.path.dirname(local_path)
+    #     if not os.path.exists(local_dir):
+    #         os.makedirs(local_dir)
+
+    #     remote_file = urllib2.urlopen(remote_path)
+    #     with open(local_path, 'wb') as local_file:
+    #         shutil.copyfileobj(remote_file, local_file, chunk_size)
+
     @staticmethod
     def download(remote_path, local_path, chunk_size=CHUNK_SIZE):
         """
         Download file from remote_path to local_path
-
-        Return True on success
         """
-        logger.info("Downloading %s to %s ..." % (remote_path, local_path))
+        wget = which("wget")
+        if wget is None:
+            raise Exception("Cannot find wget!")
 
         # Create directories if neccesary
         local_dir = os.path.dirname(local_path)
         if not os.path.exists(local_dir):
             os.makedirs(local_dir)
 
-        remote_file = urllib2.urlopen(remote_path)
-        with open(local_path, 'wb') as local_file:
-            shutil.copyfileobj(remote_file, local_file, chunk_size)
-        return True
+        logger.info("Downloading %s to %s ..." % (remote_path, local_path))
+        subprocess.check_call([wget, "-O", local_path, remote_path])
 
     def __init__(self, settings):
         super(Http, self).__init__(settings)
