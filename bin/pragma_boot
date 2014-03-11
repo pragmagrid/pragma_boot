@@ -178,8 +178,9 @@ def main():
         with open(vc_db_filepath, 'r') as vc_db:
             for line in vc_db:
                 (vcname, temp_path) = line.split(',')
-                if os.path.isfile(options.basepath + "/" + temp_path.strip()):
-                    print vcname
+                # Remove file existence checking as we still haven't download it
+                # if os.path.isfile(options.basepath + "/" + temp_path.strip()):
+	        print vcname
         sys.exit(0)
 
     dr_manager = drivers_manager()
