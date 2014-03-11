@@ -27,8 +27,7 @@ class BaseRepository(object):
         self.cache_dir = self.settings["cache_dir"]
         self.vcdb_file = None
         self.vcdb = None
-        self.vc_file = None
-        self.vc = None
+        self.vc_file = {}
 
     def download_vcdb_file(self):
         raise NotImplementedError
@@ -47,10 +46,9 @@ class BaseRepository(object):
         raise NotImplementedError
 
     def get_vc_file(self, vcname):
-        if self.vc_file is None:
+        if vcname not in self.vc_file:
             self.download_vc_file(vcname)
-            self.vc_file = os.path.join(self.cache_dir, self.get_vcdb()[vcname])
-        return self.vc_file
+        return self.vc_file[vcname]
 
     def get_vc(self, vcname):
          return ET.parse(self.get_vc_file(vcname))
