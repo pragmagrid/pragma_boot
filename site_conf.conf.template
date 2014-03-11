@@ -10,5 +10,8 @@ repository_class = "repository.cloudfront.CloudFront"
 
 # this is a configuration dict for repository class
 repository_settings = {
-    "repodir": "/tmp/path/to/repo",
+    "cache_dir": "/export/demo",
+    "repository_url": "https://dq6qef18n2yy3.cloudfront.net",
+    "keypair_id": "",PKAJRN3LTYGHFYOJ77Q
+    "private_key_file": "/root/cloudfront-pk.pem"
 }
