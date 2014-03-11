@@ -25,13 +25,13 @@ except ImportError:
     sys.path.insert(0, script_base_dir)
     import pragma
 import pragma.utils
+import pragma.repository.utils
 
 #
 # compatibility with python2.4
 #
 if "any" not in dir(__builtins__):
     from Pragma.utils import any
-
 
 
 mockup_vc_out_xml='''
@@ -61,27 +61,27 @@ class drivers_manager:
         self.ve_driver_base_path = path
 
     def allocate(self):
-	path = self.ve_driver_base_path + '/allocate'
+        path = self.ve_driver_base_path + '/allocate'
         return self._get_path(path)
 
     def pre_fix_driver(self):
-	path = self.client_driver_base_path + '/pre_fix_driver'
+        path = self.client_driver_base_path + '/pre_fix_driver'
         return self._get_path(path)
 
     def fix_images(self):
-	path = self.ve_driver_base_path + '/fix_images'
+        path = self.ve_driver_base_path + '/fix_images'
         return self._get_path(path)
 
     def post_fix_driver(self):
-	path = self.client_driver_base_path + '/post_fix_driver'
+        path = self.client_driver_base_path + '/post_fix_driver'
         return self._get_path(path)
 
     def pre_boot(self):
-	path = self.client_driver_base_path + '/pre_boot'
+        path = self.client_driver_base_path + '/pre_boot'
         return self._get_path(path)
 
     def boot(self):
-	path = self.ve_driver_base_path + '/boot'
+        path = self.ve_driver_base_path + '/boot'
         return self._get_path(path)
 
     def _get_path(self, path):
@@ -100,7 +100,6 @@ def main():
     runHelp = "\nRun \"pragma_boot -h\" for more help."
     usage = "usage: %prog --list | --vcname vcname [--num_cpus N] [--basepath path] [--key path]"
     parser = OptionParser(usage, version="0.1")
-
 
     # required options one of them must be selected
     group = OptionGroup(parser, "Required Options",
@@ -129,20 +128,32 @@ def main():
                     "executed do not execute them")
     (options, args) = parser.parse_args()
 
-
     #
     # switch based on user input
     #
     if not options.vcname and not options.list:
         parser.error("you need to specify a vcname")
     vc_db_filepath = options.basepath + "/vcdb.txt"
-    if not os.path.isfile(vc_db_filepath) :
+
+    # Load configuration
+    # this imports the following values
+    # site_ve_driver
+    # temp_directory
+    # repository_class
+    # repository_settings
+    execfile(script_base_dir + "/site_conf.conf", {}, globals())
+
+    # Download vcdb
+    repository = pragma.repository.utils.import_class(repository_class)
+    repository.download_vcdb()
+
+    if not os.path.isfile(vc_db_filepath):
         parser.error("The file " + vc_db_filepath + " does not exist/\n"
             "Your basepath should point to a valid pragma virtaul cluster repository")
 
-    # 
+    #
     # create logger
-    # 
+    #
     global logger
     logger = logging.getLogger('pragma_boot')
     logger.setLevel(logging.DEBUG)
@@ -152,7 +163,7 @@ def main():
     logger.addHandler(fh)
     # create console handler and set level to debug
     ch = logging.StreamHandler()
-    if options.verbose :
+    if options.verbose:
         ch.setLevel(logging.DEBUG)
     else:
         ch.setLevel(logging.ERROR)
@@ -170,10 +181,6 @@ def main():
                     print vcname
         sys.exit(0)
 
-    # this imports the following values
-    # site_ve_driver
-    # temp_directory
-    execfile(script_base_dir + "/site_conf.conf", {}, globals())
     dr_manager = drivers_manager()
     dr_manager.set_ve_base_path(script_base_dir + "/drivers/" + site_ve_driver)
 
@@ -191,6 +198,10 @@ def main():
             logger.error("vcname " + options.vcname + " does not exist in VC database.\n"
                 "Check the VC database file " + vc_db_filepath)
             sys.exit(1)
+
+    # Download vc to cache
+    repository.download_vc(options.vcname)
+
     # parse the vc-in file
     vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
 
@@ -201,7 +212,6 @@ def main():
     # get the client driver name from the xml file
     client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
     dr_manager.set_client_base_path(script_base_dir + "/drivers/" + client_driver_name)
-
 
     fe_temp_disk_path = get_temporary_disk_path(vc_in_filepath, "frontend", temp_directory)
     comp_temp_disk_path = get_temporary_disk_path(vc_in_filepath, "compute", temp_directory)
@@ -215,18 +225,18 @@ def main():
     # and then we call allocate and create vc-out.xml
     #
     vc_out_filepath = temp_directory + "/vc-out.xml"
-    cmdline = [dr_manager.allocate(), str(options.num_cpus), vc_in_filepath, 
+    cmdline = [dr_manager.allocate(), str(options.num_cpus), vc_in_filepath,
             vc_out_filepath, temp_directory, options.key]
-    if not options.debug :
+    if not options.debug:
         (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     else:
-	# write facke vc_out_xml
-	fd=open(vc_out_filepath, 'w')
+        # write facke vc_out_xml
+        fd = open(vc_out_filepath, 'w')
         fd.write(mockup_vc_out_xml)
         fd.close()
         (stdout, ret) = ("", 0)
     stdout = '\n'.join(stdout)
-    if ret != 0 :
+    if ret != 0:
         logger.error("Not enough resources on the cluster to run %s cpus" %
             options.num_cpus)
         logger.error(stdout)
@@ -243,9 +253,9 @@ def main():
     dns_servers = dns_node.attrib["ip"]
     node_names = []
     for node_xml in vc_out_xmlroot.findall('./compute/node'):
-        node_names.append( node_xml.attrib["name"] )
+        node_names.append(node_xml.attrib["name"])
     # search="local" domain=""
-    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip + 
+    logger.info("Resource allocated: fqdn=" + fqdn + " - ip=" + public_ip +
             " - netmask=" + netmask + " - gw=" + gw)
 
     #
@@ -253,7 +263,7 @@ def main():
     #
     deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
-    if options.num_cpus > 0 :
+    if options.num_cpus > 0:
         #
         # deploy nodes
         #
@@ -281,7 +291,7 @@ def get_temporary_disk_path(vc_in_filepath, node_type, temp_directory):
     input_disk_source = xml_node_domain.findall('./devices/disk/source')[0]
     input_disk_path = os.path.dirname(vc_in_filepath) + "/" + \
             input_disk_source.attrib['file']
- 
+
     # copy FE disk image over to temp floder and uncompress it
     if not os.path.isfile(input_disk_path):
         logger.error("Error can not open FE disk image " + input_disk_path)
@@ -296,11 +306,11 @@ def get_temporary_disk_path(vc_in_filepath, node_type, temp_directory):
 
 def runCommand(cmdline, debug):
     logger.debug("Executing: " + str(cmdline))
-    if debug :
+    if debug:
         logger.debug("Executed")
         return
     (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
-    if ret != 0 :
+    if ret != 0:
         logger.error("Error while running: " + str(cmdline))
         logger.error('\n'.join(stdout))
         sys.exit(1)
@@ -312,21 +322,21 @@ def runCommand(cmdline, debug):
 def deflate_file(srcpath, destpath, debug):
     """it gunzip a file """
     logger.info("Uncompressing file " + srcpath + " in " + destpath)
-    if debug :
+    if debug:
         logger.debug("File uncompressed")
         return
-    buf_size=16384
+    buf_size = 16384
     input = gzip.open(srcpath)
     output = open(destpath, 'w')
     temp_timer = time.time()
     counter = 0
     while True:
-        buffer =  input.read(buf_size)
+        buffer = input.read(buf_size)
         if len(buffer) == 0:
             break
-        output.write( buffer )
+        output.write(buffer)
         if counter == 1000:
-            logger.debug("Decoded " + str(buf_size * 1000) + " in " + 
+            logger.debug("Decoded " + str(buf_size * 1000) + " in " +
                 str(time.time() - temp_timer))
             temp_timer = time.time()
             counter = 0
@@ -336,7 +346,5 @@ def deflate_file(srcpath, destpath, debug):
     logger.info("File " + destpath + " uncompressed.")
 
 
-
 if __name__ == "__main__":
     main()
-
