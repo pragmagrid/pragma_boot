@@ -6,12 +6,12 @@ site_ve_driver="kvm_rocks"
 temp_directory="/state/partition2/temp"
 
 # this is a repository class to use
-repository_class = "repository.cloudfront.CloudFront"
+repository_class = "pragma.repository.cloudfront.CloudFront"
 
 # this is a configuration dict for repository class
 repository_settings = {
     "cache_dir": "/export/demo",
     "repository_url": "https://dq6qef18n2yy3.cloudfront.net",
-    "keypair_id": "",PKAJRN3LTYGHFYOJ77Q
+    "keypair_id": "PKAJRN3LTYGHFYOJ77Q",
     "private_key_file": "/root/cloudfront-pk.pem"
 }

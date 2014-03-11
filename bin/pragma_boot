@@ -144,8 +144,9 @@ def main():
     execfile(script_base_dir + "/site_conf.conf", {}, globals())
 
     # Download vcdb
-    repository = pragma.repository.utils.import_class(repository_class)
-    repository.download_vcdb()
+    klass = pragma.repository.utils.import_class(repository_class)
+    repository = klass(repository_settings)
+    repository.download_vcdb_file()
 
     if not os.path.isfile(vc_db_filepath):
         parser.error("The file " + vc_db_filepath + " does not exist/\n"
