@@ -14,7 +14,7 @@ class SplitedGzip(Gzip):
         self.filename = self.f.attrib["filename"]
 
     def process(self):
-        command = "cat %s | %s > %s" % (
+        command = "cat %s | %s -f > %s" % (
             " ".join(self.parts),
             self.decompressor,
             os.path.join(self.base_dir, self.filename)

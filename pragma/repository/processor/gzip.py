@@ -28,5 +28,5 @@ class Gzip(BaseProcessor):
     def process(self):
         for part in self.parts:
             logger.info("Decompressing %s ..." % part)
-            logger.debug("Execute: %s %s" % (self.decompressor, part))
-            subprocess.check_call([self.decompressor, part])
+            logger.debug("Execute: %s %s %s" % (self.decompressor, "-f", part))
+            subprocess.check_call([self.decompressor, "-f", part])
