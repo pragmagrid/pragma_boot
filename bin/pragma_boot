@@ -202,7 +202,7 @@ def main():
             sys.exit(1)
 
     # Download vc to cache
-    repository.download_vc(options.vcname)
+    repository.download_and_process_vc(options.vcname)
 
     # parse the vc-in file
     vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
