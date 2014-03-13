@@ -80,10 +80,10 @@ if [ "$container" = "$localhost" ];then
 		|| error "unable to copy the disk image $temp_disk_path to $disk_path"
 else
 	echo scp $temp_disk_path $container:$disk_path
-	#scp $temp_disk_path $container:$disk_path \
-	#	|| error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
-	ssh $container cp "$temp_disk_path" "$disk_path" \
-                || error "unable to copy the disk image $temp_disk_path to $disk_path on $container"
+	scp $temp_disk_path $container:$disk_path \
+		|| error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
+	#ssh $container cp "$temp_disk_path" "$disk_path" \
+    #            || error "unable to copy the disk image $temp_disk_path to $disk_path on $container"
 fi
 
 # do not install just boot the system as it is
