@@ -18,10 +18,16 @@ class Http(BaseRepository):
     """
 
     @staticmethod
-    def download(remote_path, local_path):
+    def download(remote_path, local_path, overwrite=False):
         """
         Download file from remote_path to local_path
         """
+
+        # Skip downloading if file already existed
+        if (not overwrite) and os.path.isfile(local_path):
+            logger.info("File %s is already existed. Skipped!" % local_path)
+            return
+
         wget = which("wget")
         if wget is None:
             raise Exception("Cannot find wget!")
