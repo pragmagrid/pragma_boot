@@ -62,8 +62,6 @@ class Http(BaseRepository):
         """
         relative_dir = os.path.dirname(self.get_vcdb()[vcname])
 
-        for 
-
         for filename in self.get_vc(vcname).findall("./files/file/part"):
             remote_path = os.path.join(self.repository_url, relative_dir, filename.text)
             local_path = os.path.join(self.cache_dir, relative_dir, filename.text)
