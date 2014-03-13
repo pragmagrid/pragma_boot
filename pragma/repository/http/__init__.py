@@ -23,10 +23,12 @@ class Http(BaseRepository):
         Download file from remote_path to local_path
         """
 
+        # TODO: Properly implemented existed file skipping
+        # as filename change after processing
         # Skip downloading if file already existed
-        if (not overwrite) and os.path.isfile(local_path):
-            logger.info("File %s is already existed. Skipped!" % local_path)
-            return
+        # if (not overwrite) and os.path.isfile(local_path):
+        #     logger.info("File %s is already existed. Skipped!" % local_path)
+        #     return
 
         wget = which("wget")
         if wget is None:
