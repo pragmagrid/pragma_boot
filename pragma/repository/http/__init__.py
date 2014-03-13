@@ -18,17 +18,10 @@ class Http(BaseRepository):
     """
 
     @staticmethod
-    def download(remote_path, local_path, overwrite=False):
+    def download(remote_path, local_path):
         """
         Download file from remote_path to local_path
         """
-
-        # TODO: Properly implemented existed file skipping
-        # as filename change after processing
-        # Skip downloading if file already existed
-        # if (not overwrite) and os.path.isfile(local_path):
-        #     logger.info("File %s is already existed. Skipped!" % local_path)
-        #     return
 
         wget = which("wget")
         if wget is None:
@@ -68,6 +61,9 @@ class Http(BaseRepository):
         Download all files specified in vc definition
         """
         relative_dir = os.path.dirname(self.get_vcdb()[vcname])
+
+        for 
+
         for filename in self.get_vc(vcname).findall("./files/file/part"):
             remote_path = os.path.join(self.repository_url, relative_dir, filename.text)
             local_path = os.path.join(self.cache_dir, relative_dir, filename.text)
