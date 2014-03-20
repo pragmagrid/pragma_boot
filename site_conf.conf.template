@@ -1,7 +1,7 @@
 # Site Configuration File
 # This file is a python script
 
-# This is the vritualization engine driver base path.
+# This is the viritualization engine driver base path.
 # Available drivers are
 # - kvm_rocks
 # - opennebula_kvm

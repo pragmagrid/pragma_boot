@@ -2,18 +2,18 @@ The pragma_boot script
 ----------------------
 
 **pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
-It accepts the following agruments:
+It accepts the following arguments:
 
 * **--list**             list the available images
 * **--num_cpus N**       the number of compute node to start up (default to 0)
-* **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
+* **--vcname vcname**    the name of the virtual cluster to start up (the name must be in the database)
 * **--base_path path**   the base path of the VM database
-* **--key path**         The ssh key that will be authorized on the frontned of
+* **--key path**         The ssh key that will be authorized on the frontend of
   the cluster (default is /root/.ssh/id_rsa.pub)
 
 
 
-pragma_boot ivokes the follwing subscripts which will be invoked in the order described below.
+pragma_boot invokes the following subscripts which will be invoked in the order described below.
 In the commands below the ve_dirver will be replaced with the local Virtual Engine (VE)
 driver (the base path used to find all the VE drivers can be configured in the file
 site_conf.conf)
@@ -23,7 +23,7 @@ staging all VM images
 
 * **ve_driver/fix_images** prepare the given VC images to be run on the current system
   (fix kernel, drivers, boot options, for current platform, etc.).
-  It's input argumets are (in the following order):
+  It's input arguments are (in the following order):
 
   1. **vc_in_file**     the path to the vc-in.xml file of the virtual machine we have to convert
   2. **temp_directory** the temporary directory used to place all the temporary virtual
@@ -31,7 +31,7 @@ staging all VM images
      (e.g. "frontend,compute")
 
 * **ve_driver/allocate** this script takes care of verifying that there are enough
-  resoureces to satisfy the user request, if so it will also allocate public IP,
+  resources to satisfy the user request, if so it will also allocate public IP,
   private IPs, MAC addresses, and computing resources. If the system can create
   SMP nodes it can allocate less compute node with multiple cpus in each node.
   If successful it will write a /root/vc-out.xml file inside the various virtual machines
@@ -66,7 +66,7 @@ input and output XML file example
 
 
 vc-in.xml file example. This xml file is a concatenation of the libvirt xml
-of a frontend and of a compute node (encolsed between the ``frontend`` and
+of a frontend and of a compute node (enclosed between the ``frontend`` and
 ``compute`` tag) with few extra tags added at the beginning and at the end.
 
 ::
@@ -202,9 +202,8 @@ vc-out.xml file example for a compute node
    <key>ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6vUe5tX+DztYyvUf6n+diFGbOOU9hcGLuXIY/NeLpIHePzpCyoS3Axx3HjjTiIekReUFIwgdWVaFqWtfYp4GpgqAdUThzoCNJqsENY884NTsoUV86Eou/E6fXIr3A2Z0Mr4vI8K5AouRMHLeoFZXgDyNZ7xJnRP0h2aTQNmx3lh8yUt2J/t7J5MphftPWEoYlfS9CdzXpxjxq2srWnDDwPMp7k9vOI8RaVKwfDBEGT6TITtzwNc5gRzTOv6OxxUr3z5n7MI6i5kiKDjmXSpd28gq/IgpTBZ6Ur0/Eq0EufrEHoSWHXdTF5/cAYrqhJJaqr6Movku0eeElvOCBxjTDw== root@somehost.ucsd.edu</key>
  </vc>
 
-
-Prgma Virtual Clutser Requirements
-==================================
+Pragma Virtual Clutser Requirements
+===================================
 
 To create a virtual cluster which is compatible with Pragma infrastrucutre the 
 nodes must respect the following criteria (with the current versio of software):
@@ -224,4 +223,58 @@ nodes must respect the following criteria (with the current versio of software):
 - when the compute node boot, it expects a file in /root/vc-out.xml as descibed 
   above to configure its network
 
+Cloud Repository
+================
 
+PRAGMA Bootstrap currently support 3 repository types which can be configured in site_conf.conf file. Some repository type may requires extra settings.
+
+* **Local** Disable cloud repository completely.
+
+* **Http** Repository hosted on any http/https server including Amazon S3. No authentication is supported.
+
+  * **repository_url** : Base url of the repository. For Amazon S3, the url is `https://s3.amazonaws.com/<bucket_name>`. Note that for Amazon S3, the file must be publicly accessible. **Do not omit http:// or https://**
+
+* **CloudFront** Repository hosted on Amazon CloudFront with automatic signed url creation.
+
+  * **repository_url** : CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
+  * **keypair_id** : CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
+  * **private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. See extras section for instruction.
+
+Python Dependencies
+
+* boto
+* rsa
+
+Example of <files> section in vc-in.xml . This extension only available for Http and CloudFront repository.
+
+::
+
+ <files>
+  <file type="splited_gzip" filename="frontend.vda">
+    <part>frontend.vda.gz.a</part>
+    <part>frontend.vda.gz.b</part>
+    <part>frontend.vda.gz.c</part>
+  </file>
+  <file type="gzip" filename="compute.vda">
+    <part>compute.vda.gz</part>
+  </file>
+  <file type="raw">
+    <part>dummy.py</part>
+  </file>
+  <file type="splited" filename="compute-copy.vda">
+    <part>compute-copy.vda.a</part>
+    <part>compute-copy.vda.b</part>
+    <part>compute-copy.vda.c</part>
+    <part>compute-copy.vda.d</part>
+  </file>
+ </files>
+
+Extras
+======
+
+**Generating CloudFront Key Pair**
+
+1. Log into AWS Console
+2. Click on account name and select `Security Credentials`
+3. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
+4. Download public key, private key and take note of access key id (keypair id)
