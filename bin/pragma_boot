@@ -94,6 +94,15 @@ class drivers_manager:
 
 def main():
 
+    # Load configuration
+    # this imports the following values
+    # site_ve_driver
+    # temp_directory
+    # repository_class
+    # repository_dir
+    # repository_settings
+    execfile(script_base_dir + "/site_conf.conf", {}, globals())
+
     #
     # set up the option parser
     #
@@ -111,7 +120,7 @@ def main():
                     help="list available virtual machines")
 
     #various option
-    parser.add_option("--basepath", dest="basepath", default="/gfarm/vm-images",
+    parser.add_option("--basepath", dest="basepath", default=repository_dir,
                     help="The base path used to find all the cluster images "
                     "(default is /gfarm/vm-images)")
     parser.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
@@ -135,16 +144,9 @@ def main():
         parser.error("you need to specify a vcname")
     vc_db_filepath = options.basepath + "/vcdb.txt"
 
-    # Load configuration
-    # this imports the following values
-    # site_ve_driver
-    # temp_directory
-    # repository_class
-    # repository_settings
-    execfile(script_base_dir + "/site_conf.conf", {}, globals())
-
     # Download vcdb
     klass = pragma.repository.utils.import_class(repository_class)
+    repository_settings["cache_dir"] = repository_dir
     repository = klass(repository_settings)
     repository.download_vcdb_file()
 
