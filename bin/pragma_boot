@@ -139,8 +139,15 @@ def main():
     create_group.add_option("--num_cpus", dest="num_cpus", default=0, type="int",
                     help="The nuber of cpus requested to start up (default is 0 "
                     " only frontend will be started")
+    create_group.add_option("--enable-ipop-client", dest="ipop_clientinfo_file", default="",
+                    help="Start up virtual cluster as an ipop client to another virtual cluster" )
+    create_group.add_option("--enable-ipop-server", dest="ipop_serverinfo_file", default="",
+                    help="Fetch the ipopserver.info file from the IPOP-enabled frontend"
+                    " when started and write to provided file")
     (options, args) = parser.parse_args()
 
+    if options.ipop_clientinfo_file != "" and options.ipop_serverinfo_file != "":
+      parser.error( "Cannot specify both --enable-ipop-server and --enable-ipop-client" )
 
     #
     # switch based on user input
@@ -186,6 +193,8 @@ def main():
     # create file handler which logs even debug messages
     fh = logging.FileHandler('pragma_boot.log')
     fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    fh.setFormatter(formatter)
     logger.addHandler(fh)
     # create console handler and set level to debug
     ch = logging.StreamHandler()
@@ -272,15 +281,16 @@ def main():
     #
     # deploy frontend
     #
-    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
+    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug, options.ipop_serverinfo_file, "0" )
+
+    ipopserverinfo_file = options.ipop_serverinfo_file if options.ipop_serverinfo_file != "" else options.ipop_clientinfo_file
     if options.num_cpus > 0 :
         #
         # deploy nodes
         #
         for i in node_names:
-            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug)
-
+            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug, ipop_serverinfo_file, "1")
 
 def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     """ prepare the virtual images to be run on the current platform """
@@ -289,9 +299,9 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     runCommand(cmdline, debug)
 
 
-def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug):
+def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug, ipop_serverinfo_file, ipop_client ):
     """ it runs the boot script on a machine once """
-    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath]
+    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath, ipop_serverinfo_file, ipop_client ]
     runCommand(cmdline, debug)
 
 
@@ -313,7 +323,6 @@ def get_temporary_disk_path(vc_in_filepath, node_type, temp_directory):
         temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)
 
     return temp_disk_path
-
 
 def runCommand(cmdline, debug):
     logger.debug("Executing: " + str(cmdline))
@@ -360,4 +369,3 @@ def deflate_file(srcpath, destpath, debug):
 
 if __name__ == "__main__":
     main()
-
