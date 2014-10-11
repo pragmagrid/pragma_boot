@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 #
 # Clem
 #
@@ -28,7 +28,8 @@ key=$5
 
 # fix configuration parameters
 # this should come out of a DB
-cpus_per_node=2
+# there's probably a better way to do this
+cpus_per_node=`rocks list host vm-container | awk '{print $4}' | tail -1`
 mem_compute=2024
 # need to get the ceiling of the division (not the floor)
 numnodes=$(( ($numcpus + $cpus_per_node - 1) / $cpus_per_node ))
