@@ -284,7 +284,7 @@ def main():
 
     deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug, options.ipop_serverinfo_file, "0" )
 
-    ipopserverinfo_file = options.ipop_serverinfo_file if options.ipop_serverinfo_file != "" else options.ipop_clientinfo_file
+    ipop_serverinfo_file = options.ipop_serverinfo_file if options.ipop_serverinfo_file != "" else options.ipop_clientinfo_file
     if options.num_cpus > 0 :
         #
         # deploy nodes
