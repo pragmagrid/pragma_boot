@@ -13,7 +13,7 @@ It accepts the following agruments:
 
 
 
-pragma_boot ivokes the follwing subscripts which will be invoked in the order described below.
+pragma_boot invokes the follwing subscripts which will be invoked in the order described below.
 In the commands below the ve_dirver will be replaced with the local Virtual Engine (VE)
 driver (the base path used to find all the VE drivers can be configured in the file
 site_conf.conf)
