@@ -120,7 +120,7 @@ fi
 /opt/rocks/bin/rocks start host vm $node_hostname
 
 # if this is the ipop server, then we need to fetch the ipopserver.info file
-if [ $ipop_serverinfo_file != "" -a $ipop_client -eq 0 ]; then	
+if [ "$ipop_serverinfo_file" != "" -a $ipop_client -eq 0 ]; then	
 	# Wait till frontend has initialized IPOP
 	ipop_initialized=0
 	while [ $ipop_initialized -eq 0  ]; do
