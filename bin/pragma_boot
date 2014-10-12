@@ -107,7 +107,7 @@ def main():
     #
     runHelp = "\nRun \"pragma_boot -h\" for more help."
     usage = "usage: %prog [-v][-d][--basepath path] --list [options] | --vcname vcname [options]"
-    parser = OptionParser(usage, version="0.1")
+    parser = OptionParser(usage, version="0.2")
 
     # global options
     parser.add_option("--basepath", dest="basepath", default=images_path,
