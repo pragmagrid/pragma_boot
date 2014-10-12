@@ -7,7 +7,8 @@ It accepts the following agruments:
 Usage: pragma_boot [-v][-d][--basepath path] --list [options] | --vcname vcname [options]
 
 Options:
-
+ General options
+ 
  * --version, show program's version number and exit 
   
  * -h, --help show this help message and exit 
