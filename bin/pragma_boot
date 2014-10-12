@@ -134,7 +134,7 @@ def main():
                     "Options for --vcname command")
     parser.add_option_group(create_group)
     create_group.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
-                    help="The ssh key that will be authorized on the frontned "
+                    help="The ssh key that will be authorized on the frontend "
                     "of the cluster (default is /root/.ssh/id_rsa.pub)")
     create_group.add_option("--num_cpus", dest="num_cpus", default=0, type="int",
                     help="The nuber of cpus requested to start up (default is 0 "
