@@ -4,13 +4,39 @@ The pragma_boot script
 **pragma_boot** is the main program to instantiate Virtual Machine in PRAGMA.
 It accepts the following agruments:
 
-* **--list**             list the available images
-* **--num_cpus N**       the number of compute node to start up (default to 0)
-* **--vcname vcname**    the name of the virtual clutster to start up (the name must be in the database)
-* **--base_path path**   the base path of the VM database
-* **--key path**         The ssh key that will be authorized on the frontned of
-  the cluster (default is /root/.ssh/id_rsa.pub)
+Usage: pragma_boot [-v][-d][--basepath path] --list [options] | --vcname vcname [options]
 
+Options:
+ General options
+ 
+ * --version, show program's version number and exit 
+  
+ * -h, --help show this help message and exit 
+
+ * --basepath=BASEPATH, The base path used to find all the cluster images (default is /state/partition1/vm-images)
+                        
+ * -v, --verbose, Print all debugging information to stdout
+
+ * -d, --debug, Print only the command that will be executed do not execute them
+                        
+ * --list, list available virtual machines
+
+ * --vcname=VCNAME,  The name of the cluster which should be started
+
+List Options:
+ Options for --list command
+
+
+Create Options:
+ Options for --vcname command
+
+ * --key=KEY, The ssh key that will be authorized on the frontend of the cluster (default is /root/.ssh/id_rsa.pub)
+  
+ * --num_cpus=NUM_CPUS, The nuber of cpus requested to start up (default is 0 only frontend will be started)
+ 
+ * --enable-ipop-client=IPOP_CLIENTINFO_FILE, Start up virtual cluster as an ipop client to another virtual cluster
+
+ * --enable-ipop-server=IPOP_SERVERINFO_FILE, Fetch the ipopserver.info file from the IPOP-enabled frontend when started and write to provided file
 
 
 pragma_boot invokes the follwing subscripts which will be invoked in the order described below.
@@ -52,6 +78,9 @@ staging all VM images
   2. **host_name**      the name of the host we want to boot
   3. **temp_directory** the temporary directory used to place all the temporary virtual
   4. **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
+  5. **ipop_serverinfo_file**  path to store/fetch ipopserver.info file
+  6. **ipop_client**    0 if ipopserver.info file needs to be fetched or 1 if file needs to be installed
+
 
 
 The sequence of calls for the driver is the following:
