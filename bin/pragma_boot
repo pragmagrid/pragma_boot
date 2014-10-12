@@ -140,10 +140,12 @@ def main():
                     help="The nuber of cpus requested to start up (default is 0 "
                     " only frontend will be started")
     create_group.add_option("--enable-ipop-client", dest="ipop_clientinfo_file", default="",
-                    help="Start up virtual cluster as an ipop client to another virtual cluster" )
+                    help="Start up the IPOP-enabled virtual cluster as an IPOP client (to "
+                    "another virtual cluster) using the provided IPOP server info file" )
     create_group.add_option("--enable-ipop-server", dest="ipop_serverinfo_file", default="",
-                    help="Fetch the ipopserver.info file from the IPOP-enabled frontend"
-                    " when started and write to provided file")
+                    help="Start up the IPOP-enabled virtual cluster with the frontend serving"
+                    " as an IPOP server; once initialization is complete, store the IPOP"
+                    "server info into the provided path" ) 
     (options, args) = parser.parse_args()
 
     if options.ipop_clientinfo_file != "" and options.ipop_serverinfo_file != "":
