@@ -142,13 +142,14 @@ def main():
     create_group.add_option("--enable-ipop-client", dest="ipop_clientinfo_file", default="",
                     help="Start up the IPOP-enabled virtual cluster as an IPOP client (to "
                     "another virtual cluster) using the provided IPOP server info file" )
-    create_group.add_option("--enable-ipop-server", dest="ipop_serverinfo_file", default="",
+    create_group.add_option("--enable-ipop-server", dest="ipop_serverinfo_url", default="",
                     help="Start up the IPOP-enabled virtual cluster with the frontend serving"
-                    " as an IPOP server; once initialization is complete, store the IPOP"
-                    "server info into the provided path" ) 
+                    " as an IPOP server; once initialization is complete, store the IPOP "
+                    "server info into the provided URL.  If begins with file://, will "
+                    "be stored locally, otherwise will be a REST call if begins with http://" ) 
     (options, args) = parser.parse_args()
 
-    if options.ipop_clientinfo_file != "" and options.ipop_serverinfo_file != "":
+    if options.ipop_clientinfo_file != "" and options.ipop_serverinfo_url != "":
       parser.error( "Cannot specify both --enable-ipop-server and --enable-ipop-client" )
 
     #
@@ -284,15 +285,15 @@ def main():
     # deploy frontend
     #
 
-    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug, options.ipop_serverinfo_file, "0" )
+    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug, options.ipop_serverinfo_url, "0" )
 
-    ipop_serverinfo_file = options.ipop_serverinfo_file if options.ipop_serverinfo_file != "" else options.ipop_clientinfo_file
+    ipop_serverinfo_url = options.ipop_serverinfo_url if options.ipop_serverinfo_url != "" else options.ipop_clientinfo_file
     if options.num_cpus > 0 :
         #
         # deploy nodes
         #
         for i in node_names:
-            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug, ipop_serverinfo_file, "1")
+            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug, ipop_serverinfo_url, "1")
 
 def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     """ prepare the virtual images to be run on the current platform """
@@ -301,9 +302,9 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     runCommand(cmdline, debug)
 
 
-def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug, ipop_serverinfo_file, ipop_client ):
+def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug, ipop_serverinfo_url, ipop_client ):
     """ it runs the boot script on a machine once """
-    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath, ipop_serverinfo_file, ipop_client ]
+    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath, ipop_serverinfo_url, ipop_client ]
     runCommand(cmdline, debug)
 
 
