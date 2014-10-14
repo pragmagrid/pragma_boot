@@ -8,7 +8,8 @@
 
 IPOP_SERVER_INFO="/opt/ipop/etc/ipopserver.info"
 IPOP_CONFIG="/opt/ipop/etc/config.json"
-IPOP_WAIT_PERIOD=5
+IPOPSERVER_WAIT_PERIOD=5
+IPOPCLIENT_WAIT_PERIOD=60
 
 if [ "x$#" != "x6" ]; then
     echo "This script should be invoked with 4 arguments"
@@ -62,12 +63,18 @@ if [ $ipop_serverinfo_url != "" ]; then
 		fi
 		protocol=`echo $ipop_serverinfo_url | sed 's#://.*# #'`
 		ipop_serverinfo_file=""
-		if [ "$protocol" = "file" ]; then
-			ipop_serverinfo_file=`echo $ipop_serverinfo_url | sed 's#file://##'`
-		else # assume http
-			ipop_serverinfo_file=`mktemp /tmp/ipopserver.info.XXXX`
-			wget -O $ipop_serverinfo_file "${ipop_serverinfo_url}&action=get"
-		fi
+		while [ "true" = "true" ]; do
+			if [ "$protocol" = "file" ]; then
+				ipop_serverinfo_file=`echo $ipop_serverinfo_url | sed 's#file://##'`
+			else # assume http
+				ipop_serverinfo_file=`mktemp /tmp/ipopserver.info.XXXX`
+				wget -O $ipop_serverinfo_file "${ipop_serverinfo_url}&action=get"
+			fi
+			if [ -s "$ipop_serverinfo_file" ]; then
+				break;
+			fi
+			sleep $IPOPCLIENT_WAIT_PERIOD
+		done
 		cp $ipop_serverinfo_file $tmp_folder/$IPOP_SERVER_INFO
 	else 
 		# if ipop server, then tell it to initialize itself
@@ -132,7 +139,7 @@ if [ "$ipop_serverinfo_url" != "" -a $ipop_client -eq 0 ]; then
 	# Wait till frontend has initialized IPOP
 	ipop_initialized=0
 	while [ $ipop_initialized -eq 0  ]; do
-		sleep $IPOP_WAIT_PERIOD
+		sleep $IPOPSERVER_WAIT_PERIOD
 		guestmount -d $node_hostname -i --ro $tmp_folder || error "unable to mount frontend FS"
 		grep "Starting gvpn_controller" $tmp_folder/var/log/boot.log 
 		if [ $? == 0 -a -s "$tmp_folder/$IPOP_SERVER_INFO" ]; then
@@ -148,7 +155,7 @@ if [ "$ipop_serverinfo_url" != "" -a $ipop_client -eq 0 ]; then
 	else # assume http
 		ipop_serverinfo=`grep -v ip4 $tmp_folder/$IPOP_SERVER_INFO`
 		ipop_serverinfo_urlsnip=`echo $ipop_serverinfo | sed 's/ /\&/g'`
-		wget "${ipop_serverinfo_url}&action=put&${ipop_serverinfo_urlsnip}"
+		wget -O - "${ipop_serverinfo_url}&action=put&${ipop_serverinfo_urlsnip}"
 	fi
 	fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
 fi
