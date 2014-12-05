@@ -46,6 +46,7 @@ popd > /dev/null
 # gw="123.123.123.1"
 # dns="8.8.8.8"
 # fqdn="fqdn_of_pubblic_ip.somehost.com"
+# vlans=2-5
 #
 . $SCRIPTPATH/net_conf.conf
 
@@ -70,14 +71,34 @@ fi
 fqdn=`nslookup $public_ip | sed -n "s/.*arpa.*name = \(.*\)./\1/p"`
 if [ ! "$fqdn" ] ; then
         echo Unable to find a FQDN
-        echo terinating
+        echo terminating
 	exit 1
 fi
 
 
 fe_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
 
-/opt/rocks/bin/rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fe_hostname
+vlan=""
+if [ "$vlans" != "" ]; then
+  # assume comma separated list of ranges (e.g., vlans=2-4,6)
+  for vlan_range in `echo $vlans | tr -s ',' '\n'`; do
+    if [ ${#vlan_range} -eq 1 ]; then
+      vlan_range="$vlan_range $vlan_range"
+    fi
+    vlan_seq_range=`echo $vlan_range | tr -s '-' ' '`;
+    for id in `seq $vlan_seq_range`; do
+      rocks list host interface | grep vlan${id} >& /dev/null
+      if [ $? -ne 0 ]; then vlan="vlan=$id"; break; fi
+    done
+    if [ "$vlan" != "" ]; then break; fi
+  done
+  if [ "$vlan" = "" ]; then
+    echo "Error, no available vlans left for virtual clusters"
+    exit 1
+  fi
+fi
+
+/opt/rocks/bin/rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fe_hostname $vlan
 
 # we fix this on our rocks systems
 private_ip="10.1.1.1"
