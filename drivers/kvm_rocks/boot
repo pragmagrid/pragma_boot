@@ -8,6 +8,7 @@
 
 IPOP_SERVER_INFO="/opt/ipop/etc/ipopserver.info"
 IPOP_CONFIG="/opt/ipop/etc/config.json"
+IPOP_TURN_CONFIG="/opt/ipop/turn/etc/turn.conf"
 IPOPSERVER_WAIT_PERIOD=5
 IPOPCLIENT_WAIT_PERIOD=60
 
@@ -60,6 +61,9 @@ if [ "$ipop_serverinfo_url" != "" ]; then
 	if [ $ipop_client -eq 1 ]; then	
 		if [ -e "$tmp_folder/$IPOP_CONFIG" ]; then
 			rm -f $tmp_folder/$IPOP_CONFIG
+		fi
+		if [ -e "$tmp_folder/$IPOP_TURN_CONFIG" ]; then
+			rm -f $tmp_folder/$IPOP_TURN_CONFIG
 		fi
 		protocol=`echo $ipop_serverinfo_url | sed 's#://.*# #'`
 		ipop_serverinfo_file=""
