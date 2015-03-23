@@ -5,3 +5,4 @@ gw="123.123.123.1"
 dns="8.8.8.8"
 fqdn="fqdn_of_pubblic_ip.somehost.com"
 vlans=2-4,6
+diskdir=/state/partition/kvm/disks

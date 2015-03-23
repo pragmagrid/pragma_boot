@@ -44,6 +44,7 @@ popd > /dev/null
 # dns="8.8.8.8"
 # fqdn="fqdn_of_pubblic_ip.somehost.com"
 # vlans=2-5
+# diskdir=/some/path
 #
 . $SCRIPTPATH/net_conf.conf
 
@@ -65,7 +66,8 @@ if [ ! "$public_ip" ] ; then
 	exit 1
 fi
 
-fqdn=`nslookup $public_ip | sed -n "s/.*arpa.*name = \(.*\)./\1/p"`
+#fqdn=`nslookup $public_ip | sed -n "s/.*arpa.*name = \(.*\)./\1/p"`
+fqdn=`expr "$(resolveip $public_ip)" : '.* \([-\.a-z0-9]*\)'`
 if [ ! "$fqdn" ] ; then
         echo Unable to find a FQDN
         echo terminating
@@ -84,7 +86,8 @@ if [ "$vlans" != "" ]; then
     fi
     vlan_seq_range=`echo $vlan_range | tr -s '-' ' '`;
     for id in `seq $vlan_seq_range`; do
-      rocks list host interface | grep vlan${id} >& /dev/null
+      # check vlan is being used by looking for assigned mac addresses 
+      rocks list host interface | grep ${id} | grep -E "(\w+:){5}" >& /dev/null
       if [ $? -ne 0 ]; then vlan="vlan=$id"; break; fi
     done
     if [ "$vlan" != "" ]; then break; fi
@@ -95,7 +98,14 @@ if [ "$vlans" != "" ]; then
   fi
 fi
 
-/opt/rocks/bin/rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fe_hostname $vlan
+/opt/rocks/bin/rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fe_hostname cluster-naming=true $vlan
+if [ "$diskdir" != "" ]; then
+  cnodes=`rocks list cluster $fe_hostname | tail -n +3 |  awk '{print $2}'`
+  for h in $cnodes; do
+    /opt/rocks/bin/rocks set host vm $h disk="file:$diskdir/$h.vda,vda,virtio"
+  done
+  /opt/rocks/bin/rocks set host vm $fe_hostname disk="file:$diskdir/$fe_hostname.vda,vda,virtio"
+fi
 
 # we fix this on our rocks systems
 private_ip="10.1.1.1"
@@ -119,7 +129,7 @@ echo "  <compute count=\"$numnodes\">" >> $vc_out
 # TODO support only 255 host and netmask of at least 
 counter=254
 temp_ip=`echo "$private_ip" | awk '{split($1,a,"."); print a[1]"."a[2]"."a[3]}'`
-for i in `/opt/rocks/bin/rocks list cluster $fe_hostname | awk '{print $2}'|grep ^hosted`; do
+for i in `/opt/rocks/bin/rocks list cluster $fe_hostname | awk '{print $2}'|grep ^[a-z]`; do
 	mac=`/opt/rocks/bin/rocks list host interface $i |awk '{print $3}' | tail -n 1`
         ip=$temp_ip.$counter
 	internal_compute_name="compute-$(( 254 - $counter ))"
