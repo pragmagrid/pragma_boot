@@ -30,6 +30,10 @@ cpus_per_node=`expr "$(rocks list host vm-container)" : '.*[a-zA-Z] \([0-9]\{1,2
 mem_compute=2024
 # need to get the ceiling of the division (not the floor)
 numnodes=$(( ($numcpus + $cpus_per_node - 1) / $cpus_per_node ))
+# don't use all the cpus of node if not needed
+if [ $cpus_per_node -gt $numcpus ]; then
+  cpus_per_node=$numcpus
+fi
 
 # get the path to this script
 pushd `dirname $0` > /dev/null
