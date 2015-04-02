@@ -133,7 +133,7 @@ echo "  <compute count=\"$numnodes\">" >> $vc_out
 # TODO support only 255 host and netmask of at least 
 counter=254
 temp_ip=`echo "$private_ip" | awk '{split($1,a,"."); print a[1]"."a[2]"."a[3]}'`
-for i in `/opt/rocks/bin/rocks list cluster $fe_hostname | awk '{print $2}'|grep ^[a-z]`; do
+for i in `/opt/rocks/bin/rocks list cluster $fe_hostname | awk '{print $2}'| grep $fe_hostname`; do
 	mac=`/opt/rocks/bin/rocks list host interface $i |awk '{print $3}' | tail -n 1`
         ip=$temp_ip.$counter
 	internal_compute_name="compute-$(( 254 - $counter ))"
