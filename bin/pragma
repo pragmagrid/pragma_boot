@@ -1,0 +1,100 @@
+#! /opt/rocks/bin/python
+#   #!/usr/bin/env python
+
+import os 
+import sys
+import syslog
+import string
+
+# enable logging
+syslog.openlog('pragmaCommand', syslog.LOG_PID, syslog.LOG_LOCAL6)
+
+# we need this to run from sources without installing
+fullPath = os.path.dirname(os.path.realpath(__file__))
+script_base_dir = os.path.abspath(os.path.join(fullPath, os.path.pardir))
+try:
+    import pragma
+except ImportError:
+    sys.path.insert(0, script_base_dir)
+    import pragma
+
+
+# treat empty command line as "pragma help"
+if len(sys.argv) == 1:
+    args = [ 'list', 'help' ]
+else:
+    args = sys.argv[1:]
+
+# check if command has been quoted
+module = None
+cmd = args[0].split()
+
+if len(cmd) > 1:
+	s = 'pragma.commands.%s' % string.join(cmd, '.')
+	try:
+		__import__(s)
+		module = eval(s)
+		i = 1
+	except:
+		module = None
+
+# Treat the entire command line as if it were a python command module and
+# keep popping arguments off the end until we get a match.  If no match is
+# found issue an error.
+
+if not module:
+	for i in range(len(args), 0, -1):
+		s = 'pragma.commands.%s' % string.join(args[:i], '.')
+		try:
+			__import__(s)
+			module = eval(s)
+			if module:
+				break
+		except ImportError:
+			continue
+
+if not module:
+	print 'error - invalid pragma command "%s"' % args[0]
+	sys.exit(-1)
+
+name = string.join(string.split(s, '.')[2:], ' ')
+
+# If we can load the command object then fall through and invoke the run()
+# method.  Otherwise the user did not give a complete command line and
+# we call the help command based on the partial command given.
+
+try:	
+	command   = getattr(module, 'Command')(None)
+except AttributeError:
+	import pragma.commands.list.help
+	help = pragma.commands.list.help.Command(None)
+	fullmodpath = s.split('.')
+	submodpath  = string.join(fullmodpath[2:], '/')
+	help.run({'subdir': submodpath}, [])
+	print help.getText()
+	sys.exit(-1)
+
+if command.MustBeRoot and not (command.isRootUser() or command.isApacheUser()):
+	os.system('sudo %s' % string.join(sys.argv,' '))
+else:
+	try:
+		command.runWrapper(name, args[i:])
+		text = command.getText()
+		if len(text) > 0:
+			print text,
+			if text[len(text)-1] != '\n':
+				print
+	except pragma.utils.CommandError, e:
+		print "Error:", e
+		print command.usage()
+		exit(1)
+
+syslog.closelog()
+
+# example of logging
+#syslog.syslog( syslog.LOG_ERR, "This is Error test message")
+#syslog.syslog( syslog.LOG_INFO, "This is Critical test message")
+#syslog.syslog( syslog.LOG_WARNING, "This is Critical test message")
+#syslog.syslog( syslog.LOG_DEBUG, "This is Debug test message")
+
+
