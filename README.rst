@@ -237,7 +237,7 @@ PRAGMA Virtual Cluster Requirements
 To create a virtual cluster which is compatible with PRAGMA infrastructure the 
 nodes must respect the following criteria (with the current versio of software):
 
-- Physical frontend must have fuse
+- Physical frontend must have fuse and libguestfs-tools-c
 - All host run inside kvm-based virtualization engine.
 - Each VM have a single disk image
 - VM disk images can be compressed using Lempel-Ziv coding (with extension .gz)
@@ -307,3 +307,8 @@ Extras
 2. Click on account name and select `Security Credentials`
 3. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
 4. Download public key, private key and take note of access key id (keypair id)
+
+TODO
+======
+
+1. Make fuse and libguestfs-tools-c part of the roll
