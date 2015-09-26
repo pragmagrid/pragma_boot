@@ -1,19 +1,45 @@
 The pragma_boot script
 ----------------------
 
-**pragma_boot** is the main program to instantiate Virtual Machine in Pragma.
-It accepts the following arguments:
+**pragma_boot** is the main program to instantiate Virtual Machine in PRAGMA.
+It accepts the following agruments:
 
-* **--list**             list the available images
-* **--num_cpus N**       the number of compute node to start up (default to 0)
-* **--vcname vcname**    the name of the virtual cluster to start up (the name must be in the database)
-* **--base_path path**   the base path of the VM database
-* **--key path**         The ssh key that will be authorized on the frontend of
-  the cluster (default is /root/.ssh/id_rsa.pub)
+Usage: pragma_boot [-v][-d][--basepath path] --list [options] | --vcname vcname [options]
+
+Options:
+ General options
+ 
+ * --version, show program's version number and exit 
+  
+ * -h, --help show this help message and exit 
+
+ * --basepath=BASEPATH, The base path used to find all the cluster images (default is /state/partition1/vm-images)
+                        
+ * -v, --verbose, Print all debugging information to stdout
+
+ * -d, --debug, Print only the command that will be executed do not execute them
+                        
+ * --list, list available virtual machines
+
+ * --vcname=VCNAME,  The name of the cluster which should be started
+
+List Options:
+ Options for --list command
 
 
+Create Options:
+ Options for --vcname command
 
-pragma_boot invokes the following subscripts which will be invoked in the order described below.
+ * --key=KEY, The ssh key that will be authorized on the frontend of the cluster (default is /root/.ssh/id_rsa.pub)
+  
+ * --num_cpus=NUM_CPUS, The nuber of cpus requested to start up (default is 0 only frontend will be started)
+ 
+ * --enable-ipop-client=IPOP_CLIENTINFO_FILE, Start up virtual cluster as an ipop client to another virtual cluster
+
+ * --enable-ipop-server=IPOP_SERVERINFO_FILE, Fetch the ipopserver.info file from the IPOP-enabled frontend when started and write to provided file
+
+
+pragma_boot invokes the follwing subscripts which will be invoked in the order described below.
 In the commands below the ve_dirver will be replaced with the local Virtual Engine (VE)
 driver (the base path used to find all the VE drivers can be configured in the file
 site_conf.conf)
@@ -52,6 +78,9 @@ staging all VM images
   2. **host_name**      the name of the host we want to boot
   3. **temp_directory** the temporary directory used to place all the temporary virtual
   4. **vc_out_path**    this should point to the path where the frontend vc-out.xml is saved
+  5. **ipop_serverinfo_file**  path to store/fetch ipopserver.info file
+  6. **ipop_client**    0 if ipopserver.info file needs to be fetched or 1 if file needs to be installed
+
 
 
 The sequence of calls for the driver is the following:
@@ -202,13 +231,13 @@ vc-out.xml file example for a compute node
    <key>ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6vUe5tX+DztYyvUf6n+diFGbOOU9hcGLuXIY/NeLpIHePzpCyoS3Axx3HjjTiIekReUFIwgdWVaFqWtfYp4GpgqAdUThzoCNJqsENY884NTsoUV86Eou/E6fXIr3A2Z0Mr4vI8K5AouRMHLeoFZXgDyNZ7xJnRP0h2aTQNmx3lh8yUt2J/t7J5MphftPWEoYlfS9CdzXpxjxq2srWnDDwPMp7k9vOI8RaVKwfDBEGT6TITtzwNc5gRzTOv6OxxUr3z5n7MI6i5kiKDjmXSpd28gq/IgpTBZ6Ur0/Eq0EufrEHoSWHXdTF5/cAYrqhJJaqr6Movku0eeElvOCBxjTDw== root@somehost.ucsd.edu</key>
  </vc>
 
-Pragma Virtual Clutser Requirements
-===================================
+PRAGMA Virtual Cluster Requirements
+==================================
 
-To create a virtual cluster which is compatible with Pragma infrastrucutre the 
+To create a virtual cluster which is compatible with PRAGMA infrastructure the 
 nodes must respect the following criteria (with the current versio of software):
 
-
+- Physical frontend must have fuse
 - All host run inside kvm-based virtualization engine.
 - Each VM have a single disk image
 - VM disk images can be compressed using Lempel-Ziv coding (with extension .gz)

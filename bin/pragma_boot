@@ -107,35 +107,51 @@ def main():
     # set up the option parser
     #
     runHelp = "\nRun \"pragma_boot -h\" for more help."
-    usage = "usage: %prog --list | --vcname vcname [--num_cpus N] [--basepath path] [--key path]"
-    parser = OptionParser(usage, version="0.1")
+    usage = "usage: %prog [-v][-d][--basepath path] --list [options] | --vcname vcname [options]"
+    parser = OptionParser(usage, version="0.2")
 
-    # required options one of them must be selected
-    group = OptionGroup(parser, "Required Options",
-                    "You must select a vcname or use the list option")
-    parser.add_option_group(group)
-    group.add_option("--vcname", dest="vcname", default=None,
-                    help="The name of the cluster which should be started")
-    group.add_option("--list", dest="list", action="store_true",
-                    help="list available virtual machines")
-
-    #various option
+    # global options
     parser.add_option("--basepath", dest="basepath", default=repository_dir,
                     help="The base path used to find all the cluster images "
                     "(default is /gfarm/vm-images)")
-    parser.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
-                    help="The ssh key that will be authorized on the frontned "
-                    "of the cluster (default is /root/.ssh/id_rsa.pub)")
-    parser.add_option("--num_cpus", dest="num_cpus", default=0, type="int",
-                    help="The nuber of cpus requested to start up (default is 0 "
-                    " only frontend will be started")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                     default=False,
                     help="Print all debugging information to stdout")
     parser.add_option("-d", "--debug", action="store_true", dest='debug',
                     default=False, help="Print only the command that will be "
                     "executed do not execute them")
+
+    # Options for --list command
+    parser.add_option("--list", dest="list", action="store_true",
+                    help="list available virtual machines")
+    list_group = OptionGroup(parser, "List Options",
+                    "Options for --list command")
+    parser.add_option_group(list_group)
+
+    # Options for --vcname command
+    parser.add_option("--vcname", dest="vcname", default=None,
+                    help="The name of the cluster which should be started")
+    create_group = OptionGroup(parser, "Create Options",
+                    "Options for --vcname command")
+    parser.add_option_group(create_group)
+    create_group.add_option("--key", dest="key", default="/root/.ssh/id_rsa.pub",
+                    help="The ssh key that will be authorized on the frontend "
+                    "of the cluster (default is /root/.ssh/id_rsa.pub)")
+    create_group.add_option("--num_cpus", dest="num_cpus", default=0, type="int",
+                    help="The nuber of cpus requested to start up (default is 0 "
+                    " only frontend will be started")
+    create_group.add_option("--enable-ipop-client", dest="ipop_clientinfo_file", default="",
+                    help="Start up the IPOP-enabled virtual cluster as an IPOP client (to "
+                    "another virtual cluster) using the provided IPOP server info file" )
+    create_group.add_option("--enable-ipop-server", dest="ipop_serverinfo_url", default="",
+                    help="Start up the IPOP-enabled virtual cluster with the frontend serving"
+                    " as an IPOP server; once initialization is complete, store the IPOP "
+                    "server info into the provided URL.  If begins with file://, will "
+                    "be stored locally, otherwise will be a REST call if begins with http://" ) 
     (options, args) = parser.parse_args()
+
+    if options.ipop_clientinfo_file != "" and options.ipop_serverinfo_url != "":
+      parser.error( "Cannot specify both --enable-ipop-server and --enable-ipop-client" )
 
     #
     # switch based on user input
@@ -152,7 +168,7 @@ def main():
 
     if not os.path.isfile(vc_db_filepath):
         parser.error("The file " + vc_db_filepath + " does not exist/\n"
-            "Your basepath should point to a valid pragma virtaul cluster repository")
+            "Your basepath should point to a valid PRAGMA virtual cluster repository")
 
     #
     # create logger
@@ -163,6 +179,8 @@ def main():
     # create file handler which logs even debug messages
     fh = logging.FileHandler('pragma_boot.log')
     fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    fh.setFormatter(formatter)
     logger.addHandler(fh)
     # create console handler and set level to debug
     ch = logging.StreamHandler()
@@ -265,15 +283,16 @@ def main():
     #
     # deploy frontend
     #
-    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug)
 
-    if options.num_cpus > 0:
+    deployImage(fe_temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, options.debug, options.ipop_serverinfo_url, "0" )
+
+    ipop_serverinfo_url = options.ipop_serverinfo_url if options.ipop_serverinfo_url != "" else options.ipop_clientinfo_file
+    if options.num_cpus > 0 :
         #
         # deploy nodes
         #
         for i in node_names:
-            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug)
-
+            deployImage(comp_temp_disk_path, i, temp_directory, vc_out_filepath, dr_manager, options.debug, ipop_serverinfo_url, "1")
 
 def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     """ prepare the virtual images to be run on the current platform """
@@ -282,9 +301,9 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     runCommand(cmdline, debug)
 
 
-def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug):
+def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug, ipop_serverinfo_url, ipop_client ):
     """ it runs the boot script on a machine once """
-    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath]
+    cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath, ipop_serverinfo_url, ipop_client ]
     runCommand(cmdline, debug)
 
 
@@ -306,7 +325,6 @@ def get_temporary_disk_path(vc_in_filepath, node_type, temp_directory):
         temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)
 
     return temp_disk_path
-
 
 def runCommand(cmdline, debug):
     logger.debug("Executing: " + str(cmdline))

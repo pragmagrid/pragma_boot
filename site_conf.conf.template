@@ -9,7 +9,7 @@ site_ve_driver = "kvm_rocks"
 
 # This is the temporary directory for staging vm images
 # disk before deployment.
-temp_directory = "/state/partition2/temp"
+temp_directory="/state/partition1/temp"
 
 # This is a repository class to use
 # Available classes are
