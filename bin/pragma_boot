@@ -235,14 +235,12 @@ def main():
     client_driver_name = vc_in_xmlroot.findall('./driver')[0].text
     dr_manager.set_client_base_path(script_base_dir + "/drivers/" + client_driver_name)
 
-    fe_temp_disk_path = get_temporary_disk_path(vc_in_filepath, "frontend", temp_directory)
-    comp_temp_disk_path = get_temporary_disk_path(vc_in_filepath, "compute", temp_directory)
     #
     # now we first call fix_image
     #
     # TODO properly set the node_types argument
-    prepareImage(vc_in_filepath, temp_directory, "frontend,compute", dr_manager, options.debug)
-
+    (fe_temp_disk_path, comp_temp_disk_path) = prepareImage(vc_in_filepath, temp_directory, "frontend,compute", dr_manager, options.debug)
+    
     #
     # and then we call allocate and create vc-out.xml
     #
@@ -252,7 +250,7 @@ def main():
     if not options.debug:
         (stdout, ret) = pragma.utils.getOutputAsList(cmdline)
     else:
-        # write facke vc_out_xml
+        # write fake vc_out_xml
         fd = open(vc_out_filepath, 'w')
         fd.write(mockup_vc_out_xml)
         fd.close()
@@ -298,33 +296,20 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     """ prepare the virtual images to be run on the current platform """
     # fix_driver
     cmdline = [dr_manager.fix_images(), vc_in_filepath, temp_directory, node_type]
-    runCommand(cmdline, debug)
-
+    stdout=runCommand(cmdline, debug)
+    filepaths=""
+    while( filepaths == "" ):
+      filepaths=stdout.pop()
+    print filepaths
+    fe_temp_disk_path = filepaths.split(" ")[0]
+    comp_temp_disk_path = filepaths.split(" ")[1]
+    return (fe_temp_disk_path, comp_temp_disk_path)
 
 def deployImage(temp_disk_path, fqdn, temp_directory, vc_out_filepath, dr_manager, debug, ipop_serverinfo_url, ipop_client ):
     """ it runs the boot script on a machine once """
     cmdline = [dr_manager.boot(), temp_disk_path, fqdn, temp_directory, vc_out_filepath, ipop_serverinfo_url, ipop_client ]
     runCommand(cmdline, debug)
 
-
-def get_temporary_disk_path(vc_in_filepath, node_type, temp_directory):
-    """get the temporary disk name of FE and compute"""
-    vc_in_xmlroot = xml.etree.ElementTree.parse(vc_in_filepath).getroot()
-    xml_node_domain = vc_in_xmlroot.findall('./' + node_type + '/domain')[0]
-    input_disk_source = xml_node_domain.findall('./devices/disk/source')[0]
-    input_disk_path = os.path.dirname(vc_in_filepath) + "/" + \
-            input_disk_source.attrib['file']
-
-    # copy FE disk image over to temp floder and uncompress it
-    if not os.path.isfile(input_disk_path):
-        logger.error("Error can not open FE disk image " + input_disk_path)
-        sys.exit(1)
-    if input_disk_path.endswith(".gz"):
-        temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)[:-3]
-    else:
-        temp_disk_path = temp_directory + '/' + os.path.basename(input_disk_path)
-
-    return temp_disk_path
 
 def runCommand(cmdline, debug):
     logger.debug("Executing: " + str(cmdline))
@@ -338,6 +323,7 @@ def runCommand(cmdline, debug):
         sys.exit(1)
     logger.info("Command executed: " + str(cmdline))
     logger.debug("Output: " + '\n'.join(stdout))
+    return stdout
 
 
 #TODO not used delete me

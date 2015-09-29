@@ -6,11 +6,29 @@
 # 
 # For info see README
 
+waitUntilCmdTrue() {
+  cond=$1
+  command=$2
+  sleep=$3
+  
+  out=""
+  while [ $cond ]; do
+    out=`eval $command 2>&1`
+    if [ $? -eq 0 ]; then
+       break;
+    fi
+    echo "Sleeping $sleep seconds until command '$command' is true"
+    sleep $sleep
+  done
+  echo $out
+}
+
 IPOP_SERVER_INFO="/opt/ipop/etc/ipopserver.info"
 IPOP_CONFIG="/opt/ipop/etc/config.json"
 IPOP_TURN_CONFIG="/opt/ipop/turn/etc/turn.conf"
 IPOPSERVER_WAIT_PERIOD=5
 IPOPCLIENT_WAIT_PERIOD=60
+NAS_WAIT_PERIOD=10
 
 if [ "x$#" != "x6" ]; then
     echo "This script should be invoked with 4 arguments"
@@ -36,17 +54,38 @@ pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd`
 popd > /dev/null
 
+fe_fqdn=`echo "cat /vc/frontend/public/@fqdn" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
+node_hostname=""
+if [ "x$fqdn" = "x$fe_fqdn" ]; then
+	# this is a frontend
+	xml_file="$vc_out_filepath"
+	node_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
+else 
+	# this is a compute node and we have created all the xml file in allocate
+	# they are in temp_dir/hostname.xml
+	xml_file="$temp_directory/$fqdn.xml"
+	node_number=${fqdn#compute-}
+	cluster_name=`echo $fe_fqdn |awk -F. '{ print $1 }'`
+	node_hostname=`/opt/rocks/bin/rocks list cluster $cluster_name | awk -v node=$node_number 'NR >= (node + 3) && NR < (node + 4) {print $2} '`
+fi
+
 #
 #    ----------------       fixing the disk image  -------------------
 #
 tmp_folder=`mktemp -d`
 
-fe_fqdn=`echo "cat /vc/frontend/public/@fqdn" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
-#dns=`echo "cat /vc/compute/node/@ip" | xmllint --shell $vc_out_filepath | grep = | awk -F \" '{print $2}'`
-
 # Remove existing network configuration -- dynip generates new files 
 # (if not here, dynip will create network interfaces on eth2/eth3 instead of eth0/eth1)
-guestmount -a $temp_disk_path -i $tmp_folder || error "unable to mount guest FS"
+nas=`rocks list host vm nas | grep "^${node_hostname}:" | tr -s ' ' | cut -f 2 -d' '`
+if [ "${nas}" != "" ]; then
+	phy_frontend=`rocks list host attr  localhost | grep Frontend | cut -f 1 -d:`
+	disk=`rocks list host storagedev $phy_frontend | grep ${node_hostname}-vol | tr -s ' ' | cut -f 1 -d' '`
+  	temp_disk_path="/dev/$disk"
+fi
+echo "Exitting prematurely"
+exit 0;
+waitUntilCmdTrue "! -d ${tmp_folder}/tmp" "guestmount -a $temp_disk_path -i $tmp_folder" $NAS_WAIT_PERIOD
+
 if [ -f "$tmp_folder/etc/udev/rules.d/70-persistent-net.rules" ]; then
 	mv "$tmp_folder/etc/udev/rules.d/70-persistent-net.rules" "$tmp_folder/root/70-persistent-net.rules.old"
 fi
@@ -92,47 +131,45 @@ if [ "$ipop_serverinfo_url" != "" ]; then
 fi
 
 
-if [ "x$fqdn" = "x$fe_fqdn" ]; then
-	# this is a frontend
-	xml_file="$vc_out_filepath"
-	node_hostname=`echo $fqdn |awk -F. '{ print $1 }'`
-else 
-	# this is a compute node and we have created all the xml file in allocate
-	# they are in temp_dir/hostname.xml
-	xml_file="$temp_directory/$fqdn.xml"
-	node_number=${fqdn#compute-}
-	cluster_name=`echo $fe_fqdn |awk -F. '{ print $1 }'`
-	node_hostname=`/opt/rocks/bin/rocks list cluster $cluster_name | awk -v node=$node_number 'NR >= (node + 3) && NR < (node + 4) {print $2} '`
-fi
 
 # copy the vc-out.xml
 cp $xml_file $tmp_folder/root/vc-out.xml
 
 fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
+if [ "${nas}" != "" ]; then
+	waitUntilCmdTrue "0 -eq 0" \
+		"rocks list host storagemap ${nas} | grep ${node_hostname}-vol | grep mapped" \
+		$NAS_WAIT_PERIOD
+	rocks remove host storagemap ${nas} ${node_hostname}-vol
+	waitUntilCmdTrue "0 -eq 0" \
+		"rocks list host storagemap ${nas} | grep ${node_hostname}-vol | grep unmapped" \
+		$NAS_WAIT_PERIOD
+fi
 
 #
 #    ----------------       deploying disk image and booting  -------------------
 #
 # match everything except 'HOST' and a line of -----
-container=`/opt/rocks/bin/rocks list host vm $node_hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
-disk_path=`/opt/rocks/bin/rocks list host vm $node_hostname showdisks=1 | awk ' {if (/file/) print $7}'`
-# remove useless stuff from file path
-disk_path=${disk_path#file:}
-disk_path=${disk_path/,*/}
 
-localhost=`hostname -s`
-
-echo Destination disk path is $container:$disk_path
-
-if [ "$container" = "$localhost" ];then
-	cp --sparse=always "$temp_disk_path" "$disk_path" \
-		|| error "unable to copy the disk image $temp_disk_path to $disk_path"
-else
-        scpcmd="rsync -S $temp_disk_path $container:$disk_path"
-        echo $scpcmd
-        $scpcmd || error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
-	#ssh $container cp "$temp_disk_path" "$disk_path" \
-        #        || error "unable to copy the disk image $temp_disk_path to $disk_path on $container"
+if [ "${nas}" = "" ]; then
+	container=`/opt/rocks/bin/rocks list host vm $node_hostname | awk '{if (! /---*/ && ! /HOST/) print $5}'`
+	disk_path=`/opt/rocks/bin/rocks list host vm $node_hostname showdisks=1 | awk ' {if (/file/) print $7}'`
+	# remove useless stuff from file path
+	disk_path=${disk_path#file:}
+	disk_path=${disk_path/,*/}
+	
+	localhost=`hostname -s`
+	
+	echo Destination disk path is $container:$disk_path
+	
+	if [ "$container" = "$localhost" ];then
+		cp --sparse=always "$temp_disk_path" "$disk_path" \
+			|| error "unable to copy the disk image $temp_disk_path to $disk_path"
+	elif [ "$container" != "$localhost" ]; then
+	       	scpcmd="rsync -S $temp_disk_path $container:$disk_path"
+	       	echo $scpcmd
+	       	$scpcmd || error "unable to copy the disk image $temp_disk_path to $container:$disk_path"
+	fi
 fi
 
 # do not install just boot the system as it is

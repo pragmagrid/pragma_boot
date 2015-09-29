@@ -7,7 +7,30 @@
 # 
 # For info see README
 
+getAttributeFromVCfile() { 
+  vc_in=$1
+  nodetype=$2
+  attribute=$3
 
+  echo "cat /vc/${nodetype}/domain/devices/disk/source/@${attribute}" | xmllint --shell $vc_in | grep = | awk -F \" '{print $2}'
+}
+
+configureNewZfsHost() { 
+  vc_in=$1
+  nodetype=$2
+  host=$3
+
+  phy_frontend=`rocks list host attr  localhost | grep Frontend | cut -f 1 -d:`
+  disk_volume=`getAttributeFromVCfile $vc_in $nodetype "volume"`
+  disk_pool=`getAttributeFromVCfile $vc_in $nodetype "pool"`
+  disk_host=`getAttributeFromVCfile $vc_in $nodetype "host"`
+
+  clonename="tmpclone$$"
+  ssh $disk_host zfs snapshot $disk_volume@${clonename}
+  ssh $disk_host zfs clone $disk_volume@${clonename} $disk_pool/${host}-vol
+  rocks set host vm nas $host nas=$disk_host zpool=$disk_pool
+  rocks add host storagemap $disk_host $disk_pool ${host}-vol ${phy_frontend} 10
+} 
 
 if [ "x$#" != "x5" ]; then
     echo "This script should be invoked with 5 arguments"
@@ -21,7 +44,7 @@ function error(){
 
 # tree required arguments
 numcpus=$1
-vc_in=$2 # not used
+vc_in=$2 
 vc_out=$3
 temp_directory=$4
 key=$5
@@ -91,7 +114,7 @@ if [ "$vlans" != "" ]; then
     vlan_seq_range=`echo $vlan_range | tr -s '-' ' '`;
     for id in `seq $vlan_seq_range`; do
       # check vlan is being used by looking for assigned mac addresses 
-      rocks list host interface | grep ${id} | grep -E "(\w+:){5}" >& /dev/null
+      rocks list host interface | grep "vlan${id}" >& /dev/null
       if [ $? -ne 0 ]; then vlan="vlan=$id"; break; fi
     done
     if [ "$vlan" != "" ]; then break; fi
@@ -109,6 +132,17 @@ if [ "$diskdir" != "" ]; then
     /opt/rocks/bin/rocks set host vm $h disk="file:$diskdir/$h.vda,vda,virtio"
   done
   /opt/rocks/bin/rocks set host vm $fe_hostname disk="file:$diskdir/$fe_hostname.vda,vda,virtio"
+fi
+
+# handle zfs volumes
+fe_disk_volume=`getAttributeFromVCfile $vc_in "frontend" "volume"`
+comp_disk_volume=`getAttributeFromVCfile $vc_in "compute" "volume"`
+if [ "$fe_disk_volume" != "" -a "$comp_disk_volume" != "" ]; then
+  configureNewZfsHost $vc_in  "frontend" $fe_hostname
+  cnodes=`rocks list cluster $fe_hostname | tail -n +3 |  awk '{print $2}'`
+  for h in $cnodes; do
+    configureNewZfsHost $vc_in "compute" $h
+  done
 fi
 
 # we fix this on our rocks systems
