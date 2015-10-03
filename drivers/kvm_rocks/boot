@@ -82,8 +82,6 @@ if [ "${nas}" != "" ]; then
 	disk=`rocks list host storagedev $phy_frontend | grep ${node_hostname}-vol | tr -s ' ' | cut -f 1 -d' '`
   	temp_disk_path="/dev/$disk"
 fi
-echo "Exitting prematurely"
-exit 0;
 waitUntilCmdTrue "! -d ${tmp_folder}/tmp" "guestmount -a $temp_disk_path -i $tmp_folder" $NAS_WAIT_PERIOD
 
 if [ -f "$tmp_folder/etc/udev/rules.d/70-persistent-net.rules" ]; then
@@ -138,11 +136,11 @@ cp $xml_file $tmp_folder/root/vc-out.xml
 fusermount -u $tmp_folder || error "unable to unmount $tmp_folder"
 if [ "${nas}" != "" ]; then
 	waitUntilCmdTrue "0 -eq 0" \
-		"rocks list host storagemap ${nas} | grep ${node_hostname}-vol | grep mapped" \
+		"/opt/rocks/bin/rocks list host storagemap ${nas} | grep ${node_hostname}-vol | grep mapped" \
 		$NAS_WAIT_PERIOD
-	rocks remove host storagemap ${nas} ${node_hostname}-vol
+	/opt/rocks/bin/rocks remove host storagemap ${nas} ${node_hostname}-vol
 	waitUntilCmdTrue "0 -eq 0" \
-		"rocks list host storagemap ${nas} | grep ${node_hostname}-vol | grep unmapped" \
+		"/opt/rocks/bin/rocks list host storagemap ${nas} | grep ${node_hostname}-vol | grep unmapped" \
 		$NAS_WAIT_PERIOD
 fi
 
