@@ -300,7 +300,6 @@ def prepareImage(vc_in_filepath, temp_direcotry, node_type, dr_manager, debug):
     filepaths=""
     while( filepaths == "" ):
       filepaths=stdout.pop()
-    print filepaths
     fe_temp_disk_path = filepaths.split(" ")[0]
     comp_temp_disk_path = filepaths.split(" ")[1]
     return (fe_temp_disk_path, comp_temp_disk_path)
