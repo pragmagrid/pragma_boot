@@ -1,8 +1,0 @@
-<virt-v2v>
-  <network type='bridge' name='xenbr.eth0.9'>
-    <network type='bridge' name='eth0'/>
-  </network>
-  <network type='bridge' name='xenbr.eth1'>
-    <network type='bridge' name='eth1'/>
-  </network>
-</virt-v2v>
