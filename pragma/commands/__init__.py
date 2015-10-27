@@ -6,7 +6,6 @@ import syslog
 import pwd
 import types
 import sys
-import sqlalchemy.engine.result
 import traceback
 
 import pragma
@@ -77,7 +76,7 @@ class DocStringHandler(handler.ContentHandler,
 			(string.join(self.name.split(' '), '-'), self.name)
 		s += '<title>%s</title>\n' % self.name
 		s += '<cmdsynopsis>\n'
-		s += '\t<command>rocks %s</command>\n' % self.name
+		s += '\t<command>pragma %s</command>\n' % self.name
 		for ((name, type, opt, rep), txt) in self.section['arg']:
 			if opt:
 				choice = 'opt'
@@ -153,7 +152,7 @@ class DocStringHandler(handler.ContentHandler,
 					s += '# '
 				else:
 					s += '$ '
-				s += 'rocks %s' % cmd
+				s += 'pragma %s' % cmd
 				s += '\n\t</term>\n'
 				s += '\t<listitem>\n'
 				s += '\t<para>\n'
@@ -167,7 +166,7 @@ class DocStringHandler(handler.ContentHandler,
 			for related in self.section['related']:
 				s += '\t<varlistentry>\n'
 				s += '\t<term>'
-				s += '<xref linkend="rocks-%s">' % \
+				s += '<xref linkend="pragma-%s">' % \
 					string.join(related.split(' '), '-')
 				s += '</term>\n'
 				s += '\t<listitem>\n'
@@ -215,9 +214,9 @@ class DocStringHandler(handler.ContentHandler,
 		s += '.. role:: defn\n\n' 
 		utxt = self.getUsageText()
 		if len(utxt): 
-		    s += ':defn:`rocks %s` *%s*\n' % (self.name, utxt)
+		    s += ':defn:`pragma %s` *%s*\n' % (self.name, utxt)
 		else:         
-		    s += ':defn:`rocks %s` %s\n' % (self.name, utxt)
+		    s += ':defn:`pragma %s` %s\n' % (self.name, utxt)
 		s += '\n\n**Description:**\n'
 		s += self.section['description'].replace('\t','   ')
 		if self.section['arg']:
@@ -245,11 +244,11 @@ class DocStringHandler(handler.ContentHandler,
 			for (cmd, txt) in self.section['example']:
 				txt = txt.replace('*', '\*')
 				s += '%s::\n\n' % txt.replace('\t','   ')
-				s += '        %s rocks %s\n' % (prompt, cmd)
+				s += '        %s pragma %s\n' % (prompt, cmd)
 		if self.section['related']:
 			s += '\n**Related Commands:**\n\n'
 			for related in self.section['related']:
-				s += '   * :ref:`rocks-%s`\n' % related.replace(' ','-')
+				s += '   * :ref:`pragma-%s`\n' % related.replace(' ','-')
 
 		word = self.name.split()[0]
 		s += '\n:ref:`%s commands <%s-ref>`\n' % (word, word)
@@ -262,7 +261,7 @@ class DocStringHandler(handler.ContentHandler,
 		else:
 			prompt = '$'
 		s  = ''
-		s += 'rocks %s %s' % (self.name, self.getUsageText())
+		s += 'pragma %s %s' % (self.name, self.getUsageText())
 		s += '\n\nDescription:\n'
 		s += self.section['description']
 		if self.section['arg']:
@@ -286,12 +285,12 @@ class DocStringHandler(handler.ContentHandler,
 		if self.section['example']:
 			s += '\nExamples:\n\n'
 			for (cmd, txt) in self.section['example']:
-				s += '\t%s rocks %s\n' % (prompt, cmd)
+				s += '\t%s pragma %s\n' % (prompt, cmd)
 				s += '%s\n' % txt
 		if self.section['related']:
 			s += '\nRelated Commands:\n\n'
 			for related in self.section['related']:
-				s += '\trocks %s\n' % related
+				s += '\tpragma %s\n' % related
 		return s
 		
 	def getParsedText(self):
@@ -871,8 +870,7 @@ class Command:
 
 		if isinstance(vals, types.ListType):
 			list.extend(vals)
-		elif isinstance(vals, types.TupleType) or \
-			isinstance(vals, sqlalchemy.engine.result.RowProxy):
+		elif isinstance(vals, types.TupleType): 
 			for e in vals:
 				list.append(e)
 		else:
@@ -1090,10 +1088,6 @@ class Command:
 					if self.debug():
 						traceback.print_exc()
 					self.abort(str(e))
-				except sqlalchemy.exc.OperationalError as e:
-					if self.debug():
-						traceback.print_exc()
-					self.abort("Dabase error: " + str(e))
 
 
 
