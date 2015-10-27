@@ -1,5 +1,4 @@
-#! /opt/rocks/bin/python
-#   #!/usr/bin/env python
+#!/usr/bin/env python
 
 import os 
 import sys
@@ -13,11 +12,14 @@ syslog.openlog('pragmaCommand', syslog.LOG_PID, syslog.LOG_LOCAL6)
 fullPath = os.path.dirname(os.path.realpath(__file__))
 script_base_dir = os.path.abspath(os.path.join(fullPath, os.path.pardir))
 try:
-    import pragma
+	import pragma
+	import pragma.utils
 except ImportError:
-    sys.path.insert(0, script_base_dir)
-    import pragma
+	sys.path.insert(0, script_base_dir)
+	import pragma
+	import pragma.utils
 
+pragma.utils.BASEPATH = script_base_dir
 
 # treat empty command line as "pragma help"
 if len(sys.argv) == 1:
