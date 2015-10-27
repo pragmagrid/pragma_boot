@@ -76,7 +76,7 @@ tmp_folder=`mktemp -d`
 
 # Remove existing network configuration -- dynip generates new files 
 # (if not here, dynip will create network interfaces on eth2/eth3 instead of eth0/eth1)
-nas=`rocks list host vm nas | grep "^${node_hostname}:" | tr -s ' ' | cut -f 2 -d' '`
+nas=`rocks list host vm nas | grep "^${node_hostname}:" | grep -v "\-\-\-" | tr -s ' ' | cut -f 2 -d' '`
 if [ "${nas}" != "" ]; then
 	phy_frontend=`rocks list host attr  localhost | grep Frontend | cut -f 1 -d:`
 	disk=`rocks list host storagedev $phy_frontend | grep ${node_hostname}-vol | tr -s ' ' | cut -f 1 -d' '`

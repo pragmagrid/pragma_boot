@@ -126,8 +126,8 @@ if [ "$vlans" != "" ]; then
 fi
 
 /opt/rocks/bin/rocks add cluster $public_ip $numnodes cpus-per-compute=$cpus_per_node mem-per-compute=$mem_compute fe-name=$fe_hostname cluster-naming=true $vlan
+cnodes=`rocks list cluster $fe_hostname | tail -n +3 |  awk '{print $2}'`
 if [ "$diskdir" != "" ]; then
-  cnodes=`rocks list cluster $fe_hostname | tail -n +3 |  awk '{print $2}'`
   for h in $cnodes; do
     /opt/rocks/bin/rocks set host vm $h disk="file:$diskdir/$h.vda,vda,virtio"
   done
@@ -139,7 +139,6 @@ fe_disk_volume=`getAttributeFromVCfile $vc_in "frontend" "volume"`
 comp_disk_volume=`getAttributeFromVCfile $vc_in "compute" "volume"`
 if [ "$fe_disk_volume" != "" -a "$comp_disk_volume" != "" ]; then
   configureNewZfsHost $vc_in  "frontend" $fe_hostname
-  cnodes=`rocks list cluster $fe_hostname | tail -n +3 |  awk '{print $2}'`
   for h in $cnodes; do
     configureNewZfsHost $vc_in "compute" $h
   done
