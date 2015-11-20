@@ -1,6 +1,5 @@
 import os
 import pragma.commands
-import pragma.repository.utils
 
 class Command(pragma.commands.list.command):
 

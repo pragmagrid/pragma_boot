@@ -1,5 +1,7 @@
-#! /opt/rocks/bin/python
+#! /usr/bin/env python
 
+from datetime import datetime
+import logging
 from subprocess import PIPE, Popen
 import subprocess
 import os
@@ -9,10 +11,19 @@ from xml.sax import handler
 
 global BASEPATH
 
+logger = logging.getLogger('pragma.util')
+
+def get_id():
+    return "%i-%s" % (os.getpid(), datetime.now().strftime("%Y-%m-%d"))
+
+def getRocksOutputAsList(cmdline, inputString=None):
+    return getOutputAsList("/opt/rocks/bin/rocks %s" % cmdline, inputString)
+
 def getOutputAsList(cmdline, inputString=None):
     """ run popen pipe inputString and return a touple of
     (the stdout as a list of string, return value of the command)
     """
+    logger.debug("Executing command: '%s'" % cmdline)
     if isinstance(cmdline, unicode):
         cmdline = str(cmdline)
     if isinstance(cmdline, str):
