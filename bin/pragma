@@ -5,6 +5,10 @@ import sys
 import syslog
 import string
 
+if sys.version_info < (2, 7):
+	sys.stderr.write("Please use python 2.7 or greater\n")
+	sys.exit(-1)
+
 # enable logging
 syslog.openlog('pragmaCommand', syslog.LOG_PID, syslog.LOG_LOCAL6)
 
