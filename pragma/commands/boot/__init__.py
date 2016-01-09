@@ -98,10 +98,9 @@ class Command(pragma.commands.Command):
 		execfile(conf_path, {}, globals())
 
 		# create a unique temp dir for storage of files
-		#our_temp_dir = tempfile.mkdtemp(
-		#	suffix=pragma.utils.get_id(), prefix='pragma-', 
-		#	dir=temp_directory)
-		our_temp_dir = "/state/partition1/temp/pragma-Kfr02V3292-2015-11-20"
+		our_temp_dir = tempfile.mkdtemp(
+			suffix=pragma.utils.get_id(), prefix='pragma-', 
+			dir=temp_directory)
 
 		# Download vcdb
         	repository = pragma.utils.getRepository()
@@ -143,8 +142,7 @@ class Command(pragma.commands.Command):
 			os.path.join(our_temp_dir, "vc-out.xml"))
 		driver.allocate( 
 			num_cpus, memory, key, vc_in, vc_out, repository)
-		driver.prepare_images(vc_in, vc_out, our_temp_dir)
-		driver.boot(vc_out)
+		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 
 RollName = "pragma_boot"

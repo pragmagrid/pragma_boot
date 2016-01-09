@@ -20,11 +20,6 @@ class Driver:
 	def allocate(self, cpus, memory, key, vc_in, vc_out, repository):
 		pass
 
-	def deploy_virtual_node(self):
+        def deploy(self, vc_in, vc_out, temp_dir):
 		pass
 
-	def start_cluster(self):
-		self.allocate()
-		self.deploy_virtual_node("frontend")
-		# for my node in nodes:
-				# self.deploy_virtual_node("node")

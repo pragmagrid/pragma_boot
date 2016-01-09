@@ -65,7 +65,7 @@ class VcOut:
 		key.text = self.key
 
 	def get_compute_names(self):
-		return self.compute_nodes.keys()
+		return sorted(self.compute_nodes.keys())
 
 	def get_frontend(self):
 		return self.frontend 

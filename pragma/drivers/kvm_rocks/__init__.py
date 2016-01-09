@@ -33,58 +33,6 @@ class Driver(pragma.drivers.Driver):
 	def allocate(self, cpus, memory, key, vc_in, vc_out, repository):
 
 		"""
-
-getAttributeFromVCfile() {
-  vc_in=$1
-  nodetype=$2
-  attribute=$3
-
-  echo "cat /vc/${nodetype}/domain/devices/disk/source/@${attribute}" | xmllint --shell $vc_in | grep = | awk -F \" '{print $2}'
-}
-
-configureNewZfsHost() {
-  vc_in=$1
-  nodetype=$2
-  host=$3
-
-  phy_frontend=`rocks list host attr  localhost | grep Frontend | cut -f 1 -d:`
-  disk_volume=`getAttributeFromVCfile $vc_in $nodetype "volume"`
-  disk_pool=`getAttributeFromVCfile $vc_in $nodetype "pool"`
-  disk_host=`getAttributeFromVCfile $vc_in $nodetype "host"`
-
-  clonename="tmpclone$$"
-  ssh $disk_host zfs snapshot $disk_volume@${clonename}
-  ssh $disk_host zfs clone $disk_volume@${clonename} $disk_pool/${host}-vol
-  rocks set host vm nas $host nas=$disk_host zpool=$disk_pool
-  rocks add host storagemap $disk_host $disk_pool ${host}-vol ${phy_frontend} 10
-}
-
-if [ "x$#" != "x5" ]; then
-    echo "This script should be invoked with 5 arguments"
-    exit 1
-fi
-
-function error(){
-    echo -e "Error $1"
-    exit 1
-}
-
-# tree required arguments
-numcpus=$1
-vc_in=$2
-vc_out=$3
-temp_directory=$4
-key=$5
-
-# handle zfs volumes
-fe_disk_volume=`getAttributeFromVCfile $vc_in "frontend" "volume"`
-comp_disk_volume=`getAttributeFromVCfile $vc_in "compute" "volume"`
-if [ "$fe_disk_volume" != "" -a "$comp_disk_volume" != "" ]; then
-  configureNewZfsHost $vc_in  "frontend" $fe_hostname
-  for h in $cnodes; do
-    configureNewZfsHost $vc_in "compute" $h
-  done
-fi
 		:return:
 		"""
 		(num_nodes, cpus_per_node) = self.calculate_num_nodes(cpus)
@@ -100,24 +48,21 @@ fi
 		vc_out.set_key(key)
 
 		# get free ip and vlan
-		#(our_ip, our_fqdn) = self.find_free_ip(public_ips)
-		(our_ip, our_fqdn) = ("67.58.53.62", "lima-vc-0.sdsc.optiputer.net")
+		(our_ip, our_fqdn) = self.find_free_ip(public_ips)
 		fe_name = our_fqdn.split(".")[0]
-		#our_vlan = self.find_free_vlan(vlans)
-		our_vlan = 14
+		our_vlan = self.find_free_vlan(vlans)
 		if not memory:
 			memory = self.default_memory
 
 		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=%i mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i" % (our_ip, num_nodes, cpus_per_node, memory, fe_name, our_vlan)
 		logger.debug("Executing rocks command '%s'" % cmd)
-#		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
-#		cnodes = []
-#		cnode_pat = re.compile("created compute VM named: (\S+)")
-#		for line in out:
-#			result = cnode_pat.search(line)
-#			if result:
-#				cnodes.append(result.group(1))
-		cnodes = ['vm-lima-vc-0-0', 'vm-lima-vc-0-1']
+		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
+		cnodes = []
+		cnode_pat = re.compile("created compute VM named: (\S+)")
+		for line in out:
+			result = cnode_pat.search(line)
+			if result:
+				cnodes.append(result.group(1))
 		vc_out.set_frontend(fe_name, our_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
 		(macs,ips) = self.get_network(fe_name,cnodes)
@@ -208,25 +153,22 @@ fi
 
 		return (macs,ips)
 
-	def boot(self, vc_out):
-		allnodes = [vc_out.get_frontend()['name']] + \
-				vc_out.get_compute_names()
-		for node in allnodes:
-			(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"set host boot %s action=os" % node )
-			if exitcode != 0:
-				logger.error("Error setting boot on %s: %s" % (
-					node, "\n".join(out)))
-				continue
-			(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"start host vm %s" % node )
-			if exitcode != 0:
-				logger.error("Problem booting %s: %s" % (
-					node, "\n".join(out)))
+	def boot(self, node):
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"set host boot %s action=os" % node )
+		if exitcode != 0:
+			logger.error("Error setting boot on %s: %s" % (
+				node, "\n".join(out)))
+			return
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"start host vm %s" % node )
+		if exitcode != 0:
+			logger.error("Problem booting %s: %s" % (
+				node, "\n".join(out)))
 		
 
 
-	def prepare_images(self, vc_in, vc_out, temp_dir):
+	def deploy(self, vc_in, vc_out, temp_dir):
 		network_conf = [
 			'/etc/udev/rules.d/70-persistent-net.rules',
 			'/etc/sysconfig/network-scripts/ifcfg-eth*'
@@ -235,22 +177,30 @@ fi
 			vc_out.filename: "/root/vc-out.xml"
 		}
 		image_manager = ImageManager.factory(vc_in, vc_out, temp_dir)
-		#image_manager.copy_frontend_disk()
-		#compute_img_copy = image_manager.create_compute_disk()
-		compute_img_copy = "/state/partition1/temp/pragma-Kfr02V3292-2015-11-20/compute.img"
-		fe_mnt = image_manager.mount_image(
-			image_manager.disks[image_manager.fe_name])
-		compute_mnt = image_manager.mount_image(compute_img_copy)
+
+		# create frontend and compute disks
+		image_manager.create_frontend_disk()
+		image_manager.create_compute_disks()
+
+		# prepare and boot frontend
+		fe_mnt = image_manager.mount_frontend()
+		image_manager.safe_remove_from_image(fe_mnt, network_conf)
 		image_manager.install_to_image(fe_mnt, new_config)
-		for mnt in [fe_mnt, compute_mnt]:
-			image_manager.safe_remove_from_image(mnt, network_conf)
+		image_manager.umount_frontend(fe_mnt)
+		self.boot(image_manager.fe_name)
+
+		# prepare and boot computes
 		for node in vc_out.get_compute_names():
 			compute_config = { 
 				vc_out.get_vc_out(node): "/root/vc-out.xml"
 			}
+			compute_mnt = image_manager.mount_compute(node)
+			image_manager.safe_remove_from_image(compute_mnt, network_conf)
 			image_manager.install_to_image(
 				compute_mnt, compute_config)
-			#image_manager.scp_image(compute_img_copy, node)
-		for mnt in [fe_mnt, compute_mnt]:
-			image_manager.umount_image(mnt)
+			image_manager.umount_compute(compute_mnt, node)
+			image_manager.stage_compute(node)
+			self.boot(node)
+
+		#image_manager.umount_image(compute_mnt)
 
