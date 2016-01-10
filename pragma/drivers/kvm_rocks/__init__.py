@@ -1,5 +1,6 @@
 import logging
 import pragma
+import pragma.utils
 from pragma.drivers.kvm_rocks.image_manager import ImageManager
 import math
 import os
@@ -8,9 +9,11 @@ import socket
 
 logger = logging.getLogger('pragma.drivers.kvm_rocks')
 
+
 class Driver(pragma.drivers.Driver):
 	def __init__(self):
 		"""
+		Instantiate a new KVM Rocks driver to launch virtual cluster
 
 		:return:
 		"""
@@ -31,18 +34,23 @@ class Driver(pragma.drivers.Driver):
 				self.used_vlans.append(int(result.group(1)))	
 
 	def allocate(self, cpus, memory, key, vc_in, vc_out, repository):
-
 		"""
+		Allocate a new virtual cluster from Rocks
+
+		:param cpus: Number of CPUs to instantiate
+		:param memory: Amount of memory per compute node
+		:param key: Path to SSH Key to install
+		:param vc_in: Path to virtual cluster specification
+		:param vc_out: Path to new virtual cluster information
+		:param repository: Path to virtual cluster repository
 		:return:
 		"""
 		(num_nodes, cpus_per_node) = self.calculate_num_nodes(cpus)
 
 		# Load network configuration and import values
-                #   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
-                #   repository_class, repository_dir, repository_settings
-
-		net_conf = os.path.join(
-			os.path.dirname(__file__), "net_conf.conf")
+		#   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
+		#   repository_class, repository_dir, repository_settings
+		net_conf = os.path.join(os.path.dirname(__file__), "net_conf.conf")
 		logger.info("Loading network information from %s" % net_conf)
 		execfile(net_conf, {}, globals())
 		vc_out.set_key(key)
@@ -65,11 +73,29 @@ class Driver(pragma.drivers.Driver):
 				cnodes.append(result.group(1))
 		vc_out.set_frontend(fe_name, our_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
-		(macs,ips) = self.get_network(fe_name,cnodes)
+		(macs,ips) = self.get_network(fe_name, cnodes)
 		vc_out.set_network(macs,ips, netmask, gw, dns)
 		vc_out.set_kvm_diskdir(diskdir)
 		vc_out.write()
 
+	def boot(self, node):
+		"""
+		Boot the specified Rocks node
+
+		:param node: Name of Rocks node
+		:return:
+		"""
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"set host boot %s action=os" % node )
+		if exitcode != 0:
+			logger.error("Error setting boot on %s: %s" % (
+				node, "\n".join(out)))
+			return
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"start host vm %s" % node)
+		if exitcode != 0:
+			logger.error("Problem booting %s: %s" % (
+				node, "\n".join(out)))
 
 	def calculate_num_nodes(self, cpus_requested):
 		"""
@@ -93,6 +119,38 @@ class Driver(pragma.drivers.Driver):
 		numnodes = math.ceil(cpus_requested / vm_container_cpu_count)
 		return (int(numnodes), 
 			int(min(vm_container_cpu_count, cpus_requested)))
+
+	def deploy(self, vc_in, vc_out, temp_dir):
+		"""
+		Deploy the specified virtual cluster
+
+		:param vc_in: Virtual cluster source specification
+		:param vc_out: Network configuration for new virtual cluster
+		:param temp_dir: Path to temporary directory
+		:return:
+		"""
+		network_conf = [
+			'/etc/udev/rules.d/70-persistent-net.rules',
+			'/etc/sysconfig/network-scripts/ifcfg-eth*'
+		]
+		new_config = {
+			vc_out.filename: "/root/vc-out.xml"
+		}
+		image_manager = ImageManager.factory(vc_in, vc_out, temp_dir)
+
+		# prepare and boot frontend
+		image_manager.prepare_frontend(network_conf, new_config)
+		self.boot(image_manager.fe_name)
+
+		# prepare and boot computes
+		for node in vc_out.get_compute_names():
+			compute_config = {
+				vc_out.get_vc_out(node): "/root/vc-out.xml"
+			}
+			image.manager.prepare_compute(node, network_conf, compute_config)
+			self.boot(node)
+
+		image_manager.cleanup()
 
 	def find_free_ip(self, avail_ips):
 		"""
@@ -132,12 +190,19 @@ class Driver(pragma.drivers.Driver):
 			logger.error("No available vlans")
 			return None
 		return avail_vlans[0]
- 
+
 	def get_network(self, frontend, compute_nodes):
+		"""
+		Get network information for newly instantiated virtual cluster
+
+		:param frontend: Name of virtual cluster frontend
+		:param compute_nodes: Array of virtual cluster compute nodes
+		:return:  Array of mac and ip addresses
+		"""
 		(out, exitcode) = pragma.utils.getOutputAsList(
 			"rocks list host interface")
-		macs = { frontend:{} } 
-		ips = { frontend:{} }
+		macs = {frontend:{}}
+		ips = {frontend:{}}
 		for node in compute_nodes:
 			macs[node] = {}
 			ips[node] = {}
@@ -146,61 +211,11 @@ class Driver(pragma.drivers.Driver):
 			result = mac_pat.search(line)
 			if result:
 				network_type = result.group(2)
-				if network_type  == '-------':
+				if network_type == '-------':
 					network_type = 'private'
 				macs[result.group(1)][network_type] = result.group(3)
 				ips[result.group(1)][network_type] = result.group(4)
 
 		return (macs,ips)
 
-	def boot(self, node):
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-			"set host boot %s action=os" % node )
-		if exitcode != 0:
-			logger.error("Error setting boot on %s: %s" % (
-				node, "\n".join(out)))
-			return
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-			"start host vm %s" % node )
-		if exitcode != 0:
-			logger.error("Problem booting %s: %s" % (
-				node, "\n".join(out)))
-		
-
-
-	def deploy(self, vc_in, vc_out, temp_dir):
-		network_conf = [
-			'/etc/udev/rules.d/70-persistent-net.rules',
-			'/etc/sysconfig/network-scripts/ifcfg-eth*'
-		]
-		new_config = {
-			vc_out.filename: "/root/vc-out.xml"
-		}
-		image_manager = ImageManager.factory(vc_in, vc_out, temp_dir)
-
-		# create frontend and compute disks
-		image_manager.create_frontend_disk()
-		image_manager.create_compute_disks()
-
-		# prepare and boot frontend
-		fe_mnt = image_manager.mount_frontend()
-		image_manager.safe_remove_from_image(fe_mnt, network_conf)
-		image_manager.install_to_image(fe_mnt, new_config)
-		image_manager.umount_frontend(fe_mnt)
-		self.boot(image_manager.fe_name)
-
-		# prepare and boot computes
-		for node in vc_out.get_compute_names():
-			compute_config = { 
-				vc_out.get_vc_out(node): "/root/vc-out.xml"
-			}
-			compute_mnt = image_manager.mount_compute(node)
-			image_manager.safe_remove_from_image(compute_mnt, network_conf)
-			image_manager.install_to_image(
-				compute_mnt, compute_config)
-			image_manager.umount_compute(compute_mnt, node)
-			image_manager.stage_compute(node)
-			self.boot(node)
-
-		#image_manager.umount_image(compute_mnt)
 
