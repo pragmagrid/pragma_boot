@@ -123,6 +123,12 @@ class Driver(pragma.drivers.Driver):
 			int(min(vm_container_cpu_count, cpus_requested)))
 
 	def clean(self, vcname):
+		"""
+		Unallocate virtual cluster and clean up disks.
+
+		:param vcname: Name of virtual cluster to be cleaned
+		:return: True if clean was successful, otherwise False
+		"""
 		nodes = self.get_cluster_status(vcname)
 		for node in nodes:
 			if nodes[node] == 'active':
@@ -217,6 +223,14 @@ class Driver(pragma.drivers.Driver):
 		return avail_vlans[0]
 
 	def get_cluster_status(self, vcname):
+		"""
+		Return whether the virtual cluster nodes are active or inactive
+
+		:param vcname: Virtual cluster defined in Rocks DB
+
+		:return:  Hash array indicating the virtual cluster node status where
+		the key is the node and the value is the status.
+		"""
 		nodes = {}
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"list cluster status=true %s" % vcname)
@@ -261,6 +275,13 @@ class Driver(pragma.drivers.Driver):
 		return (macs,ips)
 
 	def shutdown(self, vcname):
+		"""
+		Shutdown the nodes of the specified virtual cluster.
+
+		:param vcname: Name of running virtual cluster
+
+		:return: True if cluster is shutdown, otherwise False
+		"""
 		nodes = self.get_cluster_status(vcname)
 		for node in nodes:
 			if nodes[node] == 'active':

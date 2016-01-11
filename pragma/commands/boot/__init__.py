@@ -60,7 +60,7 @@ class Command(pragma.commands.Command):
         </example>
         """
 
-        def run(self, params, args):
+	def run(self, params, args):
 
 		(args, vcname, num_cpus) = self.fillPositionalArgs(
 			('vc-name', 'num-cpus'))
@@ -70,15 +70,15 @@ class Command(pragma.commands.Command):
 		if not num_cpus:
 			self.abort('must supply the number of CPUs')
 
-                try:
-                        num_cpus = int(num_cpus)
-                except:
-                        self.abort('num-cpus must be an integer')
+		try:
+			num_cpus = int(num_cpus)
+		except:
+			self.abort('num-cpus must be an integer')
 
-                #
-                # fillParams with the above default values
-                #
-                (basepath, ipop_clientinfo_file, ipop_serverinfo_url,
+		#
+		# fillParams with the above default values
+		#
+		(basepath, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
 			[('basepath', '/opt/pragma_boot'),
 			 ('ipop_serverinfo_url', ""),
@@ -94,7 +94,7 @@ class Command(pragma.commands.Command):
 		#   repository_class, repository_dir, repository_settings
 		conf_path = os.path.join(basepath, "etc", "site_conf.conf")
 		if not(os.path.exists(conf_path)):
-                        self.abort('Unable to find conf file: ' + conf_path)
+			self.abort('Unable to find conf file: ' + conf_path)
 		execfile(conf_path, {}, globals())
 
 		# create a unique temp dir for storage of files

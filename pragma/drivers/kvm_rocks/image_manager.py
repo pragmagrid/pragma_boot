@@ -40,7 +40,14 @@ class ImageManager:
 		pass
 
 	@staticmethod
-	def clean_disk(disk, host):
+	def clean_disk(disk_spec, host):
+		"""
+		Clean out the disk of the specified node.
+
+		:param disk_spec: Disk spec from the Rocks db
+		:param host: Hostname of the VM container
+		:return: True if disk is cleaned, otherwise false
+		"""
 		if re.search("^file", disk):
 			return NfsImageManager.clean_disk(disk, host)
 		else:
@@ -321,9 +328,16 @@ class NfsImageManager(ImageManager):
 
 	@staticmethod
 	def clean_disk(disk_spec, host):
+		"""
+		Clean out the specified disk on the VM container.
+
+		:param disk_spec: Disk spec from the Rocks db
+		:param host: Hostname of the VM container
+		:return: True if disk is cleaned, otherwise false
+		"""
 		result = re.search("file:([^,]+)", disk_spec)
 		disk = result.group(1)
-                print "  Removing disk %s from node %s" % (disk, host)
+		print "  Removing disk %s from node %s" % (disk, host)
 		(out, exitcode) = pragma.utils.getOutputAsList(
 			"ssh %s rm -f %s" % (host, disk))
 		if exitcode != 0:
