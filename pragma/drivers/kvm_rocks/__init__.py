@@ -147,9 +147,8 @@ class Driver(pragma.drivers.Driver):
 			compute_config = {
 				vc_out.get_vc_out(node): "/root/vc-out.xml"
 			}
-			image.manager.prepare_compute(node, network_conf, compute_config)
+			image_manager.prepare_compute(node, network_conf, compute_config)
 			self.boot(node)
-
 		image_manager.cleanup()
 
 	def find_free_ip(self, avail_ips):

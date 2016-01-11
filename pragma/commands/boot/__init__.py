@@ -144,6 +144,10 @@ class Command(pragma.commands.Command):
 			num_cpus, memory, key, vc_in, vc_out, repository)
 		driver.deploy(vc_in, vc_out, our_temp_dir)
 
+		# cleanup
+		vc_out.clean()
+		os.rmdir(our_temp_dir) 
+
 
 RollName = "pragma_boot"
 

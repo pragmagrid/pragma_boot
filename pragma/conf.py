@@ -30,6 +30,7 @@ class VcOut:
 
 	def __init__(self, filename):
 		self.filename = filename
+		self.compute_nodes = {}
 
 	def __str__(self):
 		vc = ET.Element('vc')
@@ -63,6 +64,13 @@ class VcOut:
 			'ip':self.dns, 'search':"local", 'domain':""})
 		key = ET.SubElement(vc, 'key')
 		key.text = self.key
+
+	def clean(self):
+		if os.path.exists(self.filename):
+			os.remove(self.filename)
+		for node in self.compute_nodes:
+			if os.path.exists(self.compute_nodes[node]['vc_out']):
+				os.remove(self.compute_nodes[node]['vc_out'])
 
 	def get_compute_names(self):
 		return sorted(self.compute_nodes.keys())
@@ -104,7 +112,6 @@ class VcOut:
 		
 	def set_compute_nodes(self, compute_nodes, cpus_per_node):
 		counter=254
-		self.compute_nodes = {}
 		dir = os.path.dirname(self.filename)
 		for node in compute_nodes:
 			self.compute_nodes[node] = {}

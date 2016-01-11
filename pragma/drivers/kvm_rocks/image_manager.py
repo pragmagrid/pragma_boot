@@ -32,6 +32,12 @@ class ImageManager:
 				self.phy_hosts[result.group(1)] = result.group(2)
 				self.disks[result.group(1)] = result.group(3)
 
+	def cleanup(self):
+		"""
+		Cleanup any temporary state
+		"""
+		pass
+
 	@staticmethod
 	def factory(vc_in, vc_out, temp_dir):
 		"""
@@ -53,7 +59,7 @@ class ImageManager:
 				frontend_disk['file'], compute_disk['file'], 
 				vc_in.dir, vc_out.get_kvm_diskdir())
 		elif 'volume' in frontend_disk and 'volume' in compute_disk:
-			manager = ZfsImageManager(frontend_disk, compute_disk)
+			manager = ZfsImageManager(frontend['name'], frontend_disk, compute_disk)
 		else:
 			logger.error("Unknown disk type in %s" % str(frontend_disk))
 			return None
@@ -150,7 +156,7 @@ class ImageManager:
 		
 
 class ZfsImageManager(ImageManager):
-	def __init__(self, fe_spec, compute_spec):
+	def __init__(self, fe_name, fe_spec, compute_spec):
 		"""
 		Create an ImageManager for a ZFS based virtual cluster
 
@@ -158,7 +164,7 @@ class ZfsImageManager(ImageManager):
 		:param compute_spec: Information on virtual cluster compute image
 		:return:
 		"""
-		super(self.__class__, self).__init__(fe_spec['name'])
+		ImageManager.__init__(self, fe_name)
 		self.frontend = fe_spec
 		self.compute = compute_spec
 		self.our_phy_frontend = socket.gethostname().split(".")[0]
@@ -289,7 +295,7 @@ class NfsImageManager(ImageManager):
 		:param kvm_dir: Path to Rocks dir where virtual cluster imgs are stored
 		:return:
 		"""
-		super(self.__class__, self).__init__(fe_name)
+		ImageManager.__init__(self, fe_name)
 		self.frontend_img = fe_img
 		self.compute_img = compute_img
 		self.vc_dir = vc_dir
@@ -297,6 +303,12 @@ class NfsImageManager(ImageManager):
 		self.tmp_compute_img = None
 		if self.diskdir:
 			self.set_rocks_disk_paths()
+
+	def cleanup(self):
+		"""
+		Cleanup any temporary state
+		"""
+		os.remove(self.tmp_compute_img)
 
 	def create_tmp_compute(self):
 		"""
