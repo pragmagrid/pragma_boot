@@ -5,6 +5,7 @@ import pragma.utils
 import re
 import shutil
 import socket
+import sys
 
 logger = logging.getLogger('pragma.drivers.kvm_rocks.image_manager')
 
@@ -32,11 +33,19 @@ class ImageManager:
 				self.phy_hosts[result.group(1)] = result.group(2)
 				self.disks[result.group(1)] = result.group(3)
 
-	def cleanup(self):
+	def boot_cleanup(self):
 		"""
 		Cleanup any temporary state
 		"""
 		pass
+
+	@staticmethod
+	def clean_disk(disk, host):
+		if re.search("^file", disk):
+			return NfsImageManager.clean_disk(disk, host)
+		else:
+			sys.stderr.write("Unable to clean disks of type %s\n" % disk)
+			return False
 
 	@staticmethod
 	def factory(vc_in, vc_out, temp_dir):
@@ -304,11 +313,24 @@ class NfsImageManager(ImageManager):
 		if self.diskdir:
 			self.set_rocks_disk_paths()
 
-	def cleanup(self):
+	def boot_cleanup(self):
 		"""
 		Cleanup any temporary state
 		"""
 		os.remove(self.tmp_compute_img)
+
+	@staticmethod
+	def clean_disk(disk_spec, host):
+		result = re.search("file:([^,]+)", disk_spec)
+		disk = result.group(1)
+                print "  Removing disk %s from node %s" % (disk, host)
+		(out, exitcode) = pragma.utils.getOutputAsList(
+			"ssh %s rm -f %s" % (host, disk))
+		if exitcode != 0:
+			sys.stderr.write("Problem removing disk %s: %s\n" % (
+				node, "\n".join(out)))
+			return False
+		return True
 
 	def create_tmp_compute(self):
 		"""

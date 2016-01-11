@@ -6,6 +6,8 @@ import math
 import os
 import re
 import socket
+import sys
+import time
 
 logger = logging.getLogger('pragma.drivers.kvm_rocks')
 
@@ -120,6 +122,30 @@ class Driver(pragma.drivers.Driver):
 		return (int(numnodes), 
 			int(min(vm_container_cpu_count, cpus_requested)))
 
+	def clean(self, vcname):
+		nodes = self.get_cluster_status(vcname)
+		for node in nodes:
+			if nodes[node] == 'active':
+				sys.stderr.write("Error: node %s still active; please shutdown cluster first.\n" % node)
+				return False
+		for node in nodes:
+			(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"list host vm %s showdisks=true" % node)
+			if exitcode != 0:
+				sys.stderr.write("Problem quering node %s: %s\n" % (
+					node, "\n".join(out)))
+				return False
+			fields = re.split("\s+", out[1])
+
+			ImageManager.clean_disk(fields[6], fields[4])
+
+		print "  Unallocating cluster %s" % node
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"remove cluster %s" % vcname)
+		for line in out:
+			print "  %s" % line
+		return True
+
 	def deploy(self, vc_in, vc_out, temp_dir):
 		"""
 		Deploy the specified virtual cluster
@@ -149,7 +175,7 @@ class Driver(pragma.drivers.Driver):
 			}
 			image_manager.prepare_compute(node, network_conf, compute_config)
 			self.boot(node)
-		image_manager.cleanup()
+		image_manager.boot_cleanup()
 
 	def find_free_ip(self, avail_ips):
 		"""
@@ -190,6 +216,23 @@ class Driver(pragma.drivers.Driver):
 			return None
 		return avail_vlans[0]
 
+	def get_cluster_status(self, vcname):
+		nodes = {}
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list cluster status=true %s" % vcname)
+		if exitcode != 0:
+			sys.stderr.write("Error quering cluster %s: %s\n" % (
+				vcname, "\n".join(out)))
+			sys.exit(1)
+		out.pop(0) # remove column headers
+		result = re.search("^([^:]+):\s+\S+\s+\S+\s+(\S+)", out.pop(0))
+		nodes[result.group(1)] = result.group(2)
+		for line in out:
+			result = re.search("^\s*:\s+(\S+)\s+\S+\s+(\S+)", line)
+			if result is not None:
+				nodes[result.group(1)] = result.group(2)
+		return nodes
+
 	def get_network(self, frontend, compute_nodes):
 		"""
 		Get network information for newly instantiated virtual cluster
@@ -216,5 +259,26 @@ class Driver(pragma.drivers.Driver):
 				ips[result.group(1)][network_type] = result.group(4)
 
 		return (macs,ips)
+
+	def shutdown(self, vcname):
+		nodes = self.get_cluster_status(vcname)
+		for node in nodes:
+			if nodes[node] == 'active':
+				print "  Shutting down node %s" % node
+				exitcode=0
+				(out, exitcode) = pragma.utils.getRocksOutputAsList(
+					"stop host vm %s" % node)
+				if exitcode != 0:
+					sys.stderr.write("Problem shutting down node %s: %s\n" % (
+						node, "\n".join(out)))
+					sys.exit(1)
+				time.sleep(1)
+		nodes = self.get_cluster_status(vcname)
+		for node in nodes:
+			if nodes[node] != 'nostate':
+				sys.stderr.write("Error, node %s not shut down\n" % node)
+				return False
+		return True
+		
 
 
