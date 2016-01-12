@@ -81,13 +81,16 @@ class Command(pragma.commands.Command):
 		(basepath, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
 			[('basepath', '/opt/pragma_boot'),
-			 ('ipop_serverinfo_url', ""),
-			 ('ipop_clientinfo_file', ""),
+			 ('enable-ipop-client', ""),
+			 ('enable-ipop-server', ""),
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
 			 ('logfile', None),
 			 ('loglevel', 'ERROR'),
 			 ('memory', None)
 			])
+
+		if ipop_serverinfo_url != "" or ipop_clientinfo_file != "":
+			self.abort("IPOP features not yet supported")
 
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
