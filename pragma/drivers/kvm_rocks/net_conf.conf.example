@@ -1,8 +1,17 @@
-# public_ips a comman separated list of free ips
-public_ips="123.123.123.123,123.123.123.122,123.123.123.121"
-netmask="255.255.255.0"
-gw="123.123.123.1"
+# a python array of public IP addresses pragma_boot can use
+public_ips = ["67.58.53.62","67.58.53.61","67.58.53.60","67.58.53.59","67.58.53.58","67.58.53.57","67.58.53.56","67.58.53.55","67.58.53.54","67.58.53.53"]
+
+# metmask for public IP addresses
+netmask="255.255.255.192"
+
+# gateway 
+gw="67.58.53.1"
+
+# DNS server
 dns="8.8.8.8"
-fqdn="fqdn_of_pubblic_ip.somehost.com"
-vlans=2-4,6
-diskdir=/state/partition/kvm/disks
+
+# available vlans that can be used for private network
+vlans = range(14,22)
+
+# specify alternate directory for images if using NFS; required (leave empty for default)
+diskdir = ""
