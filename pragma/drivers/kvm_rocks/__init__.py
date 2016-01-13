@@ -143,9 +143,11 @@ class Driver(pragma.drivers.Driver):
 				return False
 			fields = re.split("\s+", out[1])
 
-			ImageManager.clean_disk(fields[6], fields[4])
+			if ImageManager.clean_disk(node, fields[6], fields[4]) == False:
+				sys.stderr.write("Problem cleaning disk of node %s\n" % node)
+				return False
 
-		print "  Unallocating cluster %s" % node
+		print "  Unallocating cluster %s" % vcname
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"remove cluster %s" % vcname)
 		for line in out:

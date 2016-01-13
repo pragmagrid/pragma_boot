@@ -50,7 +50,7 @@ class Command(pragma.commands.Command):
 
 		print "Shutting down virtual cluster %s" % vcname
 		if driver.shutdown(vcname):
-			print "Cluster successfully shutdown"
+			print "Cluster %s successfully shutdown" % vcname
 
 
 RollName = "pragma_boot"

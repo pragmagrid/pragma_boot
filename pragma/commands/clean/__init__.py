@@ -47,7 +47,7 @@ class Command(pragma.commands.Command):
 
 		print "Cleaning virtual cluster %s" % vcname
 		if driver.clean(vcname):
-			print "Cluster successfully cleaned"
+			print "Cluster %s successfully cleaned" % vcname
  
 
 RollName = "pragma_boot"

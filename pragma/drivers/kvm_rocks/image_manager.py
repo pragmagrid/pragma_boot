@@ -40,18 +40,21 @@ class ImageManager:
 		pass
 
 	@staticmethod
-	def clean_disk(disk_spec, host):
+	def clean_disk(node, disk_spec, host):
 		"""
 		Clean out the disk of the specified node.
 
+		:param node: Name of node disk is being cleaned for
 		:param disk_spec: Disk spec from the Rocks db
 		:param host: Hostname of the VM container
 		:return: True if disk is cleaned, otherwise false
 		"""
-		if re.search("^file", disk):
-			return NfsImageManager.clean_disk(disk, host)
+		if re.search("^file", disk_spec):
+			return NfsImageManager.clean_disk(node, disk_spec, host)
+		elif re.search("^phy:/dev/mapper/", disk_spec):
+			return ZfsImageManager.clean_disk(node, disk_spec, host)
 		else:
-			sys.stderr.write("Unable to clean disks of type %s\n" % disk)
+			sys.stderr.write("Unable to clean disks of type %s\n" % disk_spec)
 			return False
 
 	@staticmethod
@@ -184,6 +187,51 @@ class ZfsImageManager(ImageManager):
 		self.frontend = fe_spec
 		self.compute = compute_spec
 		self.our_phy_frontend = socket.gethostname().split(".")[0]
+
+	@staticmethod
+	def clean_disk(node, disk_spec, host):
+		"""
+		Clean out the specified disk on the VM container.
+
+		:param disk_spec: Disk spec from the Rocks db
+		:param host: Hostname of the VM container
+		:return: True if disk is cleaned, otherwise false
+		"""
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host vm nas %s" % node)
+		if exitcode != 0:
+			sys.stderr.write("Problem querying nas for %s: %s\n" % (
+				host, "\n".join(out)))
+			return False
+		out.pop(0) # pop off header
+		(nas, pool) = re.split("\s+", out[0])
+		vol = "%s/%s-vol" % (pool, node)
+
+		# check that volume has been unmapped
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host storagemap %s" % nas)
+		if exitcode != 0:
+			sys.stderr.write("Problem querying status of nas %s: %s\n" % (
+				nas, "\n".join(out)))
+			return False
+		unmapped = False
+		for line in out:
+			result = re.search("^%s-vol.*\s+(\S+mapped)" % node, line)
+			if result is not None and result.group(1) == 'unmapped':
+				unmapped = True
+		if unmapped == False:
+			sys.stderr.write("Volume %s is still mapped, cannot be removed yet\n" % vol)
+			return False
+
+		# remove volume
+		print "  Removing %s from %s" % (vol, nas)
+		(out, exitcode) = pragma.utils.getOutputAsList(
+			"ssh %s zfs destroy -r %s" % (nas, vol))
+		if exitcode != 0:
+			sys.stderr.write("Problem removing vol %s for %s: %s\n" % (
+				vol, node, "\n".join(out)))
+			return False
+		return True
 
 	def clone_and_set_zfs_image(self, name, zfs_spec):
 		"""
@@ -327,10 +375,11 @@ class NfsImageManager(ImageManager):
 		os.remove(self.tmp_compute_img)
 
 	@staticmethod
-	def clean_disk(disk_spec, host):
+	def clean_disk(node, disk_spec, host):
 		"""
 		Clean out the specified disk on the VM container.
 
+		:param node: Name of node disk is being cleaned for
 		:param disk_spec: Disk spec from the Rocks db
 		:param host: Hostname of the VM container
 		:return: True if disk is cleaned, otherwise false
@@ -342,7 +391,7 @@ class NfsImageManager(ImageManager):
 			"ssh %s rm -f %s" % (host, disk))
 		if exitcode != 0:
 			sys.stderr.write("Problem removing disk %s: %s\n" % (
-				node, "\n".join(out)))
+				host, "\n".join(out)))
 			return False
 		return True
 
