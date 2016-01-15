@@ -49,15 +49,24 @@ class Driver(pragma.drivers.Driver):
 		:param repository: Path to virtual cluster repository
 		:return:
 		"""
-		(num_nodes, cpus_per_node) = self.calculate_num_nodes(cpus)
 
 		# Load network configuration and import values
 		#   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
 		#   repository_class, repository_dir, repository_settings
 		#   container_hosts
-		net_conf = os.path.join(os.path.dirname(__file__), "net_conf.conf")
+		net_conf = os.path.join(os.path.dirname(__file__), "driver.conf")
 		logger.info("Loading network information from %s" % net_conf)
 		execfile(net_conf, {}, globals())
+
+		per_node_cpu_limit = None
+		try:
+			per_node_cpu_limit = max_cpus
+		except:
+			pass
+		(num_nodes, cpus_per_node) = self.calculate_num_nodes(cpus, per_node_cpu_limit)
+		print "allocating %i nodes and cpus per node %i" % (num_nodes, cpus_per_node)
+		sys.exit(1)
+
 		vc_out.set_key(key)
 
 		# get free ip and vlan
@@ -109,7 +118,7 @@ class Driver(pragma.drivers.Driver):
 			logger.error("Problem booting %s: %s" % (
 				node, "\n".join(out)))
 
-	def calculate_num_nodes(self, cpus_requested):
+	def calculate_num_nodes(self, cpus_requested, vm_container_cpu_count):
 		"""
 		Calculate the number of nodes and cpus per node to request
 
@@ -117,18 +126,20 @@ class Driver(pragma.drivers.Driver):
 		:return: a tuple (numnodes, cpus_per_node) based on number of 
 			cpus available in vm-containers
 		"""
-		(out, exitcode) = pragma.utils.getOutputAsList(
-			"rocks list host vm-container")
-		if len(out) < 2:
-			logger.error("No vm containers found")
-			return -1
-		# assume vm containers are uniform so just cpu count from first
-		cpu_pat = re.search(" (\d+) ", out[1])
-		if not cpu_pat:
-			logger.error("Unable to find cpu count of vm container")
-			return -1
-		vm_container_cpu_count = float(cpu_pat.group(1))
-		numnodes = math.ceil(cpus_requested / vm_container_cpu_count)
+
+		if vm_container_cpu_count is None:
+			(out, exitcode) = pragma.utils.getOutputAsList(
+				"rocks list host vm-container")
+			if len(out) < 2:
+				logger.error("No vm containers found")
+				return -1
+			# assume vm containers are uniform so just cpu count from first
+			cpu_pat = re.search(" (\d+) ", out[1])
+			if not cpu_pat:
+				logger.error("Unable to find cpu count of vm container")
+				return -1
+			vm_container_cpu_count = int(cpu_pat.group(1))
+		numnodes = math.ceil(float(cpus_requested) / vm_container_cpu_count)
 		return (int(numnodes), 
 			int(min(vm_container_cpu_count, cpus_requested)))
 
