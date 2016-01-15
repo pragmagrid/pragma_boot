@@ -25,15 +25,17 @@ class Driver(pragma.drivers.Driver):
 			"rocks list host interface")
 		self.used_ips = []
 		self.used_vlans = []
+		used_vlans = {}
 		ip_pat = re.compile("(\d+\.\d+\.\d+\.\d+)")
-		vlan_pat = re.compile("vlan(\d+)")
+		vlan_pat = re.compile("\d\d:\d\d:.*\s+(\d+)\s+\-+\s+\-+$")
 		for interface in out:
 			result = ip_pat.search(interface)
 			if result:
 				self.used_ips.append(result.group(1))
 			result = vlan_pat.search(interface)
 			if result:
-				self.used_vlans.append(int(result.group(1)))	
+				used_vlans[int(result.group(1))] = 1
+		self.used_vlans = used_vlans.keys()
 
 	def allocate(self, cpus, memory, key, vc_in, vc_out, repository):
 		"""
@@ -52,6 +54,7 @@ class Driver(pragma.drivers.Driver):
 		# Load network configuration and import values
 		#   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
 		#   repository_class, repository_dir, repository_settings
+		#   container_hosts
 		net_conf = os.path.join(os.path.dirname(__file__), "net_conf.conf")
 		logger.info("Loading network information from %s" % net_conf)
 		execfile(net_conf, {}, globals())
@@ -63,8 +66,15 @@ class Driver(pragma.drivers.Driver):
 		our_vlan = self.find_free_vlan(vlans)
 		if not memory:
 			memory = self.default_memory
-
-		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=%i mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i" % (our_ip, num_nodes, cpus_per_node, memory, fe_name, our_vlan)
+		
+		container_hosts = ""
+		try:
+			only_container_hosts
+			container_hosts = "container-hosts=%s" % only_container_hosts
+		except:
+			pass
+		
+		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=%i mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i %s" % (our_ip, num_nodes, cpus_per_node, memory, fe_name, our_vlan, container_hosts)
 		logger.debug("Executing rocks command '%s'" % cmd)
 		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
 		cnodes = []
@@ -269,7 +279,7 @@ class Driver(pragma.drivers.Driver):
 			result = mac_pat.search(line)
 			if result:
 				network_type = result.group(2)
-				if network_type == '-------':
+				if re.search("[\-]+", network_type) is not None: 
 					network_type = 'private'
 				macs[result.group(1)][network_type] = result.group(3)
 				ips[result.group(1)][network_type] = result.group(4)
