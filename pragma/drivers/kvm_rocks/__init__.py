@@ -64,8 +64,6 @@ class Driver(pragma.drivers.Driver):
 		except:
 			pass
 		(num_nodes, cpus_per_node) = self.calculate_num_nodes(cpus, per_node_cpu_limit)
-		print "allocating %i nodes and cpus per node %i" % (num_nodes, cpus_per_node)
-		sys.exit(1)
 
 		vc_out.set_key(key)
 
