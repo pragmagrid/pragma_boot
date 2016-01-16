@@ -77,7 +77,7 @@ class Driver(pragma.drivers.Driver):
 		container_hosts = ""
 		try:
 			only_container_hosts
-			container_hosts = "container-hosts=%s" % only_container_hosts
+			container_hosts = "container-hosts=\"%s\"" % only_container_hosts
 		except:
 			pass
 		
