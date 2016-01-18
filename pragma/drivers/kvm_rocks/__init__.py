@@ -6,6 +6,7 @@ import math
 import os
 import re
 import socket
+import subprocess
 import sys
 import time
 
@@ -21,8 +22,8 @@ class Driver(pragma.drivers.Driver):
 		"""
 		self.default_memory = 2048
 		logger.debug("Loaded driver %s" % self.__class__.__module__)
-		(out, exitcode) = pragma.utils.getOutputAsList(
-			"rocks list host interface")
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host interface")
 		self.used_ips = []
 		self.used_vlans = []
 		used_vlans = {}
@@ -90,6 +91,7 @@ class Driver(pragma.drivers.Driver):
 			result = cnode_pat.search(line)
 			if result:
 				cnodes.append(result.group(1))
+		logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 		vc_out.set_frontend(fe_name, our_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
 		(macs,ips) = self.get_network(fe_name, cnodes)
@@ -125,6 +127,7 @@ class Driver(pragma.drivers.Driver):
 			cpus available in vm-containers
 		"""
 
+		logger.info("Requesting %i CPUs" % cpus_requested)
 		if vm_container_cpu_count is None:
 			(out, exitcode) = pragma.utils.getOutputAsList(
 				"rocks list host vm-container")
@@ -294,6 +297,63 @@ class Driver(pragma.drivers.Driver):
 				ips[result.group(1)][network_type] = result.group(4)
 
 		return (macs,ips)
+
+	def list(self):
+		"""
+		Return list of virtual clusters
+
+		:return: List of virtual cluster names
+		"""
+
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list cluster")
+		if exitcode != 0:
+			sys.stderr.write("Problem quering clusters: %s\n" % (
+				"\n".join(out)))
+			return [] 
+		clusters = []
+		for line in out:
+			result = re.search("^([^:]+).*VM", line)
+			if result is not None:
+				clusters.append(result.group(1))
+		return clusters
+
+	def list(self, vcname):
+		"""
+		Return list of virtual clusters
+
+		:return: List of virtual cluster names
+		"""
+
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list cluster %s status=true" % vcname)
+		if exitcode != 0:
+			sys.stderr.write("Problem quering cluster %s: %s\n" % (
+				vcname, "\n".join(out)))
+			return {}
+		out.pop(0) # ditch header
+		result = re.search("^([^:]+).*VM\s+(\S+)", out.pop(0))
+		frontend = result.group(1)
+		computes = []
+		cluster_status = {}
+		cluster_status[frontend] = result.group(2)
+		if result.group(2) == 'active':
+			(out2, exitcode) = pragma.utils.getRocksOutputAsList(
+                        	"list host interface %s" % vcname)
+			ip = None
+			for line in out2:
+				result = re.search("public.*:\S+\s+(\d+.\d+.\d+.\d+)", line)
+				if result is not None:
+					ip = result.group(1)
+			exitcode =subprocess.call("ping -c 1 %s >& /dev/null" % ip, shell=True)
+			ping = "up" if exitcode == 0 else "down"
+			cluster_status[frontend] += ", %s" % ping
+		for line in out:
+			result = re.search("^:\s+(\S+).*VM\s+(\S+)", line)
+			if result is not None:
+				computes.append(result.group(1))
+				cluster_status[result.group(1)] = result.group(2)
+		return (frontend, computes, cluster_status)
 
 	def shutdown(self, vcname):
 		"""
