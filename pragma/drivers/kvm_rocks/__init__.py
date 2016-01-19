@@ -363,6 +363,7 @@ class Driver(pragma.drivers.Driver):
 
 		:return: True if cluster is shutdown, otherwise False
 		"""
+
 		nodes = self.get_cluster_status(vcname)
 		for node in nodes:
 			if nodes[node] == 'active':
@@ -376,10 +377,12 @@ class Driver(pragma.drivers.Driver):
 					sys.exit(1)
 				time.sleep(1)
 		nodes = self.get_cluster_status(vcname)
+		disks = ImageManager.get_disks(vcname)
 		for node in nodes:
 			if nodes[node] != 'nostate':
 				sys.stderr.write("Error, node %s not shut down\n" % node)
 				return False
+			ImageManager.wait_for_disk(vcname, disks[vcname])
 		return True
 		
 

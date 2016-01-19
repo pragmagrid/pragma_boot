@@ -61,6 +61,8 @@ class Command(pragma.commands.Command):
 			print "  Frontend %s: %s" % (frontend, cluster_status[frontend])
 			if re.search("^active,", cluster_status[frontend]) is None:
 				inactive.append(frontend)
+			if re.search("up$", cluster_status[frontend]) is None:
+				inactive.append(frontend)
 			for compute in computes:
 				print "  Compute %s: %s" % (compute, cluster_status[compute])
 				if cluster_status[compute] != "active":

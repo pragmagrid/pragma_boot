@@ -6,12 +6,14 @@ import re
 import shutil
 import socket
 import sys
+import time
 
 logger = logging.getLogger('pragma.drivers.kvm_rocks.image_manager')
 
 
 class ImageManager:
 	LIST_VM_PATTERN = "^(\S*%s\S*):\s+\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+file:(\S+),vda,virtio"
+	LIST_DISK_PATTERN = "^(\S*%s\S*):\s+\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+(\S+),vda,virtio"
 
 	def __init__(self, fe_name):
 		"""
@@ -86,6 +88,26 @@ class ImageManager:
 		manager.temp_dir = temp_dir
 		return manager
 
+	@staticmethod
+	def get_disks(vcname):
+		"""
+		Get disks for specified virtual cluster
+
+		:param vcname: Name of virtual cluster
+
+		:return: Hash array where key is the name of the node and
+			value is the disk 
+		"""
+		disks = {}
+		(out, ec) = pragma.utils.getRocksOutputAsList(
+			"list host vm showdisks=true")
+		host_pat = re.compile(ImageManager.LIST_DISK_PATTERN % vcname)
+		for line in out:
+			result = host_pat.search(line)
+			if result:
+				disks[result.group(1)] = result.group(3)
+		return disks
+
 	def install_to_image(self, path, files):
 		"""
 		Copy files to mounted image
@@ -99,6 +121,23 @@ class ImageManager:
 			new_path = os.path.join(path, dest.lstrip("/"))
 			logger.info("Copying %s to %s" % (filename, new_path))
 			shutil.copyfile(filename, new_path)
+
+	@staticmethod
+	def wait_for_disk(node, disk):
+		"""
+		Wait for disk for node to be unmounted
+
+		:param path: Name of node to check disk
+
+		:return: True if unmounted; otherwise False
+		"""
+		if re.search("^file", disk):
+			pass
+		elif re.search("^phy:/dev/mapper/", disk):
+			return ZfsImageManager.wait_for_disk(node, disk)
+		else:
+			sys.stderr.write("Unable to wait for disk of type %s\n" % disk)
+			return False
 
 	def mount_image(self, path):
 		"""
@@ -175,6 +214,8 @@ class ImageManager:
 		
 
 class ZfsImageManager(ImageManager):
+	SLEEP_FOR_UNMAPPED = 5
+
 	def __init__(self, fe_name, fe_spec, compute_spec):
 		"""
 		Create an ImageManager for a ZFS based virtual cluster
@@ -197,31 +238,11 @@ class ZfsImageManager(ImageManager):
 		:param host: Hostname of the VM container
 		:return: True if disk is cleaned, otherwise false
 		"""
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-			"list host vm nas %s" % node)
-		if exitcode != 0:
-			sys.stderr.write("Problem querying nas for %s: %s\n" % (
-				host, "\n".join(out)))
+		status = ZfsImageManager.get_disk_status(node, disk_spec)
+		if status != 'unmapped': 
+			sys.stderr.write("Volume %s is still mapped, cannot be removed yet\n" % disk_spec)
 			return False
-		out.pop(0) # pop off header
-		(nas, pool) = re.split("\s+", out[0])
-		vol = "%s/%s-vol" % (pool, node)
-
-		# check that volume has been unmapped
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-			"list host storagemap %s" % nas)
-		if exitcode != 0:
-			sys.stderr.write("Problem querying status of nas %s: %s\n" % (
-				nas, "\n".join(out)))
-			return False
-		unmapped = False
-		for line in out:
-			result = re.search("^%s-vol.*\s+(\S+mapped)" % node, line)
-			if result is not None and result.group(1) == 'unmapped':
-				unmapped = True
-		if unmapped == False:
-			sys.stderr.write("Volume %s is still mapped, cannot be removed yet\n" % vol)
-			return False
+		(vol, pool, nas) = ZfsImageManager.get_nas_info(node, disk_spec)
 
 		# remove volume
 		print "  Removing %s from %s" % (vol, nas)
@@ -265,6 +286,52 @@ class ZfsImageManager(ImageManager):
 		if ec != 0:
 			logger.error("Unable to set nas for %ss" % name)
 			return
+
+	@staticmethod
+	def get_disk_status(node, disk):
+		"""
+		Get the disk status for specified node
+
+		:param node: Name of node to get status for disk
+		:param disk: Disk spec from the Rocks db
+
+		:return: Status of disk
+		"""
+		(vol, pool, nas) = ZfsImageManager.get_nas_info(node, disk)
+
+		# check that volume has been unmapped
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host storagemap %s" % nas)
+		if exitcode != 0:
+			sys.stderr.write("Problem querying status of nas %s: %s\n" % (
+				nas, "\n".join(out)))
+			return False
+		for line in out:
+			result = re.search("^%s-vol\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)\s+" % node, line)
+			if result is not None:
+				return result.group(1)
+		return None
+
+	@staticmethod
+	def get_nas_info(node, disk):
+		"""
+		Get the disk status for specified node
+
+		:param node: Name of node to get status for disk
+		:param disk: Disk spec from the Rocks db
+
+		:return: Status of disk
+		"""
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host vm nas %s" % node)
+		if exitcode != 0:
+			sys.stderr.write("Problem querying nas for %s: %s\n" % (
+				host, "\n".join(out)))
+			return False
+		out.pop(0) # pop off header
+		(nas, pool) = re.split("\s+", out[0])
+		vol = "%s/%s-vol" % (pool, node)
+		return (vol, pool, nas)
 
 	def mount_from_nas(self, vol, zfs_spec):
 		"""
@@ -342,6 +409,23 @@ class ZfsImageManager(ImageManager):
 				zfs_spec['host'], name))
 		if ec != 0:
 			logger.error("Unable to remove storagemap for %s" % name)
+
+	@staticmethod
+	def wait_for_disk(node, disk):
+		"""
+		Wait for disk for node to be unmapped
+
+		:param path: Name of node to check disk
+
+		:return: True if unmapped; otherwise False
+		"""
+	        status = ZfsImageManager.get_disk_status(node, disk)
+		while status != 'unmapped':
+			print "  Status of disk for node %s is %s; sleep for %i secs" % (
+				node, status, ZfsImageManager.SLEEP_FOR_UNMAPPED)
+			time.sleep(ZfsImageManager.SLEEP_FOR_UNMAPPED)
+			status = ZfsImageManager.get_disk_status(node, disk)
+		print "  Disk for node %s is %s" % (node, status)
 
 
 class NfsImageManager(ImageManager):
