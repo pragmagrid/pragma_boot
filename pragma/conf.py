@@ -131,7 +131,7 @@ class VcOut:
 			'fqdn':self.compute_nodes[node]['name'],
 			'ip':self.compute_nodes[node]['ip'],
 			'netmask':'255.255.0.0',
-			'gw':self.gateway,
+			'gw':'10.1.1.1',
 			'mac':self.macs[node]['private']})
 		self.append_network_key(vc)
 		file = open(self.compute_nodes[node]['vc_out'], "w")
