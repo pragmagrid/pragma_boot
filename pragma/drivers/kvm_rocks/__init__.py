@@ -298,33 +298,32 @@ class Driver(pragma.drivers.Driver):
 
 		return (macs,ips)
 
-	def list(self):
+	def list(self, *argv):
 		"""
-		Return list of virtual clusters
+		Return list of virtual clusters or details about a specific cluster
 
-		:return: List of virtual cluster names
-		"""
-
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-			"list cluster")
-		if exitcode != 0:
-			sys.stderr.write("Problem quering clusters: %s\n" % (
-				"\n".join(out)))
-			return [] 
-		clusters = []
-		for line in out:
-			result = re.search("^([^:]+).*VM", line)
-			if result is not None:
-				clusters.append(result.group(1))
-		return clusters
-
-	def list(self, vcname):
-		"""
-		Return list of virtual clusters
-
-		:return: List of virtual cluster names
+		:return: List of virtual cluster names or a tuple
+			(frontend, computes, cluster_status) where frontend is the
+			name of the frontend, computes is an array of compute node names,
+			and cluster_status is a hash array where the key is the node
+			name and value is a string indicating node status.
 		"""
 
+		if len(argv) == 0:
+			(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"list cluster")
+			if exitcode != 0:
+				sys.stderr.write("Problem quering clusters: %s\n" % (
+					"\n".join(out)))
+				return [] 
+			clusters = []
+			for line in out:
+				result = re.search("^([^:]+).*VM", line)
+				if result is not None:
+					clusters.append(result.group(1))
+			return clusters
+
+		vcname = argv[0]
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"list cluster %s status=true" % vcname)
 		if exitcode != 0:
