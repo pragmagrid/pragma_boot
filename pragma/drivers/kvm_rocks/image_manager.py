@@ -351,7 +351,7 @@ class ZfsImageManager(ImageManager):
 		# get local mount
 		(out, ec) = pragma.utils.getRocksOutputAsList(
 			"list host storagedev %s" % self.our_phy_frontend)
-		storagedev_pat = re.compile("^vol\S+\s+\S+\s+\S+\s+(\S+)")
+		storagedev_pat = re.compile("^vol\S+\s+\S+\s+\S+%s-%s-vol\s+(\S+)" % (zfs_spec['host'], vol))
 		for line in out:
 			result = storagedev_pat.search(line)
 			if result:
@@ -456,7 +456,8 @@ class NfsImageManager(ImageManager):
 		"""
 		Cleanup any temporary state
 		"""
-		os.remove(self.tmp_compute_img)
+		if self.tmp_compute_img is not None:
+			os.remove(self.tmp_compute_img)
 
 	@staticmethod
 	def clean_disk(node, disk_spec, host):
