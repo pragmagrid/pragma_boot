@@ -54,7 +54,7 @@ class VcOut:
 			'name':self.compute_nodes[node]['name'],
 			'ip':self.compute_nodes[node]['ip'],
 			'mac':self.macs[node]['private'],
-			'cpus':str(self.cpus_per_node)})
+			'cpus':str(self.cpus_per_node[node])})
 		self.append_network_key(vc)
 		return self.prettify(vc)
 

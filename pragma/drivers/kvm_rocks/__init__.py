@@ -59,12 +59,17 @@ class Driver(pragma.drivers.Driver):
 		logger.info("Loading network information from %s" % net_conf)
 		execfile(net_conf, {}, globals())
 
-		per_node_cpu_limit = None
+		leave_processors = 0
 		try:
-			per_node_cpu_limit = max_cpus
+			leave_processors = num_processors_reserved
 		except:
 			pass
-		(num_nodes, cpus_per_node) = self.calculate_num_nodes(cpus, per_node_cpu_limit)
+		container_hosts = None
+		try:
+			container_hosts = available_containers
+		except:
+			pass
+		containers_needed = self.calculate_num_nodes(cpus, container_hosts, leave_processors)
 
 		vc_out.set_key(key)
 
@@ -75,14 +80,8 @@ class Driver(pragma.drivers.Driver):
 		if not memory:
 			memory = self.default_memory
 		
-		container_hosts = ""
-		try:
-			only_container_hosts
-			container_hosts = "container-hosts=\"%s\"" % only_container_hosts
-		except:
-			pass
-		
-		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=%i mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i %s" % (our_ip, num_nodes, cpus_per_node, memory, fe_name, our_vlan, container_hosts)
+		container_hosts_string = "container-hosts=\"%s\"" % " ".join(containers_needed.keys())
+		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=1 mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i %s" % (our_ip, len(containers_needed), memory, fe_name, our_vlan, container_hosts_string)
 		logger.debug("Executing rocks command '%s'" % cmd)
 		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
 		cnodes = []
@@ -91,6 +90,13 @@ class Driver(pragma.drivers.Driver):
 			result = cnode_pat.search(line)
 			if result:
 				cnodes.append(result.group(1))
+		phy_hosts = self.get_physical_hosts(fe_name)
+		cpus_per_node = {}
+		for node in cnodes:
+			(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"set host cpus %s %d" % (node, containers_needed[phy_hosts[node]]))
+			cpus_per_node[node] = containers_needed[phy_hosts[node]]
+
 		logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 		vc_out.set_frontend(fe_name, our_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
@@ -118,31 +124,53 @@ class Driver(pragma.drivers.Driver):
 			logger.error("Problem booting %s: %s" % (
 				node, "\n".join(out)))
 
-	def calculate_num_nodes(self, cpus_requested, vm_container_cpu_count):
+	def calculate_num_nodes(self, cpus_requested, available_containers, num_processors_reserved):
 		"""
 		Calculate the number of nodes and cpus per node to request
 
 		:param cpus_requested: Total number of cpus in virtual cluster
-		:return: a tuple (numnodes, cpus_per_node) based on number of 
-			cpus available in vm-containers
+		:param available_containers: List of container names we can use
+		:param num_processors_reserved: Leave some CPUs for OS
+
+		:return: a hash array where key is the container name and value
+		is the number of cpus to use
 		"""
 
 		logger.info("Requesting %i CPUs" % cpus_requested)
-		if vm_container_cpu_count is None:
-			(out, exitcode) = pragma.utils.getOutputAsList(
-				"rocks list host vm-container")
-			if len(out) < 2:
-				logger.error("No vm containers found")
-				return -1
-			# assume vm containers are uniform so just cpu count from first
-			cpu_pat = re.search(" (\d+) ", out[1])
-			if not cpu_pat:
-				logger.error("Unable to find cpu count of vm container")
-				return -1
-			vm_container_cpu_count = int(cpu_pat.group(1))
-		numnodes = math.ceil(float(cpus_requested) / vm_container_cpu_count)
-		return (int(numnodes), 
-			int(min(vm_container_cpu_count, cpus_requested)))
+		container_capacity = self.get_container_capacity()
+
+		# filter out containers and processors we can't use
+		for container in container_capacity:
+			container_capacity[container] -= num_processors_reserved
+			if available_containers is not None and available_containers.index(container) < 0:
+				container_capacity.delete(container)
+
+		# remove cpus used
+		container_usage = self.get_container_usage()
+		for container in container_usage:
+			if container in container_capacity:
+				container_capacity[container] -= container_usage[container]
+
+		# sort available containers by capacity and then name
+		most_available = sorted(container_capacity, key=lambda container: (
+		        container_capacity[container],
+		        int(container.split('-')[-1])*100 + int(container.split('-')[-2])))
+
+		# allocate cluster to resources with most capacity
+		cpus_allocated = 0
+		containers_needed = {}
+		while cpus_allocated < cpus_requested and len(most_available) > 0:
+			container = most_available.pop()
+			cpus_needed = cpus_requested - cpus_allocated
+			cpus_from_host = min(container_capacity[container], cpus_needed)
+			containers_needed[container] = cpus_from_host
+			cpus_allocated += container_capacity[container]
+
+		if cpus_allocated < cpus_requested:
+			logger.error("Sorry, there is not enough capacity to fulfill your request of %i cpus" % cpus_requested)
+			sys.exit(1)
+		return containers_needed
+
 
 	def clean(self, vcname):
 		"""
@@ -246,6 +274,44 @@ class Driver(pragma.drivers.Driver):
 			return None
 		return avail_vlans[0]
 
+	def get_container_capacity(self):
+		"""
+		Return the CPU capacity of the physical VM containers
+
+		:return:  Hash array where key is container name and value is 
+		CPU capacity
+		"""
+		container_capacity = {}
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host vm-container")
+		cpu_pat = re.compile("([^:]+):[^\d]+(\d+)\s+\d+\s+\d+")
+		for line in out:
+			result = cpu_pat.search(line)
+			if result is not None:
+				container_capacity[result.group(1)] = int(result.group(2))
+		return container_capacity
+
+	def get_container_usage(self):
+		"""
+		Return the CPU usage of the physical VM containers
+
+		:return:  Hash array where key is container name and value is 
+		CPU usage
+		"""
+		container_usage = {}
+		cpu_pat = re.compile("(\d+)\s+[^:][^:]:\S+\s+(vm-container\S+).*active\s*$")
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"list host vm status=true")
+		for line in out:
+			result = cpu_pat.search(line)
+			if result is None:
+				continue
+			if result.group(2) in container_usage:
+				container_usage[result.group(2)] += int(result.group(1))
+			else:
+				container_usage[result.group(2)] = int(result.group(1))
+		return container_usage
+
 	def get_cluster_status(self, vcname):
 		"""
 		Return whether the virtual cluster nodes are active or inactive
@@ -297,6 +363,23 @@ class Driver(pragma.drivers.Driver):
 				ips[result.group(1)][network_type] = result.group(4)
 
 		return (macs,ips)
+
+	def get_physical_hosts(self, vcname):
+		"""
+		Return the physical hosts of the specified virtual cluster
+
+		:return: Hash array where the key is the virtual node name and
+			value is the physical host
+		"""
+		phy_hosts = {}
+		(out, ec) = pragma.utils.getRocksOutputAsList(
+				"list host vm")
+                host_pat = re.compile("^(\S*%s\S*):\s+\d+\s+\d+\s+\d+\s+\S+\s+(\S+)" % vcname)
+                for line in out:
+                        result = host_pat.search(line)
+                        if result:
+                                phy_hosts[result.group(1)] = result.group(2)
+		return phy_hosts
 
 	def list(self, *argv):
 		"""
