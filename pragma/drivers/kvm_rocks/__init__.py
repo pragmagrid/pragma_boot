@@ -102,7 +102,10 @@ class Driver(pragma.drivers.Driver):
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
 		(macs,ips) = self.get_network(fe_name, cnodes)
 		vc_out.set_network(macs,ips, netmask, gw, dns)
-		vc_out.set_kvm_diskdir(diskdir)
+		try:
+			vc_out.set_kvm_diskdir(diskdir)
+		except:
+			pass
 		vc_out.write()
 
 	def boot(self, node):
