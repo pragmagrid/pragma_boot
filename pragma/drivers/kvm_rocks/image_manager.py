@@ -284,7 +284,29 @@ class ZfsImageManager(ImageManager):
 			"set host vm nas %s nas=%s zpool=%s" % (
 				name, zfs_spec['host'], zfs_spec['pool']))
 		if ec != 0:
-			logger.error("Unable to set nas for %ss" % name)
+			logger.error("Unable to set nas for %s" % name)
+			return
+
+		(out, ec) = pragma.utils.getOutputAsList(
+			"ssh %s zfs get volsize %s" % (
+				zfs_spec['host'], zfs_spec['volume']))
+		if ec != 0:
+			logger.error("Problem querying volsize for %s" % zfs_spec['volume'])
+			return
+		volsize = 0
+		for line in out:
+			result = re.search("%s+\s+\S+\s+(\d+)" % zfs_spec['volume'], line)
+			if result != None:
+				volsize = result.group(1)
+		if volsize <= 0:
+			logger.error("Unable to get volsize for %s" % zfs_spec['volume'])
+			return
+
+		(out, ec) = pragma.utils.getRocksOutputAsList(
+			"set host vm %s disksize=%s" % (
+				name, volsize))
+		if ec != 0:
+			logger.error("Unable to set disksize for %s" % name)
 			return
 
 	@staticmethod
