@@ -60,6 +60,19 @@ class Command(pragma.commands.Command):
         </example>
         """
 
+	def makeLog(self, vcname):
+		# location of log files
+		logdir = "/var/log/pragma_boot"
+		if not os.path.isdir(logdir):
+			os.makedirs(logdir)
+		
+		# default logfile name = logdir + vcname + timestamp
+		timestamp = datetime.today().strftime("%Y%m%d-%H:%M")
+		self.deflogfile = "%s/%s-%s.log" % (logdir, vcname, timestamp)
+
+		return
+
+
 	def run(self, params, args):
 
 		(args, vcname, num_cpus) = self.fillPositionalArgs(
@@ -75,16 +88,20 @@ class Command(pragma.commands.Command):
 		except:
 			self.abort('num-cpus must be an integer')
 
+		# set logdir and default logfile name
+		self.makeLog(vcname)
+
 		#
 		# fillParams with the above default values
 		#
+
 		(basepath, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
 			[('basepath', '/opt/pragma_boot'),
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
-			 ('logfile', None),
+			 ('logfile', self.deflogfile),
 			 ('loglevel', 'ERROR'),
 			 ('memory', None)
 			])
