@@ -2,3 +2,7 @@ net_conf.conf
 site_conf.conf
 *.pyo
 *.pyc
+
+# remove when move this file
+pragma/drivers/kvm_rocks/driver.conf
+
