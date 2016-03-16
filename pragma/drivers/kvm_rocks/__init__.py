@@ -38,13 +38,14 @@ class Driver(pragma.drivers.Driver):
 				used_vlans[int(result.group(1))] = 1
 		self.used_vlans = used_vlans.keys()
 
-	def allocate(self, cpus, memory, key, vc_in, vc_out, repository):
+	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
 		"""
 		Allocate a new virtual cluster from Rocks
 
 		:param cpus: Number of CPUs to instantiate
 		:param memory: Amount of memory per compute node
 		:param key: Path to SSH Key to install
+		:param enable_ent: Boolean to add ENT interfaces to nodes
 		:param vc_in: Path to virtual cluster specification
 		:param vc_out: Path to new virtual cluster information
 		:param repository: Path to virtual cluster repository
@@ -54,7 +55,7 @@ class Driver(pragma.drivers.Driver):
 		# Load network configuration and import values
 		#   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
 		#   repository_class, repository_dir, repository_settings
-		#   container_hosts
+		#   container_hosts, ent
 		net_conf = os.path.join(os.path.dirname(__file__), "driver.conf")
 		logger.info("Loading network information from %s" % net_conf)
 		execfile(net_conf, {}, globals())
@@ -70,6 +71,11 @@ class Driver(pragma.drivers.Driver):
 		except:
 			pass
 		containers_needed = self.calculate_num_nodes(cpus, container_hosts, leave_processors)
+		pragma_ent = None
+		try:
+			pragma_ent = ent
+		except:
+			pass
 
 		vc_out.set_key(key)
 
@@ -90,6 +96,9 @@ class Driver(pragma.drivers.Driver):
 			result = cnode_pat.search(line)
 			if result:
 				cnodes.append(result.group(1))
+		if enable_ent and pragma_ent != None:
+			self.configure_ent(pragma_ent, [fe_name] + cnodes)
+			
 		phy_hosts = self.get_physical_hosts(fe_name)
 		cpus_per_node = {}
 		for node in cnodes:
@@ -206,6 +215,32 @@ class Driver(pragma.drivers.Driver):
 		for line in out:
 			print "  %s" % line
 		return True
+
+	def configure_ent(self, ent_info, nodes):
+		"""
+		Add ENT interface to specified virtual nodes
+
+		:param ent_info: config information for PRAGMA-ENT
+		:param nodes: array of virtual node names
+		:return: True if successful; otherwise False
+		"""
+		for node in nodes:
+			(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"report vm nextmac")
+			if out == None or len(out) < 1:
+				logger.error("Unable to get mac address for %s" % node)
+				return False
+			mac = out[0]
+			(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"add host interface %s %s subnet=%s mac=%s" % (
+				node, ent_info['interface_name'], ent_info['subnet_name'], mac))
+		 	if exitcode != 0:
+				logger.error("Unable to add interface to %s" % node)
+				return False
+			(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"sync host network %s" % node)
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+				"sync config")
 
 	def deploy(self, vc_in, vc_out, temp_dir):
 		"""

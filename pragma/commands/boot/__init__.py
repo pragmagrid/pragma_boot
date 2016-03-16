@@ -95,9 +95,10 @@ class Command(pragma.commands.Command):
 		# fillParams with the above default values
 		#
 
-		(basepath, ipop_clientinfo_file, ipop_serverinfo_url,
+		(basepath, ent, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
 			[('basepath', '/opt/pragma_boot'),
+			 ('enable-ent', "false"),
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
@@ -108,6 +109,7 @@ class Command(pragma.commands.Command):
 
 		if ipop_serverinfo_url != "" or ipop_clientinfo_file != "":
 			self.abort("IPOP features not yet supported")
+		enable_ent = ent.lower() in ("yes", "true", "t", "1")
 
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
@@ -161,7 +163,7 @@ class Command(pragma.commands.Command):
 		vc_out = pragma.conf.VcOut(
 			os.path.join(our_temp_dir, "vc-out.xml"))
 		driver.allocate( 
-			num_cpus, memory, key, vc_in, vc_out, repository)
+			num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)
 		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 		# cleanup
