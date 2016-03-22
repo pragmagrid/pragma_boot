@@ -314,10 +314,11 @@ TODO
 #. Make fuse and libguestfs-tools-c part of the roll
 #. update documentation (Readme)
 #. move driver.conf and a template for it to /etc from pragma/drivers/kvm_rocks (and same for other drivers)
-# implement ipop (possibly need to build a  new roll first)
+#. implement ipop (possibly need to build a  new roll first)
 #. intergrate pragma-boot an pragma_boot_roll into one
 #. revise the open nebula driver
 #. revise core/cpu allocation 
+#. fix reconfig of sge on compute nodes in dynip roll
 
 
 
