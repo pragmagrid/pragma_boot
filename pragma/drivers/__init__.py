@@ -19,7 +19,7 @@ class Driver:
 		fullpath = driver_class.split(".")
 		from_module = ".".join(fullpath[:-1])
 		classname = fullpath[-1]
- 		module = __import__(from_module, fromlist=[classname])
+		module = __import__(from_module, fromlist=[classname])
 		klass = getattr(module, classname)
 		return klass()
 
@@ -37,16 +37,16 @@ class Driver:
 		"""
 		raise NotImplementedError("Please implement allocate method")
 
-        def clean(self, vcname):
-                """
-                Unallocate virtual cluster and clean up disks.
+	def clean(self, vcname):
+		"""
+		Unallocate virtual cluster and clean up disks.
 
-                :param vcname: Name of virtual cluster to be cleaned
-                :return: True if clean was successful, otherwise False
-                """
+		:param vcname: Name of virtual cluster to be cleaned
+		:return: True if clean was successful, otherwise False
+		"""
 		raise NotImplementedError("Please implement clean method")
 
-        def deploy(self, vc_in, vc_out, temp_dir):
+	def deploy(self, vc_in, vc_out, temp_dir):
 		"""
 		Deploy the specified virtual cluster
 
@@ -56,6 +56,18 @@ class Driver:
 		:return:
 		"""
 		raise NotImplementedError("Please implement deploy method")
+
+	def list(self, *argv):
+		"""
+		Return list of virtual clusters or details about a specific cluster
+
+		:return: List of virtual cluster names or a tuple
+		  (frontend, computes, cluster_status) where frontend is the
+		  name of the frontend, computes is an array of compute node names,
+		  and cluster_status is a hash array where the key is the node
+		  name and value is a string indicating node status.
+		"""
+		raise NotImplementedError("Please implement clean method")
 
 	def shutdown(self, vcname):
 		"""
