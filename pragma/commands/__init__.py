@@ -550,7 +550,7 @@ class Command:
 			sync
 	"""
 
-	MustBeRoot = 1
+	MustBeRoot = 0
 
 	def __init__(self, database):
 		"""Creates a DatabaseConnection for the RocksCommand to use.
