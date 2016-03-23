@@ -319,6 +319,7 @@ TODO
 #. revise the open nebula driver
 #. revise core/cpu allocation 
 #. fix reconfig of sge on compute nodes in dynip roll
+#. fid MustBeRoot = 1 logic in pragma script.
 
 
 
