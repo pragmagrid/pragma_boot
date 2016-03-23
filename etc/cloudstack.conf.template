@@ -1,0 +1,9 @@
+# URL to Cloudstack REST API
+baseurl='http://163.220.56.65:8080/client/api?'
+
+# Credentials to use Cloudstack REST API
+# Go to Accounts -> <your account name> -> View users -> <your username> 
+# If "API Key" and "Secret Key" are empty, click the Generate Keys icon 
+# (second icon)
+apikey = ''
+secretkey = '''

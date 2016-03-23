@@ -54,23 +54,18 @@ class Command(pragma.commands.Command):
 	</param>
 
 	<example cmd='boot myPragmaCluster 8'>
-        Will create a virtual cluster named myPragmaCluster with one or more
+	Will create a virtual cluster named myPragmaCluster with one or more
 	compute nodes adding up to 8 CPUs.
-        </example>
-        """
+	</example>
+	"""
 
-	def makeLog(self, vcname):
-		# location of log files
-		logdir = "/var/log/pragma_boot"
+	def makeLog(self, logdir, vcname):
 		if not os.path.isdir(logdir):
 			os.makedirs(logdir)
 		
 		# default logfile name = logdir + vcname + timestamp
 		timestamp = datetime.today().strftime("%Y%m%d-%H:%M")
-		self.deflogfile = "%s/%s-%s.log" % (logdir, vcname, timestamp)
-
-		return
-
+		return "%s/%s-%s.log" % (logdir, vcname, timestamp)
 
 	def run(self, params, args):
 
@@ -87,8 +82,6 @@ class Command(pragma.commands.Command):
 		except:
 			self.abort('num-cpus must be an integer')
 
-		# set logdir and default logfile name
-		self.makeLog(vcname)
 
 		#
 		# fillParams with the above default values
@@ -101,7 +94,7 @@ class Command(pragma.commands.Command):
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
-			 ('logfile', self.deflogfile),
+			 ('logfile', None),
 			 ('loglevel', 'ERROR'),
 			 ('memory', None)
 			])
@@ -130,15 +123,18 @@ class Command(pragma.commands.Command):
 		if not os.path.isfile(vc_db_filepath):
 			self.abort('vc_db file does not exist at ' +
 					vc_db_filepath)
+
 		# create logger
+		if logfile == None:
+			logfile = self.makeLog(log_directory, vcname)
 		logging.basicConfig(filename=logfile,
 			format='%(asctime)s %(levelname)s %(message)s',
 			level=getattr(logging,loglevel.upper()))
 		logger = logging.getLogger('pragma_boot')
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver)
-		if not  driver:
+		driver = pragma.drivers.Driver.factory(site_ve_driver, basepath)
+		if driver == None:
 			self.abort( "Uknown driver %s" % site_ve_driver )
 
 		vc_in_xmlroot = None

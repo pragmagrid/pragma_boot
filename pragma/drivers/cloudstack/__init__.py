@@ -1,4 +1,5 @@
 import logging
+import os
 import pragma
 import pragma.utils
 
@@ -6,14 +7,26 @@ logger = logging.getLogger('pragma.drivers.cloudstack')
 
 
 class Driver(pragma.drivers.Driver):
-	def __init__(self):
+	def __init__(self, basepath):
 		"""
 		Instantiate a new Cloudstack driver to launch virtual cluster
 
 		:return:
 		"""
 		logger.debug("Loaded driver %s" % self.__class__.__module__)
-		raise NotImplementedError("Please implement clean method")
+		driver_conf = os.path.join(basepath, "etc", "cloudstack.conf")
+		logger.info("Loading driver information from %s" % driver_conf)
+
+		# loads baseurl, apikey, and secret key values
+		execfile(driver_conf, {}, globals())
+		self.baseurl = baseurl
+		self.apikey = apikey
+		self.secretkey = secretkey
+
+		logger.info("Using Cloudstack REST API URL: %s" % self.baseurl)
+
+
+		raise NotImplementedError("Please implement constructor method")
 
 
 	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
@@ -29,7 +42,7 @@ class Driver(pragma.drivers.Driver):
 		:param repository: Path to virtual cluster repository
 		:return:
 		"""
-		raise NotImplementedError("Please implement clean method")
+		raise NotImplementedError("Please implement allocate method")
 
 	def clean(self, vcname):
 		"""
@@ -49,7 +62,7 @@ class Driver(pragma.drivers.Driver):
 		:param temp_dir: Path to temporary directory
 		:return:
 		"""
-	raise NotImplementedError("Please implement clean method")
+		raise NotImplementedError("Please implement deploy method")
 
 	def list(self, *argv):
 		"""
@@ -61,7 +74,7 @@ class Driver(pragma.drivers.Driver):
 			and cluster_status is a hash array where the key is the node
 			name and value is a string indicating node status.
 		"""
-	raise NotImplementedError("Please implement clean method")
+		raise NotImplementedError("Please implement list method")
 
 	def shutdown(self, vcname):
 		"""
@@ -71,5 +84,5 @@ class Driver(pragma.drivers.Driver):
 
 		:return: True if cluster is shutdown, otherwise False
 		"""
-	raise NotImplementedError("Please implement clean method")
+		raise NotImplementedError("Please implement shutdown method")
 
