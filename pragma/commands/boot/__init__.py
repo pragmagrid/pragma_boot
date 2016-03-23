@@ -6,7 +6,6 @@ import pragma.drivers
 import pragma.utils
 import os
 import tempfile
-import xml.etree.ElementTree
 
 class Command(pragma.commands.Command):
 	"""

@@ -1,11 +1,8 @@
-import logging
 import os
 import pragma.commands
 import pragma.drivers
 import pragma.utils
-import re
-import sys
-import time
+
 
 class Command(pragma.commands.Command):
 	"""
@@ -16,11 +13,11 @@ class Command(pragma.commands.Command):
 	</arg>
 
 	<example cmd='clean myPragmaCluster'>
-        Will clean out the virtual cluster named myPragmaCluster.
-        </example>
-        """
+	Will clean out the virtual cluster named myPragmaCluster.
+	</example>
+	"""
 
-        def run(self, params, args):
+	def run(self, params, args):
 
 		(args, vcname) = self.fillPositionalArgs(('vc-name'))
 
@@ -48,7 +45,6 @@ class Command(pragma.commands.Command):
 		print "Cleaning virtual cluster %s" % vcname
 		if driver.clean(vcname):
 			print "Cluster %s successfully cleaned" % vcname
- 
+
 
 RollName = "pragma_boot"
-

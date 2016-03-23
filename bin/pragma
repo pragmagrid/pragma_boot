@@ -27,9 +27,9 @@ pragma.utils.BASEPATH = script_base_dir
 
 # treat empty command line as "pragma help"
 if len(sys.argv) == 1:
-    args = [ 'list', 'help' ]
+	args = [ 'list', 'help' ]
 else:
-    args = sys.argv[1:]
+	args = sys.argv[1:]
 
 # check if command has been quoted
 module = None
@@ -70,7 +70,7 @@ name = string.join(string.split(s, '.')[2:], ' ')
 # we call the help command based on the partial command given.
 
 try:	
-	command   = getattr(module, 'Command')(None)
+	command = getattr(module, 'Command')(None)
 except AttributeError:
 	import pragma.commands.list.help
 	help = pragma.commands.list.help.Command(None)

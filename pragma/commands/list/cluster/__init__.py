@@ -1,10 +1,9 @@
-import logging
 import os
 import pragma.commands
 import pragma.drivers
 import re
 import sys
-import time
+
 
 class Command(pragma.commands.Command):
 	"""
@@ -19,35 +18,35 @@ class Command(pragma.commands.Command):
 	</arg>
 
 	<example cmd='list cluster'>
-        List pragma clusters.
-        </example>
+	List pragma clusters.
+	</example>
 
 	<example cmd='list cluster myPragmaCluster'>
-        Show the staus of specified cluster.
-        </example>
-        """
+	Show the staus of specified cluster.
+	</example>
+	"""
 
-        def run(self, params, args):
+	def run(self, params, args):
 
 		(args, vcname) = self.fillPositionalArgs(('vc-name'))
 
-                #
-                # fillParams with the above default values
-                #
-                [basepath] = self.fillParams([('basepath', '/opt/pragma_boot')])
+		#
+		# fillParams with the above default values
+		#
+		[basepath] = self.fillParams([('basepath', '/opt/pragma_boot')])
 
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
 		#   repository_class, repository_dir, repository_settings
 		conf_path = os.path.join(basepath, "etc", "site_conf.conf")
-		if not(os.path.exists(conf_path)):
+		if not (os.path.exists(conf_path)):
 			self.abort('Unable to find conf file: ' + conf_path)
 		execfile(conf_path, {}, globals())
 
 		# load driver
 		driver = pragma.drivers.Driver.factory(site_ve_driver)
 		if not driver:
-			self.abort( "Uknown driver %s" % site_ve_driver )
+			self.abort("Uknown driver %s" % site_ve_driver)
 
 		if vcname is None:
 			clusters = driver.list()
@@ -74,4 +73,3 @@ class Command(pragma.commands.Command):
 
 
 RollName = "pragma_boot"
-

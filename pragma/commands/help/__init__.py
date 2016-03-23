@@ -31,8 +31,8 @@ class Command(command):
 
 	def run(self, params, args):
 
-		help = self.command('list.help', [ 'cols=0' ])
-		sub  = string.join(args)
+		help = self.command('list.help', ['cols=0'])
+		sub = string.join(args)
 
 		if not args:
 			self.addText(help)

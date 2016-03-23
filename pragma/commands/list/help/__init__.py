@@ -1,6 +1,4 @@
-
 import os
-import sys
 import string
 import pragma.file
 import pragma.commands
@@ -31,24 +29,21 @@ class Command(pragma.commands.list.command):
 		# code we need to provide the params argument.  This is the
 		# only command where we need to include this argument.
 		
-		(subdir, cols) = self.fillParams([('subdir', ),
-						  ('cols', 80) ],
-						 params)
+		(subdir, cols) = self.fillParams([('subdir', ), ('cols', 80)], params)
 		
 		if subdir:
-			filepath = os.path.join(pragma.commands.__path__[0],
-				subdir)
-			modpath  = 'pragma.commands.%s' % \
+			filepath = os.path.join(pragma.commands.__path__[0], subdir)
+			modpath = 'pragma.commands.%s' % \
 				string.join(subdir.split(os.sep), '.')
 		else:
 			filepath = pragma.commands.__path__[0]
-			modpath  = 'pragma.commands'
+			modpath = 'pragma.commands'
 		
 		tree = pragma.file.Tree(filepath)
 		dirs = tree.getDirs()
 		dirs.sort()
 
-		if os.environ.has_key('COLUMNS'):
+		if 'COLUMNS' in os.environ:
 			cols = os.environ['COLUMNS']
 			
 		for dir in dirs:
@@ -56,7 +51,7 @@ class Command(pragma.commands.list.command):
 				continue
 				
 			module = '%s.%s' % \
-				(modpath, string.join(dir.split(os.sep),'.'))
+				(modpath, string.join(dir.split(os.sep), '.'))
 			__import__(module)
 			module = eval(module)
 			
@@ -71,19 +66,18 @@ class Command(pragma.commands.list.command):
 			# Format the brief usage to fit within the
 			# width of the user's window (default to 80 cols)
 			
-			cmd = string.join(dir.split(os.sep),' ')
-			l   = len(cmd) + 1
-			s   = ''
+			cmd = string.join(dir.split(os.sep), ' ')
+			l = len(cmd) + 1
+			s = ''
 			for arg in o.usage().split():
 				if l + len(arg) < cols or cols == 0:
 					s += '%s ' % arg
-					l += len(arg) + 1 # space
+					l += len(arg) + 1  # space
 				else:
 					s += '\n\t%s ' % arg
-					l  = len(arg) + 9 # tab + space
+					l = len(arg) + 9  # tab + space
 
 			self.addText('%s %s\n' % (cmd, s))
-
 
 
 RollName = "pragma_boot"
