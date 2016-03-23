@@ -74,8 +74,8 @@ class CloudStackCall():
         #C {u'jobid': u'0020f91e-5854-4ce7-94dd-4b5b3cf7909d'}
 
 # Main 
-apikey = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_GyO9-0p51qC05a7xpgvtVAC1CM-yK4rGB_ROFVYn912HA'
-secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZxz0GkXjrwl86fW72mY5OxE2SAlqX3sudIVe1ZYyVm969dAUww'
+apikey = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_Gy...'
+secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZ...'
 baseurl='http://163.220.56.65:8080/client/api?'
 
 apicall = CloudStackCall(baseurl, apikey, secretkey)
