@@ -3,7 +3,6 @@ import socket
 import string
 import re
 #import syslog
-import pwd
 import types
 import sys
 import traceback
@@ -802,16 +801,6 @@ class Command:
 		else:
 			return 0
 			
-	def isApacheUser(self):
-		"""Returns TRUE if running as the apache account."""
-		try:
-			if os.geteuid() == pwd.getpwnam('apache')[3]:
-				return 1
-		except:
-			pass
-		return 0
-		
-	
 	def str2bool(self, s):
 		"""Converts an on/off, yes/no, true/false string to 1/0.
 		TODO remove me. This functions are now in rocks.util"""
@@ -1032,65 +1021,6 @@ class Command:
 				self.addText(handler.getPlainText())
 
 	
-	def runWrapper(self, name, args):
-		"""Performs various checks and logging on the command before 
-		the run() method is called.  Derived classes should NOT
-		need to override this."""
-
-		username = pwd.getpwuid(os.geteuid())[0]
-		if args:
-			command = '%s %s' % (name, string.join(args,' '))
-		else:
-			command = name
-
-		#syslog.syslog(syslog.LOG_INFO,
-		#'user %s called "%s"' % (username, command))
-			
-		# Split the args and flags apart.  Args have no '='
-		# with the exception of select statements (special case), and
-		# flags have one or more '='.
-		
-		dict = {} # flags
-		list = [] # arguments
-		
-		nparams = 0
-		flagpattern=re.compile("^[a-zA-z0-9\-_+]+=")
-
-		for arg in args:
-			tokens = arg.split()
-			if tokens[0] == 'select':
-				list.append(arg)
-			#there is an equal and 
-			#the left side of the equal does not contains spaces
-			elif flagpattern.match(arg):
-				(key, val) = arg.split('=', 1)
-				dict[key] = val
-				if nparams == 0:
-					dict['@ROCKSPARAM0']=arg
-				nparams += 1
-			else:
-				list.append(arg)
-
-		if list and list[0] == 'help':
-			self.help(name, dict)
-		else:
-			if self.MustBeRoot and not \
-				(self.isRootUser() or self.isApacheUser()):
-				self.abort('command "%s" requires root' % name)
-			else:
-				self._args   = list
-				self._params = dict
-				try:
-					self.run(self._params, self._args)
-					# DISABLE if self.newdb is not None:
-						# DISABLE self.newdb.commit()
-				except pragma.utils.HostnotfoundException as e:
-					if self.debug():
-						traceback.print_exc()
-					self.abort(str(e))
-
-
-
 	def run(self, flags, args):
 		"""All derived classes should override this method.
 		This method is called by the rocks command line as the
