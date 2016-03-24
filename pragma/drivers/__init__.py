@@ -7,7 +7,7 @@ class Driver:
 		raise Exception("Unable to create an instance of abstract class %s" % self)
 
 	@staticmethod
-	def factory(driver_name):
+	def factory(driver_name, basepath):
 		"""
 		Create an instance of driver 
 
@@ -21,15 +21,16 @@ class Driver:
 		classname = fullpath[-1]
 		module = __import__(from_module, fromlist=[classname])
 		klass = getattr(module, classname)
-		return klass()
+		return klass(basepath)
 
-	def allocate(self, cpus, memory, key, vc_in, vc_out, repository):
+	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
 		"""
 		Allocate a new virtual cluster from Rocks
 
 		:param cpus: Number of CPUs to instantiate
 		:param memory: Amount of memory per compute node
 		:param key: Path to SSH Key to install
+		:param enable_ent: Boolean to add ENT interfaces to nodes
 		:param vc_in: Path to virtual cluster specification
 		:param vc_out: Path to new virtual cluster information
 		:param repository: Path to virtual cluster repository

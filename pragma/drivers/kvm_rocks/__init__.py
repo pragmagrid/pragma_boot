@@ -234,7 +234,7 @@ class Driver(pragma.drivers.Driver):
 			(out, exitcode) = pragma.utils.getRocksOutputAsList(
 				"add host interface %s %s subnet=%s mac=%s" % (
 				node, ent_info['interface_name'], ent_info['subnet_name'], mac))
-		 	if exitcode != 0:
+			if exitcode != 0:
 				logger.error("Unable to add interface to %s" % node)
 				return False
 			(out, exitcode) = pragma.utils.getRocksOutputAsList(

@@ -11,6 +11,9 @@ site_ve_driver = "kvm_rocks"
 # disk before deployment.
 temp_directory="/state/partition1/temp"
 
+# This is default directory for log files
+log_directory="/var/log/pragma_boot"
+
 # This is a repository class to use
 # Available classes are
 # - pragma.repository.local.Local

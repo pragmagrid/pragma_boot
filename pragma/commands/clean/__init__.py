@@ -38,7 +38,7 @@ class Command(pragma.commands.Command):
 		execfile(conf_path, {}, globals())
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver)
+		driver = pragma.drivers.Driver.factory(site_ve_driver, basepath)
 		if not driver:
 			self.abort( "Uknown driver %s" % site_ve_driver )
 
