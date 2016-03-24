@@ -2,7 +2,7 @@ import os
 import socket
 import string
 import re
-import syslog
+#import syslog
 import pwd
 import types
 import sys
@@ -20,7 +20,7 @@ def Abort(message, doExit=1):
 	"""Print a standard error message and throw a
 	pragma.util.CommandError"""
 	
-	syslog.syslog(syslog.LOG_ERR, message)
+	#syslog.syslog(syslog.LOG_ERR, message)
 	raise pragma.util.CommandError(message)
 
 
@@ -584,7 +584,7 @@ class Command:
 		return self._debug
 		
 	def abort(self, msg):
-		syslog.syslog(syslog.LOG_ERR, msg.split('\n')[0])
+		#syslog.syslog(syslog.LOG_ERR, msg.split('\n')[0])
 		raise pragma.utils.CommandError(msg)
 	
 	def fillPositionalArgs(self, names, params=None, args=None):
@@ -1043,8 +1043,8 @@ class Command:
 		else:
 			command = name
 
-		syslog.syslog(syslog.LOG_INFO,
-			'user %s called "%s"' % (username, command))
+		#syslog.syslog(syslog.LOG_INFO,
+		#'user %s called "%s"' % (username, command))
 			
 		# Split the args and flags apart.  Args have no '='
 		# with the exception of select statements (special case), and

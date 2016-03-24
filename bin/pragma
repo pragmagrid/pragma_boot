@@ -2,7 +2,7 @@
 
 import os 
 import sys
-import syslog
+#import syslog
 import string
 
 if sys.version_info < (2, 7):
@@ -10,7 +10,7 @@ if sys.version_info < (2, 7):
 	sys.exit(-1)
 
 # enable logging
-syslog.openlog('pragmaCommand', syslog.LOG_PID, syslog.LOG_LOCAL6)
+#syslog.openlog('pragmaCommand', syslog.LOG_PID, syslog.LOG_LOCAL6)
 
 # we need this to run from sources without installing
 fullPath = os.path.dirname(os.path.realpath(__file__))
@@ -34,9 +34,11 @@ else:
 # check if command has been quoted
 module = None
 cmd = args[0].split()
+print cmd
 
 if len(cmd) > 1:
 	s = 'pragma.commands.%s' % string.join(cmd, '.')
+	print s
 	try:
 		__import__(s)
 		module = eval(s)
@@ -51,6 +53,7 @@ if len(cmd) > 1:
 if not module:
 	for i in range(len(args), 0, -1):
 		s = 'pragma.commands.%s' % string.join(args[:i], '.')
+		print s
 		try:
 			__import__(s)
 			module = eval(s)
@@ -95,7 +98,7 @@ else:
 		print command.usage()
 		exit(1)
 
-syslog.closelog()
+#syslog.closelog()
 
 # example of logging
 #syslog.syslog( syslog.LOG_ERR, "This is Error test message")
