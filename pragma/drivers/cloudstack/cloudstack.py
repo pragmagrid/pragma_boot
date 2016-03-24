@@ -9,14 +9,18 @@ import urllib
 
 class CloudStackCall():
 
-    def __init__(self, url, key, secret):
+    def __init__(self, url, key, secret, templatefilter):
+        # initialize from passed arguments
         self.apiUrl = url
         self.apiKey = key
         self.apiSecret = secret
+        self.templatefilter = templatefilter
         self.json = 'json'
-        self.request = {}
 
-        self.templatefilter = 'community'
+        #self.request = {}
+
+        # prefix for VM names
+        self.vmNamePrefix = 'vm-'
 
     def buildRequest(self, params):
         self.request = {}
@@ -45,10 +49,10 @@ class CloudStackCall():
         request = self.apiUrl + self.requestStr + '&signature=' + self.sig
         response = urllib2.urlopen(request)
         response_str = response.read()
-        wrapped_response_dict = json.loads(response_str)
+        response_dict = json.loads(response_str)
 
-        # TODO check for errors
-        return  wrapped_response_dict[self.request['command'].lower() + 'response']
+        # FIXME check for errors
+        return  response_dict[self.request['command'].lower() + 'response']
 
     def execAPICall(self, command, params = None):
         """ 
@@ -116,11 +120,10 @@ class CloudStackCall():
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
-            #XXXprint "D", d
+            # FIXME : need to deal with multiple nics
             nic = d['nic'][0]
             ips.append(nic['ipaddress'])
             #XXXprint nic['networkname']
-        print "IPs: ", ips
         return ips
 
     def getVirtualMachineID(self, name):
@@ -133,7 +136,6 @@ class CloudStackCall():
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
-            #XXX print "id", d['id']
             if d['name'] == name:
                 ids.append(d['id'])
 
@@ -174,8 +176,74 @@ class CloudStackCall():
 
         return id
 
+    def getFreeIP(self):
+        """
+        Find IPs of the existing Virtual Machines
+        and return a tuple of next free IP address (str) 
+        and its last octet (int)
+        :return : a tuple (IP, octet)
+        """
+        lastoctet = 255
+        
+        octets = []
+        subnet = None
+        ips = self.getVirtualMachineIPs()
+        for i in ips:
+            answer = i.rsplit('.', 1)
+            octets.append(int(answer[1]))
+            subnet = answer[0]
+        octets.sort()
 
-    def allocateVirtualMachine(self, ncpu, name):
+        if not octets:
+            print "No IP available"
+            return (None, None)
+
+        #FIXME check for ip range
+        octet = octets[0] + 1
+        while (octet in octets):
+            octet = octet + 1
+            print octet
+        ipaddress = "%s.%d" % (subnet, octet)
+        if ipaddress >= lastoctet:
+            print "No IP available"
+            return (None, None)
+        
+        return (ipaddress, octet)
+
+
+    def allocateVirtualCluster(self, feTmpl, fecpu, computeTmpl, ccpu, num):
+        """
+        Allocate Virtual cluster
+
+        :param feTmpl: template for frontend 
+        :param fecpu: number of cpus for FE
+        :param computeTmpl: template for compute 
+        :param ccpu: number of cpus per compute node
+        :param num: number of compute nodes
+        """
+
+        allocation = []
+        # allocate frontend VM
+        ip, octet = self.getFreeIP()
+        if not ip:
+            print "No free IP is available"
+            return allocation
+
+        name = "%s%d" % (self.vmNamePrefix, octet)
+        res = self.allocateVirtualMachine(fecpu, feTmpl, name, ip)
+        allocation.append(res)
+
+        # allocate compute nodes 
+        for i in range(num):
+            name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
+            print "name", name
+            res = self.allocateVirtualMachine(ccpu, computeTmpl, name)
+            allocation.append(res)
+
+        return allocation
+
+
+    def allocateVirtualMachine(self, ncpu, templatename, name, ip = None):
         command = 'deployVirtualMachine'
 
         # find required parameters for API call
@@ -184,27 +252,28 @@ class CloudStackCall():
         if soid is None:
             print "Insufficient resources: service offering does not match request"
             error = 1
-        tid, zid = self.getTemplateZoneIds(name)
+        tid, zid = self.getTemplateZoneIds(templatename)
         if tid  is None or zid is None:
-            print "Template for virtual machine %s not found" % name
+            print "Template for virtual machine %s not found" % templatename
             error = 1
         if error:
-           print "Unable to allocate virtual machine from template %s" % name
+           print "Unable to allocate virtual machine from template %s" % templatename
 
         params = {}
+        params['name'] = name
         params['serviceofferingid'] = soid
         params['templateid'] = tid
         params['zoneid'] = zid
         params['startvm'] = 'false'
 
-        octets = []
-        ips = self.getVirtualMachineIPs()
+        if ip:
+            params['ipaddress'] = ip
 
         response = self.execAPICall(command, params)
         print response
 #{u'id': u'3fc35908-7d76-4bf8-a28e-ea3bf568fdea', u'jobid': u'fc398295-02b9-4d91-bfd6-22c8479d5047'}
 
-        return
+        return response
 
     def deployVirtualMachine(self, ncpu, name):
         pass
@@ -228,4 +297,21 @@ class CloudStackCall():
             stopped[name] = response['jobid']
 
         return stopped
+
+### Main ###
+
+apikey    = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_GyO9-0p51qC05a7xpgvtVAC1CM-yK4rGB_ROFVYn912HA'
+secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZxz0GkXjrwl86fW72mY5OxE2SAlqX3sudIVe1ZYyVm969dAUww'
+baseurl   ='http://163.220.56.65:8080/client/api?'
+templatefilter = 'community'
+
+apicall = CloudStackCall(baseurl, apikey, secretkey, templatefilter)
+apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
+
+# tested ok
+#apicall.listTemplates('biolinux-compute-original')
+#apicall.listVirtualMachines()
+#apicall.listServiceOfferings()
+#apicall.allocateVirtualMachine(1, "biolinux-compute-original")
+
 
