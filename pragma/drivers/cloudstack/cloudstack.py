@@ -229,18 +229,3 @@ class CloudStackCall():
 
         return stopped
 
-# Main 
-apikey = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_Gy'
-secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZxz0'
-baseurl='http://163.220.56.65:8080/client/api?'
-
-apicall = CloudStackCall(baseurl, apikey, secretkey)
-apicall.listTemplates('biolinux-compute-original')
-apicall.listVirtualMachines()
-apicall.listServiceOfferings()
-
-#ok
-#apicall.allocateVirtualMachine(1, "biolinux-compute-original")
-#apicall.stopVirtualMachine('VM-3fc35908-7d76-4bf8-a28e-ea3bf568fdea')
-
-apicall.getVirtualMachineIPs()

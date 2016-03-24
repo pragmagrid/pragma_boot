@@ -2,6 +2,7 @@ import logging
 import os
 import pragma
 import pragma.utils
+from cloudstack import CloudStackCall
 
 logger = logging.getLogger('pragma.drivers.cloudstack')
 
@@ -19,14 +20,12 @@ class Driver(pragma.drivers.Driver):
 
 		# loads baseurl, apikey, and secret key values
 		execfile(driver_conf, {}, globals())
-		self.baseurl = baseurl
-		self.apikey = apikey
-		self.secretkey = secretkey
+		self.cloudstackcall = CloudStackCall(baseurl, apikey, secretkey)
 
-		logger.info("Using Cloudstack REST API URL: %s" % self.baseurl)
+		logger.info("Using Cloudstack REST API URL: %s" % baseurl)
 
 
-		raise NotImplementedError("Please implement constructor method")
+		#raise NotImplementedError("Please implement constructor method")
 
 
 	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
@@ -62,7 +61,8 @@ class Driver(pragma.drivers.Driver):
 		:param temp_dir: Path to temporary directory
 		:return:
 		"""
-		raise NotImplementedError("Please implement deploy method")
+		print "deploy"
+		#raise NotImplementedError("Please implement deploy method")
 
 	def list(self, *argv):
 		"""

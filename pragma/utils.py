@@ -171,7 +171,7 @@ def getRepository():
 	from_module = ".".join(fullpath[:-1])
 	classname = fullpath[-1]
 	module = __import__(from_module, fromlist=[classname])
-        klass = getattr(module, classname)
+	klass = getattr(module, classname)
 
 	repository_settings["cache_dir"] = repository_dir
 	repository = klass(repository_settings)
