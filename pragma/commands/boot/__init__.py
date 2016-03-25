@@ -5,6 +5,7 @@ import pragma.conf
 import pragma.drivers
 import pragma.utils
 import os
+import sys
 import tempfile
 
 class Command(pragma.commands.Command):
@@ -89,7 +90,7 @@ class Command(pragma.commands.Command):
 
 		(basepath, ent, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
-			[('basepath', '/opt/pragma_boot'),
+			[('basepath', pragma.utils.BASEPATH),
 			 ('enable-ent', "false"),
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
@@ -111,19 +112,6 @@ class Command(pragma.commands.Command):
 			self.abort('Unable to find conf file: ' + conf_path)
 		execfile(conf_path, {}, globals())
 
-		# create a unique temp dir for storage of files
-		our_temp_dir = tempfile.mkdtemp(
-			suffix=pragma.utils.get_id(), prefix='pragma-', 
-			dir=temp_directory)
-
-		# Download vcdb
-        	repository = pragma.utils.getRepository()
-		vc_db_filepath = repository.get_vcdb_file()
-
-		if not os.path.isfile(vc_db_filepath):
-			self.abort('vc_db file does not exist at ' +
-					vc_db_filepath)
-
 		# create logger
 		if logfile == None:
 			logfile = self.makeLog(log_directory, vcname)
@@ -132,10 +120,23 @@ class Command(pragma.commands.Command):
 			level=getattr(logging,loglevel.upper()))
 		logger = logging.getLogger('pragma_boot')
 
+		# create a unique temp dir for storage of files
+		our_temp_dir = tempfile.mkdtemp(
+			suffix=pragma.utils.get_id(), prefix='pragma-', 
+			dir=temp_directory)
+
+		# Download vcdb
+		repository = pragma.utils.getRepository()
+		vc_db_filepath = repository.get_vcdb_file()
+
+		if not os.path.isfile(vc_db_filepath):
+			self.abort('vc_db file does not exist at ' + vc_db_filepath)
+
+
 		# load driver
 		driver = pragma.drivers.Driver.factory(site_ve_driver, basepath)
 		if driver == None:
-			self.abort( "Uknown driver %s" % site_ve_driver )
+			self.abort( "Unknown driver %s" % site_ve_driver )
 
 		vc_in_xmlroot = None
 		try:
@@ -146,7 +147,7 @@ class Command(pragma.commands.Command):
 			os.path.dirname(repository.get_vc_file(vcname)))
 
 		# Download vc to cache
-		repository.download_and_process_vc(vcname)
+		repository.download_and_process_vc(vcname, vc_in)
 
 		# Check arch
 		if vc_in.get_arch() != "x86_64":
@@ -157,13 +158,14 @@ class Command(pragma.commands.Command):
 		#
 		vc_out = pragma.conf.VcOut(
 			os.path.join(our_temp_dir, "vc-out.xml"))
-		driver.allocate( 
-			num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)
+		if not( driver.allocate(
+			num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)):
+			self.abort("Unable to allocate virtual cluster")
 		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 		# cleanup
-		vc_out.clean()
-		os.rmdir(our_temp_dir) 
+		#vc_out.clean()
+		#os.rmdir(our_temp_dir)
 
 
 RollName = "pragma_boot"

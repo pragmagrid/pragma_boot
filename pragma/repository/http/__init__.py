@@ -1,8 +1,9 @@
 from pragma.repository import BaseRepository
-from pragma.utils import which
 import logging
 import os
+from pragma.utils import which
 import subprocess
+
 
 
 logger = logging.getLogger('pragma_boot')
@@ -21,11 +22,16 @@ class Http(BaseRepository):
     def download(remote_path, local_path):
         """
         Download file from remote_path to local_path
+
+        Using wget and curl because urllib and urllib2 don't seem to be able
+        to complete big file transfers (at least from Google drive)
         """
 
         wget = which("wget")
         if wget is None:
-            raise Exception("Cannot find wget!")
+            curl = which("curl")
+            if curl is None:
+                raise Exception("Cannot find wget or curl!")
 
         # Create directories if neccesary
         local_dir = os.path.dirname(local_path)
@@ -33,7 +39,10 @@ class Http(BaseRepository):
             os.makedirs(local_dir)
 
         logger.info("Downloading %s to %s ..." % (remote_path, local_path))
-        subprocess.check_call([wget, "-S", "-O", local_path, remote_path])
+        if wget != None:
+            subprocess.check_call([wget, "-S", "-O", local_path, remote_path])
+        else:
+            subprocess.check_call([curl, "--retry", "5", "-s", "-L", "-o", local_path, remote_path])
 
     def __init__(self, settings):
         super(Http, self).__init__(settings)
@@ -56,7 +65,7 @@ class Http(BaseRepository):
         Http.download(remote_path, local_path)
         self.vc_file[vcname] = local_path
 
-    def download_vc(self, vcname):
+    def download_vc(self, vcname, vc_in):
         """
         Download all files specified in vc definition
         """
@@ -66,6 +75,20 @@ class Http(BaseRepository):
             remote_path = os.path.join(self.repository_url, relative_dir, filename.text)
             local_path = os.path.join(self.cache_dir, relative_dir, filename.text)
             Http.download(remote_path, local_path)
+
+        for node in vc_in.xml.findall(".//disk/source[@type='network']/../../../.."):
+            node_type = node.tag
+            filename = "%s_%s.img" % (relative_dir, node_type)
+            local_path = os.path.join(self.cache_dir, relative_dir, filename)
+            if not(os.path.exists(local_path)):
+                host = node.find(".//host").attrib
+                source = node.find(".//source").attrib
+                remote_path = "%s://%s:%s/%s" % (source["protocol"], host["name"], host["port"], source["name"])
+                Http.download(remote_path, local_path)
+            new_node = node.find(".//source")
+            new_node.tag = "source"
+            new_node.attrib = {"file": local_path}
+
 
     # TODO: Make delete_vc handle either unprocessed and
     # processed VC

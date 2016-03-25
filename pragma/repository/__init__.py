@@ -70,8 +70,8 @@ class BaseRepository(object):
         for f in self.get_vc(vcname).findall("./files/file"):
             process_file(base_dir, f)
 
-    def download_and_process_vc(self, vcname):
-        self.download_vc(vcname)
+    def download_and_process_vc(self, vcname, vc_in):
+        self.download_vc(vcname, vc_in)
         self.process_vc(vcname)
 
     def clear_cache(self):

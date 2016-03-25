@@ -26,6 +26,8 @@ class VcIn:
 			logger.error("Unable to find disk for node %s" % node)
 			return None
 
+
+
 class VcOut:
 
 	def __init__(self, filename):

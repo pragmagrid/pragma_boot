@@ -1,6 +1,7 @@
 import os
 import pragma.commands
 import pragma.drivers
+import pragma.utils
 import re
 import sys
 
@@ -33,7 +34,7 @@ class Command(pragma.commands.Command):
 		#
 		# fillParams with the above default values
 		#
-		[basepath] = self.fillParams([('basepath', '/opt/pragma_boot')])
+		[basepath] = self.fillParams([('basepath', pragma.utils.BASEPATH)])
 
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
