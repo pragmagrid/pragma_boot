@@ -7,3 +7,11 @@ baseurl='http://163.220.56.65:8080/client/api?'
 # (second icon)
 apikey = ''
 secretkey = '''
+
+# category of templates where VM instances are configured
+templatefilter = "community"
+
+# Network offering. This is  neded for creating  of new networks for the
+# virtual clusters. Theere may be multiple offerings in CloudStack.
+networkoffering = "DefaultIsolatedNetworkOfferingWithSourceNatService"
+
