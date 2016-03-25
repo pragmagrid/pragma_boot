@@ -28,10 +28,33 @@ class Driver(pragma.drivers.Driver):
 		logger.info("Using Cloudstack REST API URL: %s" % baseurl)
 
 		# prefix for VM names
-		self.vmNamePrefix = 'vm-'
+		self.vmNamePrefix = 'vc-'
+		self.nic_names = ["private", "public"]
 
 
 		#raise NotImplementedError("Please implement constructor method")
+
+	def allocate_machine(self, num_cpus, template, name, ip, ips, macs, cpus_per_node, largest=False):
+		try:
+			res = self.cloudstackcall.allocateVirtualMachine(num_cpus, template, name, ip, largest)
+		except urllib2.HTTPError as e:
+			logging.error("Unable to allocate frontend: %s" % self.cloudstackcall.getError(e))
+			return 0
+		vm_response = self.cloudstackcall.listVirtualMachines(None, res["id"])
+		if "virtualmachine" not in vm_response:
+			logger.error("Unable to query for virtual machine %s" % name)
+			return None
+		nics = vm_response["virtualmachine"][0]["nic"]
+		ips[name] = {}
+		macs[name] = {}
+		for index, nic in enumerate(nics):
+			ips[name][self.nic_names[index]] = nics[index]["ipaddress"]
+			macs[name][self.nic_names[index]] = nics[index]["macaddress"]
+		cpus_used = vm_response["virtualmachine"][0]["cpunumber"]
+		cpus_per_node[name] = cpus_used
+
+		return vm_response
+
 
 
 	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
@@ -49,24 +72,6 @@ class Driver(pragma.drivers.Driver):
 		"""
 
 		vc_out.set_key(key)
-		vc_out.set_frontend("vc-1", "10.0.0.1", "vc-1.aist.jp")
-		cpus_per_node = {
-			"vc-1": 8,
-			"vm-vc-1-0": 8,
-			"vm-vc-1-1": 8
-		}
-		vc_out.set_compute_nodes(["vm-vc-1-0", "vm-vc-1-1"], cpus_per_node)
-		macs = {
-			"vc-1": {"public": "b6:58:ca:00:00:de","private": "b6:58:ca:00:00:de"},
-			"vm-vc-1-0": { "private": "b6:58:ca:00:00:d0"},
-			"vm-vc-1-1": { "private": "b6:58:ca:00:00:d1"}
-		}
-		ips = {
-			"vm-vc-1-0": "10.0.0.2",
-			"vm-vc-1-0": "10.0.0.3"
-		}
-		vc_out.set_network(macs,ips, "255.255.255.0", "10.1.1.1", "8.8.8.8")
-		vc_out.write()
 
 		#(fe_template, compute_template) = self.find_templates(vc_in)
 		(fe_template, compute_template) = ("biolinux-frontend-original", "biolinux-compute-original")
@@ -78,30 +83,38 @@ class Driver(pragma.drivers.Driver):
 			return 0
 
 		if octet is None:
-			octet = 1
+			octet = 3
 		name = "%s%d" % (self.vmNamePrefix, octet)
-		try:
-			res = self.cloudstackcall.allocateVirtualMachine(1, fe_template, name, ip)
-		except urllib2.HTTPError as e:
-			logging.error("Unable to allocate frontend: %s" % self.cloudstackcall.getError(e))
+		ips, macs, cpus_per_node = {}, {}, {}
+		vm_response = self.allocate_machine(1, fe_template, name, ip, ips, macs, cpus_per_node)
+		if vm_response is None:
+			logging.error("Unable to create virtual cluster frontend")
 			return 0
-		if ip is None:
-			for machine in self.cloudstackcall.listVirtualMachines():
-				print machine
-		vc_out.set_frontend(name, ip, "vc-1.aist.jp")
-
-		print res
+		macs[name]["public"] = "02:00:7d:4d:00:3d" # remove once 2 nics added
+		nic = vm_response["virtualmachine"][0]["nic"][0]
+		netmask = nic['netmask']
+		gateway = nic['gateway']
+		vc_out.set_frontend(name, "10.1.1.1", "%s.aist.jp" % name) # change once 2 nics added
 
 		# allocate compute nodes
-		#for i in range(num):
-		#	name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
-		#	print "name", name
-		#	res = self.allocateVirtualMachine(ccpu, computeTmpl, name)
-		#	allocation.append(res)
+		i = 0
+		compute_nodes = []
+		while(cpus > 0):
+			name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
+			vm_response = self.allocate_machine(cpus, compute_template, name, None, ips, macs, cpus_per_node, True)
+			if vm_response is None:
+				logging.error("Unable to create virtual cluster frontend")
+				return 0
+			compute_nodes.append(name)
+			cpus -= cpus_per_node[name]
+			logging.info("Allocated VM %s with %i cpus; %i cpus left to allocate" % (name, cpus_per_node[name], cpus))
+			i+=1
 
+		vc_out.set_compute_nodes(compute_nodes, cpus_per_node)
+		vc_out.set_network(macs,ips, netmask, gateway, "8.8.8.8")
+		vc_out.write()
 
 		return 1
-		#self.cloudstackcall.allocateVirtualCluster(fe_template,1, compute_template,1,2)
 
 
 	def clean(self, vcname):
