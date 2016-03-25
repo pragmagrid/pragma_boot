@@ -6,7 +6,7 @@ baseurl='http://163.220.56.65:8080/client/api?'
 # If "API Key" and "Secret Key" are empty, click the Generate Keys icon 
 # (second icon)
 apikey = ''
-secretkey = '''
+secretkey = ''
 
 # category of templates where VM instances are configured
 templatefilter = "community"
