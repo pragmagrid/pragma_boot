@@ -158,9 +158,9 @@ class Command(pragma.commands.Command):
 		#
 		vc_out = pragma.conf.VcOut(
 			os.path.join(our_temp_dir, "vc-out.xml"))
-		if not( driver.allocate(
-			num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)):
-			self.abort("Unable to allocate virtual cluster")
+		#if not( driver.allocate(
+		#	num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)):
+		#	self.abort("Unable to allocate virtual cluster")
 		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 		# cleanup

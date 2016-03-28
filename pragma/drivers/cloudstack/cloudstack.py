@@ -6,8 +6,9 @@ import base64
 import json
 import urllib2
 import urllib
+import logging
 
-class CloudStackCall():
+class CloudStackCall:
 
     def __init__(self, url, key, secret, templatefilter):
         # initialize from passed arguments
@@ -55,16 +56,19 @@ class CloudStackCall():
         self.sig = base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest())
         self.sig = base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest()).strip()
         self.sig = urllib.quote_plus(base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest()).strip())
+
+    def getError(self, exception):
+        error_response = json.loads(exception.read())
+        return error_response[error_response.keys()[0]]["errortext"]
+
     def sendRequest(self):
         """  build the entire string and do an http GET
         """
         request = self.apiUrl + self.requestStr + '&signature=' + self.sig
-        print "XXX REQUEST", request
+        logging.debug("Sending request string: %s" % request)
         response = urllib2.urlopen(request)
         response_str = response.read()
         response_dict = json.loads(response_str)
-
-        # FIXME check for errors
         return  response_dict[self.request['command'].lower() + 'response']
 
     def execAPICall(self, command, params = None):
@@ -78,8 +82,8 @@ class CloudStackCall():
                   2 key = object name from API request, value = list (length N) 
                           of object's dictionaries 
         """
-        print "XXX executing command: ", command
         comm = {}
+        logging.debug("Sending command %s to Cloudstack" % command)
         comm['command'] = command
         if params:
             for key, value in params.items():
@@ -171,15 +175,12 @@ class CloudStackCall():
             params['name'] = name
         if id:
             params['id'] = id
-        response = self.execAPICall(command)
-
-        #XXX
-        #count = response['count']
-        #for i in range(count):
-        #    d = response['virtualmachine'][i]
-        #    print "id", d
-
-        return response
+        try:
+            response = self.execAPICall(command, params)
+            return response
+        except urllib2.HTTPError:
+            logging.error("Problem querying for virtual machines")
+            return None
 
     def listServiceOfferings(self):
         command = 'listServiceOfferings'
@@ -192,12 +193,15 @@ class CloudStackCall():
 
         :return:  list of IPs 
         """
-        ips = []
-
         response = self.listVirtualMachines(id)
-        if not response:
-           return ips
+        # check for errors
+        if response is None:
+           return None
+        # check for empty list of machines
+        if "count" not in response:
+            return []
 
+        ips = []
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
@@ -254,8 +258,7 @@ class CloudStackCall():
 
         return id
 
-
-    def getServiceOfferingID(self, ncpu):
+    def getServiceOfferingID(self, ncpu, largest = False):
         id = None
         def getKey(item):
             return item[0]
@@ -267,31 +270,20 @@ class CloudStackCall():
             d = services['serviceoffering'][i]
             all.append((int(d['cpunumber']), d['id']))
         alls = sorted(all, key=getKey)
-
+        largest_service = [-1, '']
         for i in alls:
+            if i[0] > largest_service[0]:
+                largest_service = i
             if i[0] < ncpu:
                 continue
             else:
                 id = i[1]
                 break
+        if largest and ncpu > largest_service[0]:
+            return largest_service[1]
+        else:
+            return id
 
-        return id
-
-    def getGatewayIPs(self, name = None):
-        ips = []
-        response = self.listNetworks()
-        if not response:
-            return ips
-        count = response['count']
-        for i in range(count):
-            d = response['network'][i]
-            gatewayIP = d['gateway']
-            #XXX print "network=", d['name'], d['displaytext'], d['networkofferingid'], d['zoneid'], d['gateway']
-            if gatewayIP not in ips:
-                ips.append(d['gateway'])
-        
-        return ips
-        
     def getFreeIP(self):
         """
         Find IPs of the existing Virtual Machines
@@ -304,7 +296,6 @@ class CloudStackCall():
         octets = []
         subnet = None
         ips = self.getVirtualMachineIPs()
-        
         if not ips :
             ips = self.getGatewayIPs()
 
@@ -315,16 +306,17 @@ class CloudStackCall():
         octets.sort()
 
         if not octets:
-            print "No IP available"
+            logging.error("No IP information available from Cloudstack")
             return (None, None)
 
+
         #FIXME check for ip range
-        octet = octets[0] 
+        octet = octets[0]
         while (octet in octets):
             octet = octet + 1
         ipaddress = "%s.%d" % (subnet, octet)
         if octet >= lastoctet:
-            print "No IP available"
+            logging.error("No IPs available")
             return (None, None)
         
         return (ipaddress, octet)
@@ -386,17 +378,17 @@ class CloudStackCall():
         return allocation
 
 
-    def allocateVirtualMachine(self, ncpu, templatename, name, ip = None, ids = None):
+    def allocateVirtualMachine(self, ncpu, templatename, name, ip = None, ids = None, largest = False):
         command = 'deployVirtualMachine'
 
         # find required parameters for API call
         error = 0
-        soid = self.getServiceOfferingID(ncpu)
+        soid = self.getServiceOfferingID(ncpu, largest)
         if soid is None:
             print "Insufficient resources: service offering does not match request"
             error = 1
         tid = self.getTemplateID(templatename)
-        if tid  is None:
+        if tid is None:
             print "Template for virtual machine %s not found" % templatename
             error = 1
         if error:
@@ -416,7 +408,6 @@ class CloudStackCall():
             params['ipaddress'] = ip
 
         response = self.execAPICall(command, params)
-        print response
 
         return response
 
@@ -433,7 +424,6 @@ class CloudStackCall():
         command = 'stopVirtualMachine'
 
         stopped = {}
-        ids = self.getVirtualMachineID(name)
         print "ids", ids
         for id in ids:
             params = {}
@@ -443,26 +433,15 @@ class CloudStackCall():
 
         return stopped
 
-### Main ###
-
-apikey    = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_GyO9-0p51qC05a7xpgvtVAC1CM-yK4rGB_ROFVYn912HA'
-secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZxz0GkXjrwl86fW72mY5OxE2SAlqX3sudIVe1ZYyVm969dAUww'
-baseurl   ='http://163.220.56.65:8080/client/api?'
-templatefilter = 'community'
-
-apicall = CloudStackCall(baseurl, apikey, secretkey, templatefilter)
-apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
-
-# tested ok
-#apicall.createNetwork('44')
-#apicall.listNetworks()
-#apicall.getFreeIP()
-#apicall.listZones()
-#apicall.listTemplates('biolinux-frontend-original')
-#apicall.listVirtualMachines()
-#apicall.listServiceOfferings()
-#apicall.allocateVirtualMachine(1, "biolinux-compute-original")
-#apicall.listNetworkOfferings()
-#apicall.listNetworkOfferings(networkoffering)
-#apicall.getNetworkOfferingsID(networkoffering)
-#apicall.getTemplateID("biolinux-compute-original")
+    def updateVirtualMachine(self, name, userdata):
+        ids = self.getVirtualMachineID(name)
+        params = {
+            "userdata": base64.encodestring("shava"),
+            "id": ids[0]
+        }
+        try:
+            response = self.execAPICall("updateVirtualMachine", params)
+        except urllib2.HTTPError as e:
+            logging.error("Unable to allocate frontend: %s" % self.getError(e))
+            return 0
+        return response

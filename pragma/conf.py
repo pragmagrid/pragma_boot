@@ -42,12 +42,12 @@ class VcOut:
 			'netmask':self.netmask,
 			'gw':self.gateway,
 			'fqdn':self.frontend['fqdn'],
-			'ip':self.frontend['ip'],
+			'ip':self.frontend['public_ip'],
 			'mac':self.macs[self.frontend['name']]['public'],
 			'name':self.frontend['name']})
 		ET.SubElement(frontend, 'private', attrib = { 
 			'netmask':'255.255.0.0',
-			'ip':'10.1.1.1',
+			'ip':self.frontend['private_ip'],
 			'mac':self.macs[self.frontend['name']]['private']})
 
 		computes = ET.SubElement(vc, 'compute', attrib = {'count':str(len(self.compute_nodes))})
@@ -93,8 +93,8 @@ class VcOut:
 		reparsed = minidom.parseString(rough_string)
 		return reparsed.toprettyxml(indent="  ")
 
-	def set_frontend(self, name, ip, fqdn):
-		self.frontend = {'name':name, 'ip':ip, 'fqdn':fqdn}
+	def set_frontend(self, name, public_ip, private_ip, fqdn):
+		self.frontend = {'name':name, 'public_ip':public_ip, 'private_ip':private_ip, 'fqdn':fqdn}
 
 	def set_key(self, key):
 		file = open(key, "r")

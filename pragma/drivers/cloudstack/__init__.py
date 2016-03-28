@@ -1,10 +1,11 @@
 import logging
 import os
-import json
 import pragma
 import pragma.utils
 from cloudstack import CloudStackCall
 import urllib2
+import base64
+import hashlib
 
 logger = logging.getLogger('pragma.drivers.cloudstack')
 
@@ -36,10 +37,10 @@ class Driver(pragma.drivers.Driver):
 
 	def allocate_machine(self, num_cpus, template, name, ip, ips, macs, cpus_per_node, largest=False):
 		try:
-			res = self.cloudstackcall.allocateVirtualMachine(num_cpus, template, name, ip, largest)
+			res = self.cloudstackcall.allocateVirtualMachine(num_cpus, template, name, ip, None, largest)
 		except urllib2.HTTPError as e:
 			logging.error("Unable to allocate frontend: %s" % self.cloudstackcall.getError(e))
-			return 0
+			return None
 		vm_response = self.cloudstackcall.listVirtualMachines(None, res["id"])
 		if "virtualmachine" not in vm_response:
 			logger.error("Unable to query for virtual machine %s" % name)
@@ -70,7 +71,6 @@ class Driver(pragma.drivers.Driver):
 		:param repository: Path to virtual cluster repository
 		:return:
 		"""
-
 		vc_out.set_key(key)
 
 		#(fe_template, compute_template) = self.find_templates(vc_in)
@@ -83,7 +83,8 @@ class Driver(pragma.drivers.Driver):
 			return 0
 
 		if octet is None:
-			octet = 3
+			octet = 0
+		octet += 10 # artificially change IP address to give time to clean others from system; remove from prod code
 		name = "%s%d" % (self.vmNamePrefix, octet)
 		ips, macs, cpus_per_node = {}, {}, {}
 		vm_response = self.allocate_machine(1, fe_template, name, ip, ips, macs, cpus_per_node)
@@ -94,7 +95,7 @@ class Driver(pragma.drivers.Driver):
 		nic = vm_response["virtualmachine"][0]["nic"][0]
 		netmask = nic['netmask']
 		gateway = nic['gateway']
-		vc_out.set_frontend(name, "10.1.1.1", "%s.aist.jp" % name) # change once 2 nics added
+		vc_out.set_frontend(name, "10.1.1.1", ips[name]["private"], "%s.aist.jp" % name) # change once 2 nics added
 
 		# allocate compute nodes
 		i = 0
@@ -135,6 +136,13 @@ class Driver(pragma.drivers.Driver):
 		:param temp_dir: Path to temporary directory
 		:return:
 		"""
+		fd = open( "/tmp/cloudstack-temp-dir/pragma-cDBIBv65580-2016-03-28/vc-out.xml", "r")
+		vc_out = fd.read()
+		fd.close()
+		print self.cloudstackcall.updateVirtualMachine("vc-94", vc_out)
+
+
+
 
 	def find_templates(self, vc_in):
 		"""
