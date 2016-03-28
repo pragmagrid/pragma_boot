@@ -21,6 +21,18 @@ class CloudStackCall():
 
         # prefix for VM names
         self.vmNamePrefix = 'vm-'
+        self.setParams()
+
+    def setParams(self):
+        self.publicNetworkName = 'public'
+        self.privateNetworkName = 'private'
+        self.getZoneID()
+        self.networkofferingID = self.getNetworkOfferingsID()
+
+        # add public network if none exist
+        response = self.listNetworks()
+        if not response:
+            self.createNetwork(self.publicNetworkName)
 
     def buildRequest(self, params):
         self.request = {}
@@ -47,6 +59,7 @@ class CloudStackCall():
         """  build the entire string and do an http GET
         """
         request = self.apiUrl + self.requestStr + '&signature=' + self.sig
+        print "XXX REQUEST", request
         response = urllib2.urlopen(request)
         response_str = response.read()
         response_dict = json.loads(response_str)
@@ -65,6 +78,7 @@ class CloudStackCall():
                   2 key = object name from API request, value = list (length N) 
                           of object's dictionaries 
         """
+        print "XXX executing command: ", command
         comm = {}
         comm['command'] = command
         if params:
@@ -75,27 +89,69 @@ class CloudStackCall():
 
         return response_dict
 
+    def createNetwork(self, name):
+        command = 'createNetwork'
+
+        params = {}
+        params['name'] = name
+        params['displaytext'] = name
+        params['networkofferingid'] = self.networkofferingID 
+        params['zoneid'] = self.zoneID 
+
+        response = self.execAPICall(command, params)
+        return response
+
     def listNetworkOfferings(self, name = None):
         command = 'listNetworkOfferings'
         params = {}
         if name:
             params['name'] = name
+
+        params['SupportedServices'] = 'SourceNat' #FIXME
+        params['state'] = 'enabled' #FIXME
+        params['forVpc'] = 'false' #FIXME
         response = self.execAPICall(command, params)
-        #XXX
-        count = response['count']
-        for i in range(count):
-            d = response['networkoffering'][i]
-            print "networkOffering=", d['name'], d['id']
+
+        #XXX in response  count does not always corresponds to the list length
+        #count = response['count']
+        #count = len(response['networkoffering'])
+        #for i in range(count):
+        #    d = response['networkoffering'][i]
+        #    print "networkOffering=", d['name'], d['id']
 
         return response
 
     def listNetworks(self):
         command = 'listNetworks'
-        params = {}
-        params['name'] = 'public'
-        response = self.execAPICall(command, params)
+        response = self.execAPICall(command)
+        #count = response['count']
+        #for i in range(count):
+        #    d = response['network'][i]
+        #    #XXX print "network=", d['name'], d['id'], d['networkofferingid']
 
         return response
+
+    def listZones(self):
+        command = 'listZones'
+        response = self.execAPICall(command)
+
+        return response
+
+    def getZoneID(self ):
+        self.zoneID = None
+        response = self.listZones()
+        if not response:
+           print "error: no zones found "
+           return
+        count = response['count']
+        if count > 1:
+            "WARNING: have multiple zones, using first returned"
+
+        d = response['zone'][0]
+        self.zoneName = d['name']
+        self.zoneID = d['id']
+
+        return self.zoneID
 
     def listTemplates(self, name = None):
         command = 'listTemplates'
@@ -136,11 +192,12 @@ class CloudStackCall():
 
         :return:  list of IPs 
         """
+        ips = []
+
         response = self.listVirtualMachines(id)
         if not response:
-           print "error: no Virtual Machine found" 
-           return
-        ips = []
+           return ips
+
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
@@ -165,32 +222,38 @@ class CloudStackCall():
 
         return ids
 
-    def getNetworkOfferingsID(self, name):
+    def getNetworkOfferingsID(self, name = None):
         response = self.listNetworkOfferings(name)
         if not response:
            print "error: no Network Offering name  %s found" % name
-           return
+           return None
 
-        count = response['count']
-        for i in range(count):
-            d = response['networkoffering'][i]
-            if d['name'] == name:
-                id = (d['id'])
-				break
+        count = len(response['networkoffering'])
+        if count > 1:
+            #FIXME. Should not get here. Need more logic
+            print "Check for multiple network offerings."
+
+        offering = response['networkoffering'][0]
+        id = offering['id']
+
+        #for i in range(count):
+        #    d = response['networkoffering'][i]
+        #    if d['name'] == name:
+        #        id = (d['id'])
+        #        break
 
         return id
 
-    def getTemplateZoneIds(self, name):
-        templateId = None
-        zoneid = None
+    def getTemplateID(self, name):
+        id = None
         res = self.listTemplates(name)
         if not res:
            print "error: no template found"
 
-        templateId = res['template'][0]['id']
-        zoneId = res['template'][0]['zoneid']
+        id = res['template'][0]['id']
 
-        return (templateId, zoneId)
+        return id
+
 
     def getServiceOfferingID(self, ncpu):
         id = None
@@ -214,6 +277,21 @@ class CloudStackCall():
 
         return id
 
+    def getGatewayIPs(self, name = None):
+        ips = []
+        response = self.listNetworks()
+        if not response:
+            return ips
+        count = response['count']
+        for i in range(count):
+            d = response['network'][i]
+            gatewayIP = d['gateway']
+            #XXX print "network=", d['name'], d['displaytext'], d['networkofferingid'], d['zoneid'], d['gateway']
+            if gatewayIP not in ips:
+                ips.append(d['gateway'])
+        
+        return ips
+        
     def getFreeIP(self):
         """
         Find IPs of the existing Virtual Machines
@@ -226,6 +304,10 @@ class CloudStackCall():
         octets = []
         subnet = None
         ips = self.getVirtualMachineIPs()
+        
+        if not ips :
+            ips = self.getGatewayIPs()
+
         for i in ips:
             answer = i.rsplit('.', 1)
             octets.append(int(answer[1]))
@@ -237,12 +319,11 @@ class CloudStackCall():
             return (None, None)
 
         #FIXME check for ip range
-        octet = octets[0] + 1
+        octet = octets[0] 
         while (octet in octets):
             octet = octet + 1
-            print octet
         ipaddress = "%s.%d" % (subnet, octet)
-        if ipaddress >= lastoctet:
+        if octet >= lastoctet:
             print "No IP available"
             return (None, None)
         
@@ -261,27 +342,51 @@ class CloudStackCall():
         """
 
         allocation = []
-        # allocate frontend VM
+
+        # find IP for frontend 
         ip, octet = self.getFreeIP()
         if not ip:
             print "No free IP is available"
             return allocation
 
+        # allocate cluster private network
+        networks = {}
+        response = self.listNetworks()
+
+        count = response['count']
+        for i in range(count):
+            d = response['network'][i]
+            networks[d['name']] =  d['id'] 
+
+        privateNet = self.privateNetworkName + '%d' % octet
+        if privateNet not in networks.keys():
+            newnet = self.createNetwork(privateNet)
+            networks[privateNet] = newnet['network']['id']
+            
+        publicNet = self.publicNetworkName
+        if publicNet not in networks.keys():
+            newnet = self.createNetwork(publicNet)
+            networks[privateNet] = newnet['network']['id']
+
+        ids = "%s,%s" % (networks[privateNet], networks[publicNet])
+
+        # allocate frontend VM
         name = "%s%d" % (self.vmNamePrefix, octet)
-        res = self.allocateVirtualMachine(fecpu, feTmpl, name, ip)
+        res = self.allocateVirtualMachine(fecpu, feTmpl, name, ip, ids)
         allocation.append(res)
 
         # allocate compute nodes 
+        ids = "%s" % networks[privateNet]
         for i in range(num):
             name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
             print "name", name
-            res = self.allocateVirtualMachine(ccpu, computeTmpl, name)
+            res = self.allocateVirtualMachine(ccpu, computeTmpl, name, ip = None, ids = ids)
             allocation.append(res)
 
         return allocation
 
 
-    def allocateVirtualMachine(self, ncpu, templatename, name, ip = None):
+    def allocateVirtualMachine(self, ncpu, templatename, name, ip = None, ids = None):
         command = 'deployVirtualMachine'
 
         # find required parameters for API call
@@ -290,26 +395,28 @@ class CloudStackCall():
         if soid is None:
             print "Insufficient resources: service offering does not match request"
             error = 1
-        tid, zid = self.getTemplateZoneIds(templatename)
-        if tid  is None or zid is None:
+        tid = self.getTemplateID(templatename)
+        if tid  is None:
             print "Template for virtual machine %s not found" % templatename
             error = 1
         if error:
            print "Unable to allocate virtual machine from template %s" % templatename
 
+        # XXX FIXME
         params = {}
         params['name'] = name
         params['serviceofferingid'] = soid
         params['templateid'] = tid
-        params['zoneid'] = zid
+        params['zoneid'] = self.zoneID
         params['startvm'] = 'false'
+        if ids:
+            params['networkids'] = ids
 
         if ip:
             params['ipaddress'] = ip
 
         response = self.execAPICall(command, params)
         print response
-#{u'id': u'3fc35908-7d76-4bf8-a28e-ea3bf568fdea', u'jobid': u'fc398295-02b9-4d91-bfd6-22c8479d5047'}
 
         return response
 
@@ -338,21 +445,24 @@ class CloudStackCall():
 
 ### Main ###
 
-apikey    = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_GyO9-0p51qC05a7xpgvtVAC1CM-yK4rGB_'
-secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZxz0GkXjrwl86fW72mY5OxE2SAlqX3sudIVe1ZY'
+apikey    = 'nWcPrqXC60UAfHyRqXsqm-JZPTHiCIQmMGO0eSp5_GyO9-0p51qC05a7xpgvtVAC1CM-yK4rGB_ROFVYn912HA'
+secretkey = 'Y5kSgRBn70NpGRSlmeL9ea6lkZj1fn77VRZKZxz0GkXjrwl86fW72mY5OxE2SAlqX3sudIVe1ZYyVm969dAUww'
 baseurl   ='http://163.220.56.65:8080/client/api?'
 templatefilter = 'community'
-networkoffering = 'DefaultIsolatedNetworkOfferingWithSourceNatService'
 
 apicall = CloudStackCall(baseurl, apikey, secretkey, templatefilter)
-#apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
-apicall.listNetworkOfferings(networkoffering)
-apicall.listNetworks()
+apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
 
 # tested ok
-apicall.listTemplates('biolinux-frontend-original')
+#apicall.createNetwork('44')
+#apicall.listNetworks()
+#apicall.getFreeIP()
+#apicall.listZones()
+#apicall.listTemplates('biolinux-frontend-original')
 #apicall.listVirtualMachines()
 #apicall.listServiceOfferings()
 #apicall.allocateVirtualMachine(1, "biolinux-compute-original")
-
-
+#apicall.listNetworkOfferings()
+#apicall.listNetworkOfferings(networkoffering)
+#apicall.getNetworkOfferingsID(networkoffering)
+#apicall.getTemplateID("biolinux-compute-original")
