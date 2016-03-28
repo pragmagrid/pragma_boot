@@ -1,0 +1,7 @@
+
+#. There is one Zone. Find via API call
+
+#. There is  a single template filter. Set implicitely in cloudstack.conf file.
+
+#. There is a single network offering. It is configured by CloudStack admin
+   Set implicitely in cloudstack.conf file.
