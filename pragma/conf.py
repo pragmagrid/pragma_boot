@@ -77,6 +77,22 @@ class VcOut:
 	def get_compute_names(self):
 		return sorted(self.compute_nodes.keys())
 
+	def get_compute_vc_out(self, node):
+		vc = ET.Element('vc')
+		frontend = ET.SubElement(vc, 'frontend')
+		ET.SubElement(frontend, 'public', attrib = {
+			'fqdn':self.frontend['fqdn']})
+		compute = ET.SubElement(vc, 'compute')
+		ET.SubElement(compute, 'private', attrib = {
+			'fqdn':self.compute_nodes[node]['name'],
+			'ip':self.compute_nodes[node]['ip'],
+			'netmask':'255.255.0.0',
+			'gw':'10.1.1.1',
+			'mac':self.macs[node]['private']})
+		self.append_network_key(vc)
+		return self.prettify(vc)
+
+
 	def get_frontend(self):
 		return self.frontend 
 
@@ -92,6 +108,31 @@ class VcOut:
 		rough_string = ET.tostring(elem, 'utf-8')
 		reparsed = minidom.parseString(rough_string)
 		return reparsed.toprettyxml(indent="  ")
+
+	def read(self):
+		root = ET.parse(self.filename).getroot()
+		macs = {}
+		ips = {}
+		self.cpus_per_node = {}
+		self.key = root.find("key").text
+		frontend = root.find('frontend')
+		private = frontend.find("private").attrib
+		public = frontend.find("public").attrib
+		self.set_frontend(public["name"], public["ip"], private["ip"], public["fqdn"])
+		macs[public["name"]] = { "public":public["mac"], "private":private["mac"]}
+		ips[public["name"]] = private["ip"]
+		compute = root.find('compute')
+		dir = os.path.dirname(self.filename)
+		for node in compute.getchildren():
+			node_attrib = node.attrib
+                        node_name = node_attrib["name"]
+			self.compute_nodes[node_name] = node_attrib
+			macs[node_name] = { "private":node_attrib["mac"] }
+			ips[node_name] = node_attrib["ip"];
+			self.compute_nodes[node_name]['vc_out'] = os.path.join(dir, "%s.xml" % node_name)
+			self.cpus_per_node[node_name] = node_attrib["cpus"]
+		dns = root.find("network").find("dns").attrib
+		self.set_network(macs, ips, public["netmask"], public["gw"], dns["ip"])
 
 	def set_frontend(self, name, public_ip, private_ip, fqdn):
 		self.frontend = {'name':name, 'public_ip':public_ip, 'private_ip':private_ip, 'fqdn':fqdn}
@@ -124,20 +165,8 @@ class VcOut:
 		self.cpus_per_node = cpus_per_node
 
 	def write_compute(self, node):
-		vc = ET.Element('vc')
-		frontend = ET.SubElement(vc, 'frontend')
-		ET.SubElement(frontend, 'public', attrib = { 
-			'fqdn':self.frontend['fqdn']})
-		compute = ET.SubElement(vc, 'compute')
-		ET.SubElement(compute, 'private', attrib = { 
-			'fqdn':self.compute_nodes[node]['name'],
-			'ip':self.compute_nodes[node]['ip'],
-			'netmask':'255.255.0.0',
-			'gw':'10.1.1.1',
-			'mac':self.macs[node]['private']})
-		self.append_network_key(vc)
 		file = open(self.compute_nodes[node]['vc_out'], "w")
-		file.write(self.prettify(vc))
+		file.write(self.get_compute_vc_out(node))
 		file.close
 		logger.debug("Writing vc-out file to %s" % self.compute_nodes[node]['vc_out'])
 
