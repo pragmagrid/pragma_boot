@@ -42,7 +42,9 @@ class CloudStackCall:
         for key, value in params.items():
             self.request[key] = value
 
-        self.requestStr = '&'.join(['='.join([k,urllib.quote_plus(self.request[k])]) for k in self.request.keys()])
+        self.requestStr = ''
+        for k in self.request.keys():
+            self.requestStr += '='.join([k, urllib.quote_plus(self.request[k])]) + "&"
         self.createSignature()
 
     def createSignature(self):
@@ -436,12 +438,12 @@ class CloudStackCall:
     def updateVirtualMachine(self, name, userdata):
         ids = self.getVirtualMachineID(name)
         params = {
-            "userdata": base64.encodestring("shava"),
+            "userdata": base64.encodestring(userdata),
             "id": ids[0]
         }
         try:
             response = self.execAPICall("updateVirtualMachine", params)
         except urllib2.HTTPError as e:
             logging.error("Unable to allocate frontend: %s" % self.getError(e))
-            return 0
+            return None
         return response
