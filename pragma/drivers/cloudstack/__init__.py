@@ -29,7 +29,7 @@ class Driver(pragma.drivers.Driver):
 		logger.info("Using Cloudstack REST API URL: %s" % baseurl)
 
 		# prefix for VM names
-		self.vmNamePrefix = 'vc-'
+		self.vmNamePrefix = 'vc'
 		self.nic_names = ["private", "public"]
 
 
@@ -136,10 +136,11 @@ class Driver(pragma.drivers.Driver):
 		:param temp_dir: Path to temporary directory
 		:return:
 		"""
-		fd = open( "/tmp/cloudstack-temp-dir/pragma-cDBIBv65580-2016-03-28/vc-out.xml", "r")
-		vc_out = fd.read()
-		fd.close()
-		print self.cloudstackcall.updateVirtualMachine("vc-94", vc_out)
+		frontend = vc_out.get_frontend()
+		self.cloudstackcall.updateVirtualMachine(frontend["name"], str(vc_out))
+		#for compute in vc_out.get_computes():
+		#	compute_vc_out = self.cloud
+		#	self.cloudstackcall.updateVirtualMachine(compute, vc_out)
 
 
 
@@ -176,7 +177,7 @@ class Driver(pragma.drivers.Driver):
 			return (None, None)
 		return (frontend_templatename, compute_templatename)
 
-	def list(self, *argv):
+	def list(self, vcname=None):
 		"""
 		Return list of virtual clusters or details about a specific cluster
 
@@ -186,7 +187,50 @@ class Driver(pragma.drivers.Driver):
 			and cluster_status is a hash array where the key is the node
 			name and value is a string indicating node status.
 		"""
-		raise NotImplementedError("Please implement list method")
+
+        	response = self.cloudstackcall.listVirtualMachines()
+        	if not response:
+           		print "error: no Virtual Machine %s found" % name
+           		return
+
+        	names = []
+		frontend = ""
+		compute = []
+		cluster_status = {}
+        	count = response['count']
+        	if vcname is None:            
+           		for i in range(count):
+                		d = response['virtualmachine'][i]
+                		name = d['name'].split('-')
+                		count = 0
+                		if len(names) == 0:
+                    			names.append(name[0])
+                		else:
+                    			for n in names:
+                        			if n != name[0]:
+                            				count = count + 1
+                        			else:
+                            				count = 0
+                    			if count > 0:                        
+                        			names.append(name[0])
+        		return names
+		else:
+			for i in range(count):
+                		d = response['virtualmachine'][i]
+                		if d['name'].split('-')[0] == vcname and d['name'].split('-')[0]:
+					if d['name'].replace(vcname+'-',"") == 'frontend':
+                    				names.append(d['name'].replace(vcname+'-',""))
+						cluster_status[frontend] = d['state']
+					else:
+						names.append(d['name'].replace(vcname+'-',""))
+                                        	cluster_status[d['name'].replace(vcname+'-',"")] = d['state']
+            	        for i in names:
+                		if i == 'frontend':  
+                			frontend = i
+				else:
+					compute.append(i)
+			print frontend, compute, cluster_status
+			return frontend, compute, cluster_status
 
 	def shutdown(self, vcname):
 		"""
@@ -196,5 +240,16 @@ class Driver(pragma.drivers.Driver):
 
 		:return: True if cluster is shutdown, otherwise False
 		"""
-		raise NotImplementedError("Please implement shutdown method")
+		command = 'stopVirtualMachine'
+
+        	stop = {}
+        	id = self.cloudstackcall.getVirtualMachineID(vcname)
+        	for i in id:
+            		param = {}
+            		param['id'] = i
+            		response = self.cloudstackcall.execAPICall(command, param)
+            		stop[vcname] = response['jobid']
+
+        	return stop
+
 
