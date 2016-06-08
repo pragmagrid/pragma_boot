@@ -42,17 +42,26 @@ class CloudStackCall:
         for key, value in params.items():
             self.request[key] = value
 
+        # create request string
         self.requestStr = ''
         for k in self.request.keys():
-            self.requestStr += '='.join([k, urllib.quote_plus(self.request[k])]) + "&"
+            self.requestStr += '='.join([k, urllib.quote_plus(self.request[k])]) + '&'
+        self.requestStr = self.requestStr[:-1] # remove last '&'
+
         self.createSignature()
 
     def createSignature(self):
         """ Compute the signature with hmac, 
             do a 64 bit encoding and a url encoding:
         """
-        sig_str = '&'.join(['='.join([k.lower(),urllib.quote_plus(self.request[k].lower().replace('+','%20'))]) 
-                   for k in sorted(self.request.iterkeys())])
+
+        # create signature string
+        sig_str = ''
+        for k in sorted(self.request.iterkeys()):
+            sig_str += '='.join([k.lower(),urllib.quote_plus(self.request[k].lower().replace('+','%20'))]) + '&'
+        sig_str = sig_str[:-1] # remove last '&'
+
+        # encode signature
         self.sig = hmac.new(self.apiSecret,sig_str,hashlib.sha1)
         self.sig = hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest()
         self.sig = base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest())
@@ -118,30 +127,20 @@ class CloudStackCall:
         params['forVpc'] = 'false' #FIXME
         response = self.execAPICall(command, params)
 
-        #XXX in response  count does not always corresponds to the list length
-        #count = response['count']
-        #count = len(response['networkoffering'])
-        #for i in range(count):
-        #    d = response['networkoffering'][i]
-        #    print "networkOffering=", d['name'], d['id']
-
         return response
+
 
     def listNetworks(self):
         command = 'listNetworks'
         response = self.execAPICall(command)
-        #count = response['count']
-        #for i in range(count):
-        #    d = response['network'][i]
-        #    #XXX print "network=", d['name'], d['id'], d['networkofferingid']
-
         return response
+
 
     def listZones(self):
         command = 'listZones'
         response = self.execAPICall(command)
-
         return response
+
 
     def getZoneID(self ):
         self.zoneID = None
@@ -158,6 +157,7 @@ class CloudStackCall:
         self.zoneID = d['id']
 
         return self.zoneID
+
 
     def listTemplates(self, name = None):
         command = 'listTemplates'
@@ -191,26 +191,28 @@ class CloudStackCall:
 
     def getVirtualMachineIPs(self, id = None):
         """
-        Returns a list of IPs for the Virtual Machine instances
+        Returns a list of IPs for the existing Virtual Machine instances
 
         :return:  list of IPs 
         """
+
+        ips = []
+
         response = self.listVirtualMachines(id)
         # check for errors
         if response is None:
-           return None
+           return ips
         # check for empty list of machines
         if "count" not in response:
-            return []
+            return ips
 
-        ips = []
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
-            # FIXME : need to deal with multiple nics
-            nic = d['nic'][0]
-            ips.append(nic['ipaddress'])
-            #XXXprint nic['networkname']
+            numnics = len(d['nic'])
+            for n in range(numnics):
+                nic = d['nic'][n]
+                ips.append(nic['ipaddress'])
         return ips
 
     def getVirtualMachineID(self, name):
@@ -228,6 +230,7 @@ class CloudStackCall:
 
         return ids
 
+
     def getNetworkOfferingsID(self, name = None):
         response = self.listNetworkOfferings(name)
         if not response:
@@ -242,13 +245,8 @@ class CloudStackCall:
         offering = response['networkoffering'][0]
         id = offering['id']
 
-        #for i in range(count):
-        #    d = response['networkoffering'][i]
-        #    if d['name'] == name:
-        #        id = (d['id'])
-        #        break
-
         return id
+
 
     def getTemplateID(self, name):
         id = None
@@ -259,6 +257,7 @@ class CloudStackCall:
         id = res['template'][0]['id']
 
         return id
+
 
     def getServiceOfferingID(self, ncpu, largest = False):
         id = None
@@ -286,6 +285,7 @@ class CloudStackCall:
         else:
             return id
 
+
     def getFreeIP(self):
         """
         Find IPs of the existing Virtual Machines
@@ -293,7 +293,6 @@ class CloudStackCall:
         and its last octet (int)
         :return : a tuple (IP, octet)
         """
-        lastoctet = 255
         
         octets = []
         subnet = None
@@ -302,6 +301,7 @@ class CloudStackCall:
             ips = self.getGatewayIPs()
 
         for i in ips:
+            # answer contains [ first-3-octets, last-octet]
             answer = i.rsplit('.', 1)
             octets.append(int(answer[1]))
             subnet = answer[0]
@@ -311,16 +311,17 @@ class CloudStackCall:
             logging.error("No IP information available from Cloudstack")
             return (None, None)
 
-
         #FIXME check for ip range
+        lastoctet = 255
         octet = octets[0]
         while (octet in octets):
             octet = octet + 1
-        ipaddress = "%s.%d" % (subnet, octet)
         if octet >= lastoctet:
             logging.error("No IPs available")
             return (None, None)
         
+        ipaddress = "%s.%d" % (subnet, octet)
+
         return (ipaddress, octet)
 
 
