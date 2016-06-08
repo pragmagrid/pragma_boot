@@ -215,7 +215,7 @@ class CloudStackCall:
                 ips.append(nic['ipaddress'])
         return ips
 
-    def getVirtualMachineID(self, name):
+    def getVirtualMachineIDs(self, name):
         response = self.listVirtualMachines(name)
         if not response:
            print "error: no Virtual Machine %s found" % name
@@ -437,7 +437,7 @@ class CloudStackCall:
         return stopped
 
     def updateVirtualMachine(self, name, userdata):
-        ids = self.getVirtualMachineID(name)
+        ids = self.getVirtualMachineIDs(name)
         params = {
             "userdata": base64.encodestring(userdata),
             "id": ids[0]

@@ -243,7 +243,7 @@ class Driver(pragma.drivers.Driver):
 		command = 'stopVirtualMachine'
 
         	stop = {}
-        	id = self.cloudstackcall.getVirtualMachineID(vcname)
+        	id = self.cloudstackcall.getVirtualMachineIDs(vcname)
         	for i in id:
             		param = {}
             		param['id'] = i
