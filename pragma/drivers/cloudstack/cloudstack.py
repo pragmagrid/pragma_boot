@@ -215,20 +215,27 @@ class CloudStackCall:
                 ips.append(nic['ipaddress'])
         return ips
 
-    def getVirtualMachineIDs(self, name):
+    def getVirtualMachineID(self, name):
+        """
+        Returns an ID for the Virtual Machine instance
+        :param name: Virtual Machine name 
+
+        :return:  id (str) or None if no VM with this name was found
+        """
+        id = None
         response = self.listVirtualMachines(name)
         if not response:
-           print "error: no Virtual Machine %s found" % name
-           return
+           logging.error("No no Virtual Machine %s found" % name)
+           return id
 
-        ids = []
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
             if d['name'] == name:
-                ids.append(d['id'])
+                id = d['id']
+                break
 
-        return ids
+        return id
 
 
     def getNetworkOfferingsID(self, name = None):
@@ -437,14 +444,19 @@ class CloudStackCall:
         return stopped
 
     def updateVirtualMachine(self, name, userdata):
-        ids = self.getVirtualMachineIDs(name)
+        id = self.getVirtualMachineID(name)
+        if not id:
+            logging.error("Unable to add userdata to a VM %s" % name)
+            return None
+
         params = {
             "userdata": base64.encodestring(userdata),
-            "id": ids[0]
+            "id": id
         }
         try:
             response = self.execAPICall("updateVirtualMachine", params)
         except urllib2.HTTPError as e:
             logging.error("Unable to allocate frontend: %s" % self.getError(e))
             return None
+
         return response
