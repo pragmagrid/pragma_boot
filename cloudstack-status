@@ -49,3 +49,44 @@ B. AIST todo list
 2. Review CloudStack driver once UCSD complestes the code
    and enable public IP access to the VM's launched via CloudStack 
 
+
+June 8, 2016 UCSD: Jason, Shava, Nadya
+
+Work in progress:
+
+- Nadya dual network interfaces 
+- Shava trying to pass network info through user data interface
+- Modifying Tarm's code 
+- Special mode of clonezilla
+  Upload virtual cluster -> create iso images -> move to google drive
+  But would need a clonezilla instance on AIST resources to convert between
+  clonezilla iso to qcawt. A better option will be to download a specific
+  image (template) form the drive. Assumes that we can put pointer to GD url to pull template
+ 
+Planned work:
+
+- Need more public real ip addresses to truly test
+- Is it ok to snapshot the Biolinux VM now?
+  How much of VM depends on IP of VM?
+- VM with data service on it that is bootable by pragmaboot
+ 
+- End of June
+  work out propagation of new network config to user VM
+  Change "list, shutdown, delete" clusters - simplify and improve
+  Jason - ask Gabriel about receipe for installing data service
+ 
+- Mid July
+  Update networking interfaces, how to ask for public networking, upload new templates/VM
+  New templates in cloudstack GUI, Community, MyISOs, Shared?
+ 
+- End of July
+  Finish, integrate method to get new images, cleanup
+ 
+- Mid Aug
+  Integrate/test cloud scheduler, demo prep
+  Need public access at this time, otherwise no demo
+ 
+- As soon as possible
+  Jason to ASK: CS 4.8 api call - stopvirtualmachine, only returns jobID,
+  complete list of info is not there. Why? Access control of user compared to
+  admin? Is some functionality missing in GUI based on ACL.
