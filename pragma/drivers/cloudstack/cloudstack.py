@@ -189,7 +189,7 @@ class CloudStackCall:
         response = self.execAPICall(command)
         return response
 
-    def getVirtualMachineIPs(self, id = None):
+    def getVirtualMachineIPs(self):
         """
         Returns a list of IPs for the existing Virtual Machine instances
 
@@ -198,7 +198,7 @@ class CloudStackCall:
 
         ips = []
 
-        response = self.listVirtualMachines(id)
+        response = self.listVirtualMachines()
         # check for errors
         if response is None:
            return ips
