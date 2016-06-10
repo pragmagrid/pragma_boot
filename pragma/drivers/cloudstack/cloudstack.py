@@ -184,6 +184,26 @@ class CloudStackCall:
             logging.error("Problem querying for virtual machines")
             return None
 
+    def listVirtualClusters(self, name = None):
+        vms = {}
+        response = self.listVirtualMachines(name)
+        count = response['count']
+        for i in range(count):
+            d = response['virtualmachine'][i]
+            vms[d['name']] =  d['state']
+
+        vc = []
+        if name: # list only one cluster 
+            for k in sorted(vms.keys()):
+                if name in k:
+                    vc.append([k, vms[k]])
+        else: # list all clusters
+            for k in sorted(vms.keys()):
+                vc.append([k, vms[k]])
+
+        return vc
+
+
     def listServiceOfferings(self):
         command = 'listServiceOfferings'
         response = self.execAPICall(command)
@@ -424,22 +444,37 @@ class CloudStackCall:
     def deployVirtualMachine(self, ncpu, name):
         pass
         
-    def stopVirtualMachine(self, name):
+    def stopVirtualMachine(self, id):
         """ 
-        Stop virtual machine given its name
-        :param name: Virtual Machine name 
-        :return : an API call response as a dictionary with 1 item
-                  key = name, value = jobid (for stop call) 
+        Stop virtual machine given its id
+        :param id: Virtual Machine id 
+        :return : an API call response as a dictionary 
         """ 
         command = 'stopVirtualMachine'
 
+        params = {}
+        params['id'] = id
+        response = self.execAPICall(command, params)
+
+        return response
+
+    def stopVirtualCluster(self,vcname):
+        """ 
+        Stop virtual cluster given its name
+        :param name: Virtual Cluster name 
+        :return : an API call response as a dictionary with 1 item
+                  key = name, value = jobid (for stop call) 
+        """ 
         stopped = {}
-        print "ids", ids
-        for id in ids:
-            params = {}
-            params['id'] = id
-            response = self.execAPICall(command, params)
-            stopped[name] = response['jobid']
+
+        response = self.listVirtualMachines()
+        count = response['count']
+        for i in range(count):
+            d = response['virtualmachine'][i]
+            vmname = d['name']
+            vmid = d['id']
+            vmresponse = self.stopVirtualMachine(vmid)
+            stopped[vmname] = vmresponse['jobid']
 
         return stopped
 
