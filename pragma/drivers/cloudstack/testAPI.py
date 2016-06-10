@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# user  apikey and secret key are in the file mykeys.py
+# user apikey and secret key are in the file mykeys.py
 # do not add mykeys.py to git repo
 from mykeys import *
 from cloudstack import CloudStackCall
@@ -43,16 +43,31 @@ def ListVMs (name = None, id = None):
         d = response['virtualmachine'][i]
         # deal with multiple nics
         numnics =  len(d['nic'])
+        print "VMs:", d["name"], d["id"], d['state']
         for n in range(numnics):
             nic = d['nic'][n]
-            print "VMs:", d["name"], nic['ipaddress'], nic['networkname']
+            print "    %s\t%s" % (nic['ipaddress'], nic['networkname'])
+def ListClusters(name = None):
+    response = apicall.listVirtualClusters(name)
+    print response
 
-def GetIPs ():
+
+def GetVCips ():
     ips = apicall.getVirtualMachineIPs()
     print ips
 
-#apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
+def GetVCids (name):
+    ids = apicall.getVirtualMachineID(name)
+    print ids
 
+def StopVM(id):
+    d = apicall.stopVirtualMachine(id)
+    print "keys ", d.keys()
+    print "stop vm jobid ",  d['jobid']
+
+
+##### need to retest ######
+#apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
 #apicall.listServiceOfferings()
 #apicall.allocateVirtualMachine(1, "biolinux-compute-original")
 
@@ -68,6 +83,12 @@ def GetIPs ():
 
 #ListVMs()
 # when giving a name, the outputcontains all vms with the name substring
-#ListVMs(name = 'vm-48-compute-1')
+#ListVMs(name = 'vm-46')
+#StopVM('3d543e25-a0c1-45f2-beb0-bde10996f214')
 
-#GetIPs()
+#GetVCips()
+#GetVCids('vm-48')
+#GetVCids('vm-48-compute-0')
+
+#ListClusters()
+#ListClusters('vm-48')
