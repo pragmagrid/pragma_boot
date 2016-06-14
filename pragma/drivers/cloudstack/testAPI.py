@@ -46,11 +46,12 @@ def ListVMs (name = None, id = None):
         print "VMs:", d["name"], d["id"], d['state']
         for n in range(numnics):
             nic = d['nic'][n]
-            print "    %s\t%s" % (nic['ipaddress'], nic['networkname'])
+            print "    %s\t%s\t%s" % (nic['ipaddress'], nic['networkname'], nic['macaddress'])
+
 def ListClusters(name = None):
     response = apicall.listVirtualClusters(name)
-    print response
-
+    for i in response:
+        print i
 
 def GetVCips ():
     ips = apicall.getVirtualMachineIPs()
@@ -65,12 +66,34 @@ def StopVM(id):
     print "keys ", d.keys()
     print "stop vm jobid ",  d['jobid']
 
+def StopVC(name):
+    d = apicall.stopVirtualCluster(name)
+    for k in  d.keys():
+      print "stop vm jobid: ", k,  d[k]
+
+def StartVC(name):
+    d = apicall.startVirtualCluster(name)
+    for k in  d.keys():
+      print "strt vm jobid: ", k,  d[k]
+
+def AllocateVM(cpu, template, name):
+    response = apicall.allocateVirtualMachine(cpu, template, name)
+    print "keys", response.keys()
+    count = response['count']
+    for i in range(count):
+        d = response['virtualmachine'][i]
+        # deal with multiple nics
+        numnics =  len(d['nic'])
+        print "VMs:", d["name"], d["id"], d['state']
+        for n in range(numnics):
+            nic = d['nic'][n]
+            print "    %s\t%s\t%s" % (nic['ipaddress'], nic['networkname'], nic['macaddress'])
 
 ##### need to retest ######
 #apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
 #apicall.listServiceOfferings()
-#apicall.allocateVirtualMachine(1, "biolinux-compute-original")
 
+#AllocateVM(1, "biolinux-compute-original", "mybio")
 ############## tested ok ############## 
 #ListNetworks()
 
@@ -84,7 +107,9 @@ def StopVM(id):
 #ListVMs()
 # when giving a name, the outputcontains all vms with the name substring
 #ListVMs(name = 'vm-46')
+
 #StopVM('3d543e25-a0c1-45f2-beb0-bde10996f214')
+StopVC('vm-48')
 
 #GetVCips()
 #GetVCids('vm-48')
@@ -92,3 +117,5 @@ def StopVM(id):
 
 #ListClusters()
 #ListClusters('vm-48')
+
+#StartVC('vm-48')
