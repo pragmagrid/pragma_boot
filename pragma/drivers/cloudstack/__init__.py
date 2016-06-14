@@ -177,60 +177,18 @@ class Driver(pragma.drivers.Driver):
 			return (None, None)
 		return (frontend_templatename, compute_templatename)
 
+
 	def list(self, vcname=None):
 		"""
 		Return list of virtual clusters or details about a specific cluster
 
-		:return: List of virtual cluster names or a tuple
-			(frontend, computes, cluster_status) where frontend is the
-			name of the frontend, computes is an array of compute node names,
-			and cluster_status is a hash array where the key is the node
-			name and value is a string indicating node status.
+		:return: An array of virtual machines ordered by cluster 
+			each array item has the VM name and its status. 
 		"""
 
-        	response = self.cloudstackcall.listVirtualMachines()
-        	if not response:
-           		print "error: no Virtual Machine %s found" % name
-           		return
-
-        	names = []
-		frontend = ""
-		compute = []
-		cluster_status = {}
-        	count = response['count']
-        	if vcname is None:            
-           		for i in range(count):
-                		d = response['virtualmachine'][i]
-                		name = d['name'].split('-')
-                		count = 0
-                		if len(names) == 0:
-                    			names.append(name[0])
-                		else:
-                    			for n in names:
-                        			if n != name[0]:
-                            				count = count + 1
-                        			else:
-                            				count = 0
-                    			if count > 0:                        
-                        			names.append(name[0])
-        		return names
-		else:
-			for i in range(count):
-                		d = response['virtualmachine'][i]
-                		if d['name'].split('-')[0] == vcname and d['name'].split('-')[0]:
-					if d['name'].replace(vcname+'-',"") == 'frontend':
-                    				names.append(d['name'].replace(vcname+'-',""))
-						cluster_status[frontend] = d['state']
-					else:
-						names.append(d['name'].replace(vcname+'-',""))
-                                        	cluster_status[d['name'].replace(vcname+'-',"")] = d['state']
-            	        for i in names:
-                		if i == 'frontend':  
-                			frontend = i
-				else:
-					compute.append(i)
-			print frontend, compute, cluster_status
-			return frontend, compute, cluster_status
+        	response = self.cloudstackcall.listVirtualClusters(vcname)
+        	return response
+			
 
 	def shutdown(self, vcname):
 		"""
@@ -238,18 +196,12 @@ class Driver(pragma.drivers.Driver):
 
 		:param vcname: Name of running virtual cluster
 
-		:return: True if cluster is shutdown, otherwise False
+		:return: An array of virtual machines ordered by cluster 
+		 	 each array item has the VM name and its status. 
 		"""
-		command = 'stopVirtualMachine'
+		command = 'stopVirtualCluster'
 
-        	stop = {}
-        	id = self.cloudstackcall.getVirtualMachineIDs(vcname)
-        	for i in id:
-            		param = {}
-            		param['id'] = i
-            		response = self.cloudstackcall.execAPICall(command, param)
-            		stop[vcname] = response['jobid']
-
-        	return stop
+        	response = self.cloudstackcall.stopVirtualCluster(vcname)
+        	return response
 
 
