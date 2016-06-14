@@ -22,6 +22,8 @@ class CloudStackCall:
 
         # prefix for VM names
         self.vmNamePrefix = 'vm-'
+        # suffix for VM compute nodes names
+        self.vmNameSuffix = '-compute-'
         self.setParams()
 
     def setParams(self):
@@ -192,14 +194,47 @@ class CloudStackCall:
             d = response['virtualmachine'][i]
             vms[d['name']] =  d['state']
 
+        # find longest VM name
+        names = vms.keys()
+        names.sort(key = len)
+        for n in names:
+            if self.vmNameSuffix in n:
+               break
+            len_fe = len(n)
+        len_fe = max(len('frontend'), len_fe)
+        len_compute = max(len('compute nodes'), len(names[-1]))
+
+        # find longest VM status
+        status = vms.values()
+        status.sort(key = len)
+        len_status = max(len('status'), len(status[-1]))
+
+        lineformat = "%%-%ds  %%-%ds  %%-%ds  " % (len_fe,len_compute,len_status)
+
         vc = []
+
         if name: # list only one cluster 
+            fe = None
             for k in sorted(vms.keys()):
                 if name in k:
-                    vc.append([k, vms[k]])
+                    if fe:  # adding compute node info
+                        vc.append(lineformat % (":", k, vms[k]))
+                    else:  # adding frontend
+                        fe = k 
+                        vc.append(lineformat % (k, '-'*len_compute, vms[k]))
+
         else: # list all clusters
+            fe = None
             for k in sorted(vms.keys()):
-                vc.append([k, vms[k]])
+                if fe: 
+                    if fe in k: # add compute node
+                        vc.append(lineformat % (":", k, vms[k]))
+                    else: # add  next frontend
+                        fe = k
+                        vc.append(lineformat % (k, '-'*len_compute, vms[k]))
+                else: # add  first frontend
+                    fe = k 
+                    vc.append(lineformat % (k, '-'*len_compute, vms[k]))
 
         return vc
 
@@ -400,7 +435,7 @@ class CloudStackCall:
         # allocate compute nodes 
         ids = "%s" % networks[privateNet]
         for i in range(num):
-            name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
+            name = "%s%d%s%d" % (self.vmNamePrefix, octet, self.vmNameSuffix, i)
             print "name", name
             res = self.allocateVirtualMachine(ccpu, computeTmpl, name, ip = None, ids = ids)
             allocation.append(res)
@@ -437,6 +472,8 @@ class CloudStackCall:
         if ip:
             params['ipaddress'] = ip
 
+        for p in params.keys():
+            print "DEBUG", p, params[p]
         response = self.execAPICall(command, params)
 
         return response
@@ -458,7 +495,44 @@ class CloudStackCall:
 
         return response
 
-    def stopVirtualCluster(self,vcname):
+    def startVirtualMachine(self, id):
+        """ 
+        Start virtual machine given its id
+        :param id: Virtual Machine id 
+        :return : an API call response as a dictionary 
+        """ 
+        command = 'startVirtualMachine'
+
+        params = {}
+        params['id'] = id
+        response = self.execAPICall(command, params)
+
+        return response
+
+
+    def startVirtualCluster(self,name):
+        """ 
+        Start virtual cluster given its name
+        :param name: Virtual Cluster name 
+        :return : an API call response as a dictionary with 1 item
+                  key = name, value = jobid (for start call) 
+        """ 
+        started = {}
+
+        response = self.listVirtualMachines(name)
+        count = response['count']
+        for i in range(count):
+            d = response['virtualmachine'][i]
+            vmname = d['name']
+            vmid = d['id']
+            print "DEBUG starting", vmname, vmid
+            vmresponse = self.startVirtualMachine(vmid)
+            print "DEBUG keys", vmresponse.keys()
+            started[vmname] = vmresponse['jobid']
+
+        return started
+
+    def stopVirtualCluster(self,name):
         """ 
         Stop virtual cluster given its name
         :param name: Virtual Cluster name 
@@ -467,7 +541,7 @@ class CloudStackCall:
         """ 
         stopped = {}
 
-        response = self.listVirtualMachines()
+        response = self.listVirtualMachines(name)
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
