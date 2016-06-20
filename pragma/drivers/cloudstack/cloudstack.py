@@ -525,7 +525,6 @@ class CloudStackCall:
             d = response['virtualmachine'][i]
             vmname = d['name']
             vmid = d['id']
-            print "DEBUG starting", vmname, vmid
             vmresponse = self.startVirtualMachine(vmid)
             print "DEBUG keys", vmresponse.keys()
             started[vmname] = vmresponse['jobid']
@@ -539,18 +538,46 @@ class CloudStackCall:
         :return : an API call response as a dictionary with 1 item
                   key = name, value = jobid (for stop call) 
         """ 
+        header = "HOST    STATUS"
         stopped = {}
 
         response = self.listVirtualMachines(name)
+        if not response: # cluster name not found
+                lineformat = "%%-%ds  %%-20s  " % len(name) 
+                print lineformat % ("HOST", "STATUS") 
+                print lineformat % (name, "not found" )
+                return 0
+
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
             vmname = d['name']
             vmid = d['id']
-            vmresponse = self.stopVirtualMachine(vmid)
-            stopped[vmname] = vmresponse['jobid']
+            state = d['state']
+            if state == "Stopped": 
+                stopped[vmname] = "Already in stopped state"
+            else:
+                vmresponse = self.stopVirtualMachine(vmid)
+                stopped[vmname] = "Stopping, jobid " + vmresponse['jobid']
 
-        return stopped
+        # create output format string 
+        names = stopped.keys()
+        names.sort(key = len)
+        for n in names:
+            if self.vmNameSuffix in n:
+               break
+            len_fe = len(n)
+        len_name = max(len('HOST'), len(names[-1]))  # longest host name
+        lineformat = "%%-%ds  %%-20s  " % (len_name) # format string
+
+        print lineformat % ("HOST", "STATUS")
+        if stopped: 
+            for k in sorted(stopped.keys()):
+                print  lineformat % (k, stopped[k])
+            return 1
+        else:
+            print "nothing to stop"
+            return 0
 
     def updateVirtualMachine(self, name, userdata):
         id = self.getVirtualMachineID(name)
