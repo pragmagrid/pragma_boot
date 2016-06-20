@@ -21,9 +21,9 @@ pragma_boot        cloudstack API                        status
 ----------------------------------------------------------------
 Allocate       deployVirtualMachine with startvm=false    done
 Deploy         startVirtualMachine                        in progress
-Shutdown VM    stopVIrtualMachine                         in progress
+Shutdown VM    stopVIrtualMachine                         done, updated June 19
 Clean VM       destroyVirtualMachine                      in progress
-List clusters  listVirtualMachine                         done
+List clusters  listVirtualMachine                         done, updated June 19
 ----------------------------------------------------------------
 
 Basic funciotonality of pragma_boot  using CloudStack API is completed. 
@@ -73,6 +73,7 @@ Planned work:
 - End of June
   work out propagation of new network config to user VM
   Change "list, shutdown, delete" clusters - simplify and improve
+      completed Change "list, shutdown" 
   Jason - ask Gabriel about receipe for installing data service
  
 - Mid July
