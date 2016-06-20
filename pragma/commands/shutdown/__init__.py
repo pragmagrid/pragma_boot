@@ -27,27 +27,19 @@ class Command(pragma.commands.Command):
 		if not vcname:
 			self.abort('must supply a name for the virtual cluster')
 
-		#
-		# fillParams with the above default values
-		#
-		[basepath] = self.fillParams([('basepath', '/opt/pragma_boot')])
-
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
 		#   repository_class, repository_dir, repository_settings
-		conf_path = os.path.join(basepath, "etc", "site_conf.conf")
-		if not (os.path.exists(conf_path)):
-			self.abort('Unable to find conf file: ' + conf_path)
-		execfile(conf_path, {}, globals())
+		execfile(self.siteconf, {}, globals())
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver, basepath)
+		driver = pragma.drivers.Driver.factory(site_ve_driver, self.basepath)
 		if not driver:
 			self.abort("Uknown driver %s" % site_ve_driver)
 
-		print "Shutting down virtual cluster %s" % vcname
+		#print "Shutting down virtual cluster %s" % vcname
 		if driver.shutdown(vcname):
-			print "Cluster %s successfully shutdown" % vcname
+			print "\nCluster %s successfully shutdown" % vcname
 
 
 RollName = "pragma_boot"
