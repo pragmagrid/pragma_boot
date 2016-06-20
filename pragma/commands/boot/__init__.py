@@ -5,7 +5,6 @@ import pragma.conf
 import pragma.drivers
 import pragma.utils
 import os
-import sys
 import tempfile
 
 class Command(pragma.commands.Command):
@@ -21,6 +20,10 @@ class Command(pragma.commands.Command):
 	The nuber of CPUs requested to start up (default is 0 only frontend will
 	be started)
 	</arg>
+
+	<param type='boolean' name='enable-ent'>
+	Configure virtual cluster nodes on PRAGMA-ENT.
+	</param>
 
 	<param type='string' name='enable-ipop-client'>
 	Start up the IPOP-enabled virtual cluster as an IPOP
