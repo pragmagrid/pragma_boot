@@ -23,8 +23,6 @@ except ImportError:
 	import pragma
 	import pragma.utils
 
-pragma.utils.BASEPATH = script_base_dir
-
 # treat empty command line as "pragma help"
 if len(sys.argv) == 1:
 	args = [ 'list', 'help' ]
@@ -68,9 +66,9 @@ name = string.join(string.split(s, '.')[2:], ' ')
 # If we can load the command object then fall through and invoke the run()
 # method.  Otherwise the user did not give a complete command line and
 # we call the help command based on the partial command given.
-
 try:	
-	command = getattr(module, 'Command')(None)
+        # path pragmaa_boot base directory 
+	command = getattr(module, 'Command')(script_base_dir)
 except AttributeError:
 	import pragma.commands.list.help
 	help = pragma.commands.list.help.Command(None)
