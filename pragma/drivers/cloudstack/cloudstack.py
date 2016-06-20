@@ -187,8 +187,15 @@ class CloudStackCall:
             return None
 
     def listVirtualClusters(self, name = None):
-        vms = {}
+        vms = {}  # dictionary of available VMS {name: state}
+        vc = []   # return value, list of virtual clusters with the status 
+
+        # virtual machine  name is not found
         response = self.listVirtualMachines(name)
+        if not response:
+            self.clusterNotFound(name)
+            return vc
+
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
@@ -211,7 +218,6 @@ class CloudStackCall:
 
         lineformat = "%%-%ds  %%-%ds  %%-%ds  " % (len_fe,len_compute,len_status)
 
-        vc = []
 
         if name: # list only one cluster 
             fe = None
@@ -280,7 +286,7 @@ class CloudStackCall:
         id = None
         response = self.listVirtualMachines(name)
         if not response:
-           logging.error("No no Virtual Machine %s found" % name)
+           logging.error(" No virtual host %s found" % name)
            return id
 
         count = response['count']
@@ -531,6 +537,10 @@ class CloudStackCall:
 
         return started
 
+    def clusterNotFound(self,name):
+        print "Error: cannot resolve host \"%s\"" % name
+        return
+
     def stopVirtualCluster(self,name):
         """ 
         Stop virtual cluster given its name
@@ -543,10 +553,8 @@ class CloudStackCall:
 
         response = self.listVirtualMachines(name)
         if not response: # cluster name not found
-                lineformat = "%%-%ds  %%-20s  " % len(name) 
-                print lineformat % ("HOST", "STATUS") 
-                print lineformat % (name, "not found" )
-                return 0
+            self.clusterNotFound(name)
+            return 0
 
         count = response['count']
         for i in range(count):

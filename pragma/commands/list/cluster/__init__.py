@@ -43,34 +43,17 @@ class Command(pragma.commands.Command):
 
 		if vcname is None:
 			clusters = driver.list()
-			#print "PRAGMA clusters (%i):" % len(clusters)
-			#for cluster in clusters:
-			#	print "  %s" % cluster
 		else:
-			#print "Status of virtual cluster %s" % vcname
-			#(frontend, computes, cluster_status) = driver.list(vcname)
 			clusters = driver.list(vcname)
-			#inactive = []
-			#print "  Frontend %s: %s" % (frontend, cluster_status[frontend])
-			#if re.search("^active,", cluster_status[frontend]) is None:
-			#	inactive.append(frontend)
-			#if re.search("up$", cluster_status[frontend]) is None:
-			#	inactive.append(frontend)
-			#for compute in computes:
-			#	print "  Compute %s: %s" % (compute, cluster_status[compute])
-			#	if cluster_status[compute] != "active":
-			#		inactive.append(compute)
-			#if len(inactive) > 0:
-			#	sys.exit(1)
-			#else:
-			#	return 0
 
-		listHeader = "FRONTEND   COMPUTE NODES   STATUS"
-		print listHeader 
-		for cluster in clusters:
-			print "%s" % cluster
-
-		return 0
-
+		if clusters:
+			listHeader = "FRONTEND   COMPUTE NODES   STATUS"
+			print listHeader 
+			for cluster in clusters:
+				print "%s" % cluster
+	
+			return 0
+		else:
+			return 1
 
 RollName = "pragma_boot"
