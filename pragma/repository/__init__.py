@@ -1,10 +1,8 @@
 import xml.etree.ElementTree as ET
 import os
+import sys
 import logging
 from pragma.repository.processor import process_file
-
-
-logger = logging.getLogger('pragma_boot')
 
 
 class BaseRepository(object):
@@ -28,13 +26,24 @@ class BaseRepository(object):
         self.vcdb = {}
         self.vc_file = {}
 
+	logging.basicConfig()
+	self.logger = logging.getLogger('pragma.repository')
+
     def download_vcdb_file(self):
         raise NotImplementedError
 
     def get_vcdb_file(self):
         if self.vcdb_file is None:
             self.download_vcdb_file()
+        self.checkVcdbFile()
         return self.vcdb_file
+
+    def checkVcdbFile (self):
+        """ check if the file exists """
+        if not os.path.isfile(self.vcdb_file):
+            print 'ERROR: File %s does not exist.' % self.vcdb_file
+            #self.logger.error ('File %s does not exist.' % self.vcdb_file)
+            sys.exit(-1)
 
     def get_vcdb(self):
         with open(self.get_vcdb_file(), 'r') as vcdb_file:
