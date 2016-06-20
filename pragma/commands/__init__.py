@@ -9,6 +9,7 @@ import sys
 import traceback
 
 import pragma
+import pragma.utils
 import xml
 from xml.sax import saxutils
 from xml.sax import handler
@@ -552,7 +553,7 @@ class Command:
 
 	MustBeRoot = 0
 
-	def __init__(self, database):
+	def __init__(self, basedir):
 		"""Creates a DatabaseConnection for the RocksCommand to use.
 		This is called for all commands, including those that do not
 		require a database connection."""
@@ -563,6 +564,8 @@ class Command:
 		# DISABLE self.newdb = self.db.database
 
 		self.text = ''
+		self.basepath  = None # path to pragma_bot install
+		self.siteconf  = None # path to site config file 
 		
 		self.output = []
         
@@ -577,6 +580,37 @@ class Command:
 			self._debug = True
 		else:
 			self._debug = False
+
+		# set base path 
+		self.basepath = basedir
+
+		# set site config file path
+		if self.basepath:
+			self.siteconf = os.path.join(self.basepath, "etc", "site_conf.conf")
+			if not (os.path.exists(self.siteconf)):
+				self.abort('Unable to find configuration file: ' + self.siteconf)
+
+	def getRepository(self):
+        	"""Returns repository object based on site_conf.conf file"""
+	
+		if not self.siteconf:
+			self.abort('Unable to find configuration file: ' + self.siteconf)
+
+        	# Read in site configuration file and imports values:
+        	#   site_ve_driver, temp_directory,
+        	#   repository_class, repository_dir, repository_settings
+        	execfile(self.siteconf, {}, globals())
+	
+        	fullpath = repository_class.split(".")
+        	from_module = ".".join(fullpath[:-1])
+        	classname = fullpath[-1]
+        	module = __import__(from_module, fromlist=[classname])
+        	klass = getattr(module, classname)
+	
+        	repository_settings["cache_dir"] = repository_dir
+        	repository = klass(repository_settings)
+	
+        	return repository
 
 
 	def debug(self):

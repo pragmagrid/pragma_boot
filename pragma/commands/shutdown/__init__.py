@@ -7,10 +7,6 @@ class Command(pragma.commands.Command):
 	"""
 	Shuts down a virtual cluster but does not unallocate resources.
 
-	<param type='string' name='basepath'>
-	The absolute path of pragma_boot [default: /opt/pragma_boot]
-	</param>
-
 	<arg type='string' name='vc-name'>
 	The name of the cluster which should be shutdown.
 	</arg>

@@ -5,14 +5,9 @@ import pragma.utils
 import re
 import sys
 
-
 class Command(pragma.commands.Command):
 	"""
 	List the clusters and cluster status
-
-	<param type='string' name='basepath'>
-	The absolute path of pragma_boot [default: /opt/pragma_boot]
-	</param>
 
 	<arg type='string' name='vc-name'>
 	The name of the cluster to retrieve status for.
@@ -26,26 +21,23 @@ class Command(pragma.commands.Command):
 	Show the staus of specified cluster.
 	</example>
 	"""
+	#don't need basepath. FIXME rm these lines
+	#<param type='string' name='basepath'>
+	#The absolute path of pragma_boot [default: /opt/pragma_boot]
+	#</param>
+
 
 	def run(self, params, args):
 
 		(args, vcname) = self.fillPositionalArgs(('vc-name'))
 
-		#
-		# fillParams with the above default values
-		#
-		[basepath] = self.fillParams([('basepath', pragma.utils.BASEPATH)])
-
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
 		#   repository_class, repository_dir, repository_settings
-		conf_path = os.path.join(basepath, "etc", "site_conf.conf")
-		if not (os.path.exists(conf_path)):
-			self.abort('Unable to find conf file: ' + conf_path)
-		execfile(conf_path, {}, globals())
+		execfile(self.siteconf, {}, globals())
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver, basepath)
+		driver = pragma.drivers.Driver.factory(site_ve_driver, self.basepath)
 		if not driver:
 			self.abort("Uknown driver %s" % site_ve_driver)
 

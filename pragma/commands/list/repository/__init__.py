@@ -6,17 +6,13 @@ class Command(pragma.commands.list.command):
 	"""
 	List available virtual cluster images in repository
 
-	<param type='string' name='basepath'>
-	The absolute path of pragma_boot
-	</param>
-
 	<example cmd='list repository'>
 	List available virtual clusters images
 	</example>
 	"""
 
 	def run(self, params, args):
-		repository = pragma.utils.getRepository()
+		repository = self.getRepository()
 		vc_db_filepath = repository.get_vcdb_file()
 
 		print "NAME"

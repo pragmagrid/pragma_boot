@@ -22,10 +22,6 @@ class Command(pragma.commands.Command):
 	be started)
 	</arg>
 
-	<param type='string' name='basepath'>
-	The absolute path of pragma_boot
-	</param>
-
 	<param type='string' name='enable-ipop-client'>
 	Start up the IPOP-enabled virtual cluster as an IPOP
 	client (to another virtual cluster) using the provided
@@ -83,14 +79,10 @@ class Command(pragma.commands.Command):
 		except:
 			self.abort('num-cpus must be an integer')
 
-
-		#
 		# fillParams with the above default values
-		#
-
-		(basepath, ent, ipop_clientinfo_file, ipop_serverinfo_url,
+		(ent, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
-			[('basepath', pragma.utils.BASEPATH),
+			[
 			 ('enable-ent', "false"),
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
@@ -107,10 +99,7 @@ class Command(pragma.commands.Command):
 		# Read in site configuration file and imports values:
 		#   site_ve_driver, temp_directory,
 		#   repository_class, repository_dir, repository_settings
-		conf_path = os.path.join(basepath, "etc", "site_conf.conf")
-		if not(os.path.exists(conf_path)):
-			self.abort('Unable to find conf file: ' + conf_path)
-		execfile(conf_path, {}, globals())
+		execfile(self.siteconf, {}, globals())
 
 		# create logger
 		if logfile == None:
@@ -120,21 +109,20 @@ class Command(pragma.commands.Command):
 			level=getattr(logging,loglevel.upper()))
 		logger = logging.getLogger('pragma_boot')
 
+		# check if temp directory exists 
+		if not os.path.isdir(temp_directory):
+			self.abort('VM images staging directory %s does not exist' % temp_directory)
+
 		# create a unique temp dir for storage of files
 		our_temp_dir = tempfile.mkdtemp(
 			suffix=pragma.utils.get_id(), prefix='pragma-', 
 			dir=temp_directory)
 
-		# Download vcdb
-		repository = pragma.utils.getRepository()
-		vc_db_filepath = repository.get_vcdb_file()
-
-		if not os.path.isfile(vc_db_filepath):
-			self.abort('vc_db file does not exist at ' + vc_db_filepath)
-
+		# set repostiroy 
+		repository = self.getRepository()
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver, basepath)
+		driver = pragma.drivers.Driver.factory(site_ve_driver, self.basepath)
 		if driver == None:
 			self.abort( "Unknown driver %s" % site_ve_driver )
 
