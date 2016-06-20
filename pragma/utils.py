@@ -9,7 +9,6 @@ import shlex
 import xml.sax
 from xml.sax import handler
 
-global BASEPATH
 
 logger = logging.getLogger('pragma.util')
 
@@ -156,27 +155,6 @@ def getNativeArch():
 		arch = 'i386'
 	return arch
 
-def getRepository():
-	"""Returns repository object based on site_conf.conf file"""
-
-	# Read in site configuration file and imports values:
-	#   site_ve_driver, temp_directory,
-	#   repository_class, repository_dir, repository_settings
-	conf_path = os.path.join(BASEPATH, "etc", "site_conf.conf")
-	if not(os.path.exists(conf_path)):
-		self.abort('Unable to find conf file: ' + conf_path)
-	execfile(conf_path, {}, globals())
-
-	fullpath = repository_class.split(".")
-	from_module = ".".join(fullpath[:-1])
-	classname = fullpath[-1]
-	module = __import__(from_module, fromlist=[classname])
-	klass = getattr(module, classname)
-
-	repository_settings["cache_dir"] = repository_dir
-	repository = klass(repository_settings)
-
-	return repository
  
 def mkdir(newdir):
 	"""Works the way a good mkdir should :)
