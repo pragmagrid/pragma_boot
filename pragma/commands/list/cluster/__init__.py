@@ -21,11 +21,6 @@ class Command(pragma.commands.Command):
 	Show the staus of specified cluster.
 	</example>
 	"""
-	#don't need basepath. FIXME rm these lines
-	#<param type='string' name='basepath'>
-	#The absolute path of pragma_boot [default: /opt/pragma_boot]
-	#</param>
-
 
 	def run(self, params, args):
 
