@@ -1,39 +1,35 @@
-import logging
 import os
-import pragma
-import pragma.utils
-from cloudstack import CloudStackCall
 import urllib2
 import base64
 import hashlib
-
-logger = logging.getLogger('pragma.drivers.cloudstack')
+import logging
+import pragma
+import pragma.utils
+from cloudstack import CloudStackCall
 
 
 class Driver(pragma.drivers.Driver):
 	def __init__(self, basepath):
-		"""
-		Instantiate a new Cloudstack driver to launch virtual cluster
+		pragma.drivers.Driver.__init__(self, basepath)
 
-		:return:
-		"""
-		logger.debug("Loaded driver %s" % self.__class__.__module__)
-		driver_conf = os.path.join(basepath, "etc", "cloudstack.conf")
-		logger.info("Loading driver information from %s" % driver_conf)
+		self.logger = logging.getLogger(self.__module__)
+		self.driverconf = os.path.join(self.basepath, "etc", "cloudstack.conf")
+		self.checkDriverConf()
 
 		# loads baseurl, apikey, and secret key values
-		execfile(driver_conf, {}, globals())
-		self.cloudstackcall = CloudStackCall(
-			baseurl, apikey, secretkey, templatefilter)
+		execfile(self.driverconf, {}, globals())
 
-		logger.info("Using Cloudstack REST API URL: %s" % baseurl)
+		# create instance of CloudStack API
+		self.cloudstackcall = CloudStackCall( baseurl, apikey, secretkey, templatefilter)
 
 		# prefix for VM names
 		self.vmNamePrefix = 'vc'
 		self.nic_names = ["private", "public"]
 
+		self.logger.info("Using Cloudstack REST API URL: %s" % baseurl)
+		self.logger.debug("Loaded driver %s" % self.__class__.__module__)
+		self.logger.info("Loading driver information from %s" % self.driverconf)
 
-		#raise NotImplementedError("Please implement constructor method")
 
 	def allocate_machine(self, num_cpus, template, name, ip, ips, macs, cpus_per_node, largest=False):
 		try:
@@ -43,7 +39,7 @@ class Driver(pragma.drivers.Driver):
 			return None
 		vm_response = self.cloudstackcall.listVirtualMachines(None, res["id"])
 		if "virtualmachine" not in vm_response:
-			logger.error("Unable to query for virtual machine %s" % name)
+			self.logger.error("Unable to query for virtual machine %s" % name)
 			return None
 		nics = vm_response["virtualmachine"][0]["nic"]
 		ips[name] = {}
@@ -170,10 +166,10 @@ class Driver(pragma.drivers.Driver):
 				compute_template = template
 
 		if frontend_template == None:
-			logger.error("Could not find template %s in Cloudstack" % frontend_templatename)
+			self.logger.error("Could not find template %s in Cloudstack" % frontend_templatename)
 			return (None, None)
 		if compute_template == None:
-			logger.error("Could not find template %s in Cloudstack" % compute_templatename)
+			self.logger.error("Could not find template %s in Cloudstack" % compute_templatename)
 			return (None, None)
 		return (frontend_templatename, compute_templatename)
 

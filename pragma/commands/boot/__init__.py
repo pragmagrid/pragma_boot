@@ -125,7 +125,7 @@ class Command(pragma.commands.Command):
 		repository = self.getRepository()
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver, self.basepath)
+		driver = self.importDriver(site_ve_driver)
 		if driver == None:
 			self.abort( "Unknown driver %s" % site_ve_driver )
 

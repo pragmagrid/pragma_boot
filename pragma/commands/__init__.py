@@ -613,6 +613,13 @@ class Command:
         	return repository
 
 
+	def importDriver(self, drivername):
+		classname = 'Driver'
+		module = __import__('pragma.drivers.%s' % drivername, fromlist=[classname])
+		driverClass = getattr(module, classname)(self.basepath)
+		return driverClass
+
+
 	def debug(self):
 		"""return true if we are in debug mode"""
 		return self._debug

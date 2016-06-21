@@ -1,27 +1,23 @@
+import os.path
+import syslog
 import logging
+import pragma.utils
 
-logger = logging.getLogger('pragma.drivers')
 
 class Driver:
-	def __init__(self):
-		raise Exception("Unable to create an instance of abstract class %s" % self)
+	def __init__(self, basepath):
+		self.basepath = basepath
+		self.driverconf = None
 
-	@staticmethod
-	def factory(driver_name, basepath):
-		"""
-		Create an instance of driver 
+	def checkDriverConf(self):
+		if self.driverconf:
+                        if not (os.path.exists(self.driverconf)):
+                                self.abort('Unable to find configuration file: ' + self.driverconf)
 
-		:param driver_name: Name of pragma driver
-		:return: An instance of pragma driver
-		"""
-		driver_class = 'pragma.drivers.%s.Driver' % driver_name
-		logger.info( "Loading driver %s" % driver_class )
-		fullpath = driver_class.split(".")
-		from_module = ".".join(fullpath[:-1])
-		classname = fullpath[-1]
-		module = __import__(from_module, fromlist=[classname])
-		klass = getattr(module, classname)
-		return klass(basepath)
+	def abort(self, msg):
+		syslog.syslog(syslog.LOG_ERR, msg.split('\n')[0])
+		raise pragma.utils.CommandError(msg)
+
 
 	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
 		"""

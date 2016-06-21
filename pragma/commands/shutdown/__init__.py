@@ -29,11 +29,10 @@ class Command(pragma.commands.Command):
 		execfile(self.siteconf, {}, globals())
 
 		# load driver
-		driver = pragma.drivers.Driver.factory(site_ve_driver, self.basepath)
+		driver = self.importDriver(site_ve_driver)
 		if not driver:
 			self.abort("Uknown driver %s" % site_ve_driver)
 
-		#print "Shutting down virtual cluster %s" % vcname
 		if driver.shutdown(vcname):
 			print "\nCluster %s successfully shutdown" % vcname
 
