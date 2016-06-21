@@ -1,13 +1,13 @@
 #! /usr/bin/env python
 
-from datetime import datetime
 import logging
-from subprocess import PIPE, Popen
 import subprocess
 import os
 import shlex
 import xml.sax
 from xml.sax import handler
+from datetime import datetime
+from subprocess import PIPE, Popen
 
 
 logger = logging.getLogger('pragma.util')
