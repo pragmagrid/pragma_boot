@@ -10,18 +10,14 @@ import subprocess
 import sys
 import time
 
-logger = logging.getLogger('pragma.drivers.kvm_rocks')
-
 
 class Driver(pragma.drivers.Driver):
-	def __init__(self):
-		"""
-		Instantiate a new KVM Rocks driver to launch virtual cluster
+	def __init__(self, basepath):
+		pragma.drivers.Driver.__init__(self, basepath)
+		self.setModuleVals()
 
-		:return:
-		"""
 		self.default_memory = 2048
-		logger.debug("Loaded driver %s" % self.__class__.__module__)
+		self.logger.debug("Loaded driver %s" % self.__class__.__module__)
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"list host interface")
 		self.used_ips = []
@@ -56,9 +52,8 @@ class Driver(pragma.drivers.Driver):
 		#   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
 		#   repository_class, repository_dir, repository_settings
 		#   container_hosts, ent
-		net_conf = os.path.join(os.path.dirname(__file__), "driver.conf")
-		logger.info("Loading network information from %s" % net_conf)
-		execfile(net_conf, {}, globals())
+		self.logger.info("Loading network information from %s" % self.driverconf)
+		execfile(self.driverconf, {}, globals())
 
 		leave_processors = 0
 		try:
@@ -88,7 +83,7 @@ class Driver(pragma.drivers.Driver):
 		
 		container_hosts_string = "container-hosts=\"%s\"" % " ".join(containers_needed.keys())
 		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=1 mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i %s" % (our_ip, len(containers_needed), memory, fe_name, our_vlan, container_hosts_string)
-		logger.debug("Executing rocks command '%s'" % cmd)
+		self.logger.debug("Executing rocks command '%s'" % cmd)
 		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
 		cnodes = []
 		cnode_pat = re.compile("created compute VM named: (\S+)")
@@ -106,7 +101,7 @@ class Driver(pragma.drivers.Driver):
 				"set host cpus %s %d" % (node, containers_needed[phy_hosts[node]]))
 			cpus_per_node[node] = containers_needed[phy_hosts[node]]
 
-		logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
+		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 		vc_out.set_frontend(fe_name, our_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
 		(macs,ips) = self.get_network(fe_name, cnodes)
@@ -127,13 +122,13 @@ class Driver(pragma.drivers.Driver):
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"set host boot %s action=os" % node )
 		if exitcode != 0:
-			logger.error("Error setting boot on %s: %s" % (
+			self.logger.error("Error setting boot on %s: %s" % (
 				node, "\n".join(out)))
 			return
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"start host vm %s" % node)
 		if exitcode != 0:
-			logger.error("Problem booting %s: %s" % (
+			self.logger.error("Problem booting %s: %s" % (
 				node, "\n".join(out)))
 
 	def calculate_num_nodes(self, cpus_requested, available_containers, num_processors_reserved):
@@ -148,7 +143,7 @@ class Driver(pragma.drivers.Driver):
 		is the number of cpus to use
 		"""
 
-		logger.info("Requesting %i CPUs" % cpus_requested)
+		self.logger.info("Requesting %i CPUs" % cpus_requested)
 		container_capacity = self.get_container_capacity()
 
 		# filter out containers and processors we can't use
@@ -179,7 +174,7 @@ class Driver(pragma.drivers.Driver):
 			cpus_allocated += container_capacity[container]
 
 		if cpus_allocated < cpus_requested:
-			logger.error("Sorry, there is not enough capacity to fulfill your request of %i cpus" % cpus_requested)
+			self.logger.error("Sorry, there is not enough capacity to fulfill your request of %i cpus" % cpus_requested)
 			sys.exit(1)
 		return containers_needed
 
@@ -228,14 +223,14 @@ class Driver(pragma.drivers.Driver):
 			(out, exitcode) = pragma.utils.getRocksOutputAsList(
 				"report vm nextmac")
 			if out == None or len(out) < 1:
-				logger.error("Unable to get mac address for %s" % node)
+				self.logger.error("Unable to get mac address for %s" % node)
 				return False
 			mac = out[0]
 			(out, exitcode) = pragma.utils.getRocksOutputAsList(
 				"add host interface %s %s subnet=%s mac=%s" % (
 				node, ent_info['interface_name'], ent_info['subnet_name'], mac))
 			if exitcode != 0:
-				logger.error("Unable to add interface to %s" % node)
+				self.logger.error("Unable to add interface to %s" % node)
 				return False
 			(out, exitcode) = pragma.utils.getRocksOutputAsList(
 				"sync host network %s" % node)
@@ -286,12 +281,12 @@ class Driver(pragma.drivers.Driver):
 			except:
 				pass
 		if len(avail_ips) < 1:
-			logger.error("No available public IPs")
+			self.logger.error("No available public IPs")
 			return None
 		# just grab first one in list
 		our_ip = avail_ips[0]
 		(our_fqdn, our_aliases, addl_ips) = socket.gethostbyaddr(our_ip)
-		logger.info("Found available public IP %s -> %s" % (
+		self.logger.info("Found available public IP %s -> %s" % (
 			our_ip, our_fqdn))
 		return (our_ip, our_fqdn)
 
@@ -308,7 +303,7 @@ class Driver(pragma.drivers.Driver):
 			except:
 				pass
 		if len(avail_vlans) < 1:
-			logger.error("No available vlans")
+			self.logger.error("No available vlans")
 			return None
 		return avail_vlans[0]
 

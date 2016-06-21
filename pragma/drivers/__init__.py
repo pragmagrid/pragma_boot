@@ -8,11 +8,31 @@ class Driver:
 	def __init__(self, basepath):
 		self.basepath = basepath
 		self.driverconf = None
+		self.drivername = None
+
+	def setModuleVals(self):
+		""" This funciton is called from the child driver module class
+		    It sets values depending on the used child driver class name:
+			self.drivername -  for example. "kvm_rocks".
+			self.logger - from the module name, example:  pragma.drivers.kvm_rocks
+		"""
+
+		self.drivername = self.__module__.split('.')[-1]
+		self.checkDriverConf()
+		self.logger = logging.getLogger(self.__module__)
 
 	def checkDriverConf(self):
-		if self.driverconf:
-                        if not (os.path.exists(self.driverconf)):
-                                self.abort('Unable to find configuration file: ' + self.driverconf)
+		""" Check if the driver configuration file exists 
+		    Exit with error message if not found
+		"""
+		# sanity check. Return if called outside of the child __init__()
+		if not self.drivername:
+			return
+
+		if not self.driverconf:
+			self.driverconf = os.path.join(self.basepath, "etc", self.drivername + ".conf")
+		if not (os.path.exists(self.driverconf)):
+			self.abort('Unable to find configuration file: ' + self.driverconf)
 
 	def abort(self, msg):
 		syslog.syslog(syslog.LOG_ERR, msg.split('\n')[0])
