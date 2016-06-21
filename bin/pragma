@@ -5,9 +5,9 @@ import sys
 import syslog
 import string
 
-if sys.version_info < (2, 7):
-	sys.stderr.write("Please use python 2.7 or greater\n")
-	sys.exit(-1)
+#if sys.version_info < (2, 7):
+#	sys.stderr.write("Please use python 2.7 or greater\n")
+#	sys.exit(-1)
 
 # enable logging
 syslog.openlog('pragmaCommand', syslog.LOG_PID, syslog.LOG_LOCAL6)
@@ -67,7 +67,7 @@ name = string.join(string.split(s, '.')[2:], ' ')
 # method.  Otherwise the user did not give a complete command line and
 # we call the help command based on the partial command given.
 try:	
-        # path pragmaa_boot base directory 
+        # path pragma_boot base directory 
 	command = getattr(module, 'Command')(script_base_dir)
 except AttributeError:
 	import pragma.commands.list.help
