@@ -172,13 +172,15 @@ class Driver(pragma.drivers.Driver):
 
 	def list(self, vcname=None):
 		"""
-		Return list of virtual clusters or details about a specific cluster
+		Return list of virtual machines sorted by cluster with each VM status
 
-		:return: An array of virtual machines ordered by cluster 
-			each array item has the VM name and its status. 
+		:return: List of strings formatted as "frontend  compute ndoes status'.
+			 First string is a header.
 		"""
 
         	response = self.cloudstackcall.listVirtualClusters(vcname)
+		header = pragma.utils.getListHeader(response)
+		response.insert(0, header)
         	return response
 			
 
