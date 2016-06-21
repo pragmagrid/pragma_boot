@@ -11,10 +11,7 @@ from cloudstack import CloudStackCall
 class Driver(pragma.drivers.Driver):
 	def __init__(self, basepath):
 		pragma.drivers.Driver.__init__(self, basepath)
-
-		self.logger = logging.getLogger(self.__module__)
-		self.driverconf = os.path.join(self.basepath, "etc", "cloudstack.conf")
-		self.checkDriverConf()
+		self.setModuleVals()
 
 		# loads baseurl, apikey, and secret key values
 		execfile(self.driverconf, {}, globals())
@@ -27,8 +24,7 @@ class Driver(pragma.drivers.Driver):
 		self.nic_names = ["private", "public"]
 
 		self.logger.info("Using Cloudstack REST API URL: %s" % baseurl)
-		self.logger.debug("Loaded driver %s" % self.__class__.__module__)
-		self.logger.info("Loading driver information from %s" % self.driverconf)
+		self.logger.info("Loading driver %s information from %s" % (self.drivername, self.driverconf) )
 
 
 	def allocate_machine(self, num_cpus, template, name, ip, ips, macs, cpus_per_node, largest=False):
