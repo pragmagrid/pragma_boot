@@ -43,8 +43,6 @@ class Command(pragma.commands.Command):
 			clusters = driver.list(vcname)
 
 		if clusters:
-			listHeader = "FRONTEND   COMPUTE NODES   STATUS"
-			print listHeader 
 			for cluster in clusters:
 				print "%s" % cluster
 	

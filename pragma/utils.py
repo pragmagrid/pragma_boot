@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 
 import logging
 import subprocess
@@ -265,4 +265,23 @@ def startSpinner(cmd):
 		pad = pad + ' '
 	print '\r%s\r' % pad,
 	
+def getListHeader(strings):
+	# initialize 
+	len_fe = 0
+	len_compute = 0
+	len_status = 0
 
+	# find max string length for frontend, compute node and status
+	for str in strings:
+		items = str.split()
+		len_fe = max(len(items[0]), len_fe)
+		len_compute = max(len(items[1]), len_compute)
+		len_status = max(len(items[2]), len_status)
+
+	len_fe = max(len('FRONTEND'), len_fe)
+	len_compute = max(len('COMPUTE NODES'), len_compute)
+	len_status = max(len('STATUS'), len_status)
+
+        lineformat = "%%-%ds  %%-%ds  %%-%ds  " % (len_fe,len_compute,len_status)
+
+	return lineformat % ('FRONTEND', 'COMPUTE NODES', 'STATUS')

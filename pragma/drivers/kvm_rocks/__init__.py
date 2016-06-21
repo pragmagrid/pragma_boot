@@ -416,59 +416,39 @@ class Driver(pragma.drivers.Driver):
 
 	def list(self, *argv):
 		"""
-		Return list of virtual clusters or details about a specific cluster
+		Return list of virtual machine sorted by cluster with each VM status
 
-		:return: List of virtual cluster names or a tuple
-			(frontend, computes, cluster_status) where frontend is the
-			name of the frontend, computes is an array of compute node names,
-			and cluster_status is a hash array where the key is the node
-			name and value is a string indicating node status.
+		:return: List of strings formatted as "frontend  compute ndoes status'.
+			 First string is a header 
 		"""
 
 		if len(argv) == 0:
-			(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"list cluster")
-			if exitcode != 0:
-				sys.stderr.write("Problem quering clusters: %s\n" % (
-					"\n".join(out)))
-				return [] 
-			clusters = []
-			for line in out:
-				result = re.search("^([^:]+).*VM", line)
-				if result is not None:
-					clusters.append(result.group(1))
-			return clusters
+			rockscommand = "list cluster status=1"
+		else:
+			vcname = argv[0]
+			rockscommand = "list cluster %s status=1" % vcname
 
-		vcname = argv[0]
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-			"list cluster %s status=true" % vcname)
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(rockscommand)
 		if exitcode != 0:
-			sys.stderr.write("Problem quering cluster %s: %s\n" % (
-				vcname, "\n".join(out)))
-			return {}
-		out.pop(0) # ditch header
-		result = re.search("^([^:]+).*VM\s+(\S+)", out.pop(0))
-		frontend = result.group(1)
-		computes = []
-		cluster_status = {}
-		cluster_status[frontend] = result.group(2)
-		if result.group(2) == 'active':
-			(out2, exitcode) = pragma.utils.getRocksOutputAsList(
-                        	"list host interface %s" % vcname)
-			ip = None
-			for line in out2:
-				result = re.search("public.*:\S+\s+(\d+.\d+.\d+.\d+)", line)
-				if result is not None:
-					ip = result.group(1)
-			exitcode =subprocess.call("ping -c 1 %s >& /dev/null" % ip, shell=True)
-			ping = "up" if exitcode == 0 else "down"
-			cluster_status[frontend] += ", %s" % ping
+			sys.stderr.write("Problem quering clusters: %s\n" % ( "\n".join(out)))
+			return [] 
+
+		clusters = []
+		pat = ' VM ' # search for this pattern in the output
 		for line in out:
-			result = re.search("^:\s+(\S+).*VM\s+(\S+)", line)
-			if result is not None:
-				computes.append(result.group(1))
-				cluster_status[result.group(1)] = result.group(2)
-		return (frontend, computes, cluster_status)
+			if line.find(pat) < 0 : # don't include physical nodes
+				continue
+			clusters.append(line)
+
+		# remove pattern ' VM    ' from the output
+		clusters = [s.replace(pat + '    ', '') for s in clusters]
+
+		# add listing header
+		header = pragma.utils.getListHeader(clusters)
+		clusters.insert(0, header)
+
+		return clusters
+
 
 	def shutdown(self, vcname):
 		"""
