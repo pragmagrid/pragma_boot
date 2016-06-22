@@ -15,7 +15,7 @@ class Command(pragma.commands.list.command):
 		repository = self.getRepository()
 		vc_db_filepath = repository.get_vcdb_file()
 
-		print "NAME"
+		print "VIRTUAL IMAGE"
 		with open(vc_db_filepath, 'r') as vc_db:
 			for line in vc_db:
 				(vcname, xmlpath) = line.split(',')
