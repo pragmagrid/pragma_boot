@@ -604,3 +604,37 @@ class CloudStackCall:
             return None
 
         return response
+
+    def queryAsyncJobResult(self, id):
+        command = 'queryAsyncJobResult'
+
+        params = {}
+        params['jobid'] = id
+
+        try:
+            response = self.execAPICall(command, params)
+        except urllib2.HTTPError as e:
+            logging.error(self.getError(e))
+            return None
+
+        return response
+
+
+    def listAsyncJobs(self):
+        """ On success returns a dictionary { 'count': num, 'asyncjobs': [list]}
+            Each item in a list is a dictionary. To get VM values use dict key 'jobresult' 
+            which has a value as a dictionary {u'virtualmachine': {vm info here}
+            Any command using listAsyncJobs() will need to process return values 
+                count = response['count']
+                for i in range(count):
+                    r = response['asyncjobs'][i]
+                    d = r['virtualmachine'][i]
+                    vmname = d['name']
+                    vmid = d['id']
+                    ...
+        """
+        command = 'listAsyncJobs'
+
+        response = self.execAPICall(command)
+        return response
+

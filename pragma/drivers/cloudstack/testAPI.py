@@ -65,16 +65,17 @@ def StopVM(id):
     d = apicall.stopVirtualMachine(id)
     print "keys ", d.keys()
     print "stop vm jobid ",  d['jobid']
+    CheckJobResult(d[jobid])
 
 def StopVC(name):
     d = apicall.stopVirtualCluster(name)
-    for k in  d.keys():
-      print "stop vm jobid: ", k,  d[k]
+    print "return status: ", d
 
 def StartVC(name):
     d = apicall.startVirtualCluster(name)
     for k in  d.keys():
       print "strt vm jobid: ", k,  d[k]
+    CheckJobResult(d[k])
 
 def AllocateVM(cpu, template, name):
     response = apicall.allocateVirtualMachine(cpu, template, name)
@@ -88,6 +89,22 @@ def AllocateVM(cpu, template, name):
         for n in range(numnics):
             nic = d['nic'][n]
             print "    %s\t%s\t%s" % (nic['ipaddress'], nic['networkname'], nic['macaddress'])
+
+def CheckJobResult(id):
+	response = apicall.queryAsyncJobResult(id)
+	if response:
+	    for k in response.keys():
+		print "%s\t = %s" % (k, response[k])
+
+def ListAsyncJobs():
+	response = apicall.listAsyncJobs()
+        count = response['count']
+        for i in range(count):
+            d = response['asyncjobs'][i]
+            for k in d.keys():
+                print "%s\t = %s" % (k, d[k])
+            print "---------------------" 
+
 
 ##### need to retest ######
 #apicall.allocateVirtualCluster("biolinux-frontend-original",1,"biolinux-compute-original",1,2)
@@ -108,8 +125,8 @@ def AllocateVM(cpu, template, name):
 # when giving a name, the outputcontains all vms with the name substring
 #ListVMs(name = 'vm-46')
 
-#StopVM('3d543e25-a0c1-45f2-beb0-bde10996f214')
-StopVC('vm-48')
+#StopVM('3f309f0b-ebeb-425b-b545-d01090a025a1')
+#StopVC('vm-46')
 
 #GetVCips()
 #GetVCids('vm-48')
@@ -118,4 +135,10 @@ StopVC('vm-48')
 #ListClusters()
 #ListClusters('vm-48')
 
-#StartVC('vm-48')
+#id = '6a92cd31-f778-4160-b681-8b199d8afff1'
+#CheckJobResult(id)
+
+#StartVC('vm-46')
+
+ListAsyncJobs()
+
