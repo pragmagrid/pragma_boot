@@ -601,15 +601,23 @@ class Command:
         	#   repository_class, repository_dir, repository_settings
         	execfile(self.siteconf, {}, globals())
 	
-        	fullpath = repository_class.split(".")
+		try:
+			fullpath = repository_class.split(".")
+		except NameError: 
+			self.abort('Variable  repository_class must be defined in %s' % self.siteconf)
+
         	from_module = ".".join(fullpath[:-1])
         	classname = fullpath[-1]
         	module = __import__(from_module, fromlist=[classname])
         	klass = getattr(module, classname)
 	
-        	repository_settings["cache_dir"] = repository_dir
+		try:
+			repository_settings["cache_dir"] = repository_dir
+		except NameError:
+			self.abort('Variables repository_settings and repository_dir must be defined in %s' % self.siteconf)
+
         	repository = klass(repository_settings)
-	
+
         	return repository
 
 
