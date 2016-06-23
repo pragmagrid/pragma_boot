@@ -100,8 +100,7 @@ class Command(pragma.commands.Command):
 		enable_ent = ent.lower() in ("yes", "true", "t", "1")
 
 		# Read in site configuration file and imports values:
-		#   site_ve_driver, temp_directory,
-		#   repository_class, repository_dir, repository_settings
+		#   site_ve_driver, temp_directory
 		execfile(self.siteconf, {}, globals())
 
 		# create logger

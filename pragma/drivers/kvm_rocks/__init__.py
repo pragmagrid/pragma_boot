@@ -48,10 +48,8 @@ class Driver(pragma.drivers.Driver):
 		:return:
 		"""
 
-		# Load network configuration and import values
-		#   public_ips, netmask, gw, dns, fqdn, vlans, diskdir
-		#   repository_class, repository_dir, repository_settings
-		#   container_hosts, ent
+		# Load network configuration and import values:
+		# public_ips, netmask, gw, dns, fqdn, vlans, diskdir, container_hosts, ent
 		self.logger.info("Loading network information from %s" % self.driverconf)
 		execfile(self.driverconf, {}, globals())
 

@@ -23,9 +23,7 @@ class Command(pragma.commands.Command):
 		if not vcname:
 			self.abort('must supply a name for the virtual cluster')
 
-		# Read in site configuration file and imports values:
-		#   site_ve_driver, temp_directory,
-		#   repository_class, repository_dir, repository_settings
+		# Read in site configuration file and imports values: site_ve_driver
 		execfile(self.siteconf, {}, globals())
 
 		# load driver

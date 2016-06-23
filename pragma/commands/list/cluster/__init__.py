@@ -26,14 +26,11 @@ class Command(pragma.commands.Command):
 
 		(args, vcname) = self.fillPositionalArgs(('vc-name'))
 
-		# Read in site configuration file and imports values:
-		#   site_ve_driver, temp_directory,
-		#   repository_class, repository_dir, repository_settings
+		# Read in site configuration file and imports values: site_ve_driver
 		execfile(self.siteconf, {}, globals())
 
 		# load driver
 		driver = self.importDriver(site_ve_driver)
-
 		if not driver:
 			self.abort("Uknown driver %s" % site_ve_driver)
 
