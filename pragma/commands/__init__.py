@@ -596,9 +596,7 @@ class Command:
 		if not self.siteconf:
 			self.abort('Unable to find configuration file: ' + self.siteconf)
 
-        	# Read in site configuration file and imports values:
-        	#   site_ve_driver, temp_directory,
-        	#   repository_class, repository_dir, repository_settings
+		# Read site configuration file and import values: repository_class, repository_settings
         	execfile(self.siteconf, {}, globals())
 	
 		try:
@@ -610,12 +608,6 @@ class Command:
         	classname = fullpath[-1]
         	module = __import__(from_module, fromlist=[classname])
         	klass = getattr(module, classname)
-	
-		try:
-			repository_settings["cache_dir"] = repository_dir
-		except NameError:
-			self.abort('Variables repository_settings and repository_dir must be defined in %s' % self.siteconf)
-
         	repository = klass(repository_settings)
 
         	return repository
