@@ -13,13 +13,11 @@ class Command(pragma.commands.list.command):
 
 	def run(self, params, args):
 		repository = self.getRepository()
-		vc_db_filepath = repository.get_vcdb_file()
+		result = repository.listRepository()
 
 		print "VIRTUAL IMAGE"
-		with open(vc_db_filepath, 'r') as vc_db:
-			for line in vc_db:
-				(vcname, xmlpath) = line.split(',')
-				print vcname
+		for item in result:
+			print item
 
 
 RollName = "pragma_boot"
