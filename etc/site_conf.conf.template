@@ -21,12 +21,12 @@ log_directory="/var/log/pragma_boot"
 # - pragma.repository.cloudfront.CloudFront
 repository_class = "pragma.repository.local.Local"
 
-# This is a local repository directory.
-# If cloud storage is enabled, it will be used for caching VC images locally
-repository_dir = "/state/partition1/repository"
 
 # This is a configuration dict for repository class
 repository_settings = {
+    # This is a local repository directory.
+    # If cloud storage is enabled, it will be used for caching VC images locally
+    'repository_dir' : "/state/partition1/vm-images"
 
     # The following settings is for Http repository and CloudFront repository
     # "repository_url": "https://dq6qef18n2yy3.cloudfront.net",

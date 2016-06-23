@@ -24,7 +24,7 @@ class CloudFront(Http):
     def download_vcdb_file(self):
         remote_path = os.path.join(self.repository_url, self.vcdb_filename)
         remote_path = self.create_signed_url(remote_path)
-        local_path = os.path.join(self.cache_dir, self.vcdb_filename)
+        local_path = os.path.join(self.repo, self.vcdb_filename)
         CloudFront.download(remote_path, local_path)
         self.vcdb_file = local_path
 
@@ -32,7 +32,7 @@ class CloudFront(Http):
         vc_file = self.get_vcdb()[vcname]  # vc_file is a relative path
         remote_path = os.path.join(self.repository_url, vc_file)
         remote_path = self.create_signed_url(remote_path)
-        local_path = os.path.join(self.cache_dir, vc_file)
+        local_path = os.path.join(self.repo, vc_file)
         CloudFront.download(remote_path, local_path)
         self.vc_file[vcname] = local_path
 
@@ -44,5 +44,5 @@ class CloudFront(Http):
         for filename in self.get_vc(vcname).findall("./files/file/part"):
             remote_path = os.path.join(self.repository_url, relative_dir, filename.text)
             remote_path = self.create_signed_url(remote_path)
-            local_path = os.path.join(self.cache_dir, relative_dir, filename.text)
+            local_path = os.path.join(self.repo, relative_dir, filename.text)
             CloudFront.download(remote_path, local_path)

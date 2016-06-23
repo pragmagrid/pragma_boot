@@ -54,14 +54,14 @@ class Http(BaseRepository):
 
     def download_vcdb_file(self):
         remote_path = os.path.join(self.repository_url, self.vcdb_filename)
-        local_path = os.path.join(self.cache_dir, self.vcdb_filename)
+        local_path = os.path.join(self.repo, self.vcdb_filename)
         Http.download(remote_path, local_path)
         self.vcdb_file = local_path
 
     def download_vc_file(self, vcname):
         vc_file = self.get_vcdb()[vcname]  # vc_file is a relative path
         remote_path = os.path.join(self.repository_url, vc_file)
-        local_path = os.path.join(self.cache_dir, vc_file)
+        local_path = os.path.join(self.repo, vc_file)
         Http.download(remote_path, local_path)
         self.vc_file[vcname] = local_path
 
@@ -73,13 +73,13 @@ class Http(BaseRepository):
 
         for filename in self.get_vc(vcname).findall("./files/file/part"):
             remote_path = os.path.join(self.repository_url, relative_dir, filename.text)
-            local_path = os.path.join(self.cache_dir, relative_dir, filename.text)
+            local_path = os.path.join(self.repo, relative_dir, filename.text)
             Http.download(remote_path, local_path)
 
         for node in vc_in.xml.findall(".//disk/source[@type='network']/../../../.."):
             node_type = node.tag
             filename = "%s_%s.img" % (relative_dir, node_type)
-            local_path = os.path.join(self.cache_dir, relative_dir, filename)
+            local_path = os.path.join(self.repo, relative_dir, filename)
             if not(os.path.exists(local_path)):
                 host = node.find(".//host").attrib
                 source = node.find(".//source").attrib

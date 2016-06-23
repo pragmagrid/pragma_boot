@@ -1,17 +1,12 @@
 import xml.etree.ElementTree as ET
 import os
-import sys
+import syslog
 import logging
+import pragma.utils
 from pragma.repository.processor import process_file
 
 
 class BaseRepository(object):
-    """
-    BaseRepository is an abstract class
-
-    requires "cache_dir" in settings
-    """
-    # TODO: Think of a better name than "cache_dir"
     def __init__(self, settings={}):
         """
         vcdb is a path to vcdb.json
@@ -21,13 +16,24 @@ class BaseRepository(object):
         """
         super(BaseRepository, self).__init__()
         self.settings = settings
-        self.cache_dir = self.settings["cache_dir"]
+        try:
+            self.repo = self.settings["repository_dir"]
+        except KeyError:
+            self.abort('Check repository_settings{} in configuration file. Missing  \"repository_dir\".' )
+
         self.vcdb_file = None
         self.vcdb = {}
         self.vc_file = {}
 
 	logging.basicConfig()
 	self.logger = logging.getLogger('pragma.repository')
+
+    def abort(self, msg):
+        syslog.syslog(syslog.LOG_ERR, msg)
+        raise pragma.utils.CommandError(msg)
+
+    def listRepository(self):
+        print "DEBUG: in listRepository", self.__module__
 
     def download_vcdb_file(self):
         raise NotImplementedError
@@ -41,9 +47,7 @@ class BaseRepository(object):
     def checkVcdbFile (self):
         """ check if the file exists """
         if not os.path.isfile(self.vcdb_file):
-            print 'ERROR: File %s does not exist.' % self.vcdb_file
-            #self.logger.error ('File %s does not exist.' % self.vcdb_file)
-            sys.exit(-1)
+            self.abort ('File %s does not exist.' % self.vcdb_file)
 
     def get_vcdb(self):
         with open(self.get_vcdb_file(), 'r') as vcdb_file:
@@ -75,7 +79,7 @@ class BaseRepository(object):
         raise NotImplementedError
 
     def process_vc(self, vcname):
-        base_dir = os.path.dirname(os.path.join(self.cache_dir, self.get_vcdb()[vcname]))
+        base_dir = os.path.dirname(os.path.join(self.repo, self.get_vcdb()[vcname]))
         for f in self.get_vc(vcname).findall("./files/file"):
             process_file(base_dir, f)
 
