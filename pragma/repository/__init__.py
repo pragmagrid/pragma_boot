@@ -3,89 +3,151 @@ import os
 import syslog
 import logging
 import pragma.utils
+import subprocess
+from tempfile import mkdtemp
 from pragma.repository.processor import process_file
+from pragma.repository.processor.xmlprocessor import XmlInput, XmlOutput
 
 
 class BaseRepository(object):
-    def __init__(self, settings={}):
-        """
-        vcdb is a path to vcdb.json
 
-        vcdb is a dict of vc in this format
-        {'vcname': '/path/to/meta.xml', ...}
-        """
+    def __init__(self, settings={}):
         super(BaseRepository, self).__init__()
         self.settings = settings
         try:
             self.repo = self.settings["repository_dir"]
         except KeyError:
-            self.abort('Check repository_settings{} in configuration file. Missing  \"repository_dir\".' )
+            self.abort('Check repository_settings{} in configuration file. Missing \"repository_dir\".' )
 
-        self.vcdb_file = None
-        self.vcdb = {}
-        self.vc_file = {}
+        # database filename, contains virtual clusters names and their xml files
+        try:
+            self.vcdbFilename = self.settings["vcdb_filename"]
+        except KeyError:
+            self.vcdbFilename = 'vcdb.txt' 
+
+        self.vcdbFile   = None # database filename full path
+        self.vcdb       = {}   # format {'vcname': '/path/to/cluster.xml', ...}
+        self.xmlin      = {}   # format {'vmname': XmlInput object derived from cluster.xml file }
+        self.xmlout     = None # XmlOutput object 
+        self.stagingDir = None # directory for staging images
 
 	logging.basicConfig()
-	self.logger = logging.getLogger('pragma.repository')
+	self.logger = logging.getLogger(self.__module__)
 
     def abort(self, msg):
         syslog.syslog(syslog.LOG_ERR, msg)
         raise pragma.utils.CommandError(msg)
 
+    def setStagingDir(self, path):
+        """ create a unique temporary directory for staging virtual images """
+        if not self.stagingDir:
+            self.stagingDir = mkdtemp(suffix=pragma.utils.get_id(), prefix='pragma-', dir=path)
+
+    def createXmlOutputObject(self, path):
+        """ create output xml object"""
+        self.setStagingDir(path)
+        self.xmlout = XmlOutput(os.path.join(self.stagingDir, "vc-out.xml"))
+
     def listRepository(self):
-        print "DEBUG: in listRepository", self.__module__
+        """ Returns a sorted array of available virtual images names"""
+        return  sorted(self.vcdb.keys())
 
-    def download_vcdb_file(self):
-        raise NotImplementedError
+    def download(self, rpath, lpath):
+        """
+        Download file from remote path to local path
+        Using wget and curl because urllib and urllib2 don't seem to be able
+        to complete big file transfers (at least from Google drive)
+        """
+        # Create directories if neccesary
+        local_dir = os.path.dirname(lpath)
+        if not os.path.exists(local_dir):
+            os.makedirs(local_dir)
 
-    def get_vcdb_file(self):
-        if self.vcdb_file is None:
-            self.download_vcdb_file()
-        self.checkVcdbFile()
-        return self.vcdb_file
+        # FIXME redo to put all loggin to a single log file for the command
+        log = "/tmp/pragma_boot.download.log"
+
+        wget = pragma.utils.which("xwget")
+        if wget : # using wget 
+            subprocess.check_call([wget, "--append-output=%s" % log, "-S", "-O", lpath, rpath])
+        else:     # using curl 
+            curl = pragma.utils.which("curl")
+            if curl is None:
+                self.abort ('Cannot find wget or curl for downloading files.')
+            subprocess.check_call("%s --retry 5 -L --stderr - -o %s %s 2>&1  1>>%s" % (curl, lpath, rpath, log), shell=True)
+
+        self.logger.info("Downloading %s to %s ... See %s for details" % (rpath, lpath, log))
+
+        if not os.path.isfile(lpath):
+            self.abort ('Error downloading %s. See %s for details' % (lpath, log))
+
+    def getLocalFilePath(self, fname):
+        """ returns full path to a file in a local repository """
+        return os.path.join(self.repo, fname)
+
+    def getRemoteFilePath(self, fname):
+        """ returns full path to a file in a remote repository """
+        try:
+           return os.path.join(self.repository_url, fname)
+        except AttributeError:
+           self.abort ('Missing repository_url in configuration file.')
 
     def checkVcdbFile (self):
-        """ check if the file exists """
-        if not os.path.isfile(self.vcdb_file):
-            self.abort ('File %s does not exist.' % self.vcdb_file)
+        """ check if the vcdb file exists, download if needed """
+        self.vcdbFile = self.getLocalFilePath(self.vcdbFilename)
+        if not os.path.isfile(self.vcdbFile):
+            self.logger.warning("Missing %s file. Trying to download from repository url defined in configuration file." % self.vcdbFile)
+            rpath = self.getRemoteFilePath(self.vcdbFilename)
+            self.download(rpath, self.vcdbFile)
 
-    def get_vcdb(self):
-        with open(self.get_vcdb_file(), 'r') as vcdb_file:
-            for line in vcdb_file:
-                vcname, vc_file = line.strip().split(',')
-                self.vcdb[vcname] = vc_file
-        return self.vcdb
+        with open(self.vcdbFile, 'r') as vcdbFile:
+            for line in vcdbFile:
+                name, path = line.strip().split(',')
+                self.vcdb[name] = self.getLocalFilePath(path)
 
-    def download_vc_file(self, vcname):
-        raise NotImplementedError
+    def getVmXmlTree(self, name):
+        """Returns an xmltree object corrsponding to a parsed xml file for a VM 'name'"""
+        if name not in self.vcdb:
+           self.abort('Virtual image %s does not exist.' % name)
 
-    def get_vc_file(self, vcname):
-        if vcname not in self.vc_file:
-            self.download_vc_file(vcname)
-        return self.vc_file[vcname]
+        return ET.parse(self.vcdb[name])
 
-    def get_vc(self, vcname):
-         return ET.parse(self.get_vc_file(vcname))
+    def createXmlInputObject(self, name):
+        xmlinfo =  self.getVmXmlTree(name)
+        dirpath = os.path.dirname(self.vcdb[name])
+        self.xmlin[name] = XmlInput(xmlinfo, dirpath)
+
+        arch = self.xmlin[name].getArch()
+        if arch != "x86_64":
+            self.abort("Unsupported VM architecture '%s' for virtual image %s" % (arch, name))
+
+    def getXmlInputObject(self, name):
+        return self.xmlin[name]
+
+    def downloadImage(self, vcname):
+        """Download all files specified in vc definition """
+        vmXmlObject = self.xmlin[vcname]
+        names = vmXmlObject.getImageNames()
+        for filename in names:
+            rpath = os.path.join(self.repository_url, vcname, filename)
+            lpath = os.path.join(self.repo, vcname, filename)
+            if not os.path.isfile(lpath):
+                self.download(rpath, lpath)
+
+    def processImage(self, vcname):
+        self.downloadImage(vcname )
+
+	#FIXME check this function
+        return
+        #base_dir = os.path.dirname(os.path.join(self.repo, self.vcdb[vcname]))
+        #for f in self.get_vc(vcname).findall("./files/file"):
+        #    process_file(base_dir, f)
 
     def is_downloaded(self):
-        raise NotImplementedError
-
-    def download_vc(self, vcname):
-        """Download VC to repository cache"""
         raise NotImplementedError
 
     def delete_vc(self, vcname):
         """Delete VC from repository cache if exists"""
         raise NotImplementedError
-
-    def process_vc(self, vcname):
-        base_dir = os.path.dirname(os.path.join(self.repo, self.get_vcdb()[vcname]))
-        for f in self.get_vc(vcname).findall("./files/file"):
-            process_file(base_dir, f)
-
-    def download_and_process_vc(self, vcname, vc_in):
-        self.download_vc(vcname, vc_in)
-        self.process_vc(vcname)
 
     def clear_cache(self):
         """Clear repository cache entirely"""

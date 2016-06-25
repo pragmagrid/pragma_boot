@@ -1,11 +1,8 @@
 from datetime import datetime
 import logging
 import pragma.commands
-import pragma.conf
 import pragma.drivers
-import pragma.utils
 import os
-import tempfile
 
 class Command(pragma.commands.Command):
 	"""
@@ -59,13 +56,13 @@ class Command(pragma.commands.Command):
 	</example>
 	"""
 
-	def makeLog(self, logdir, vcname):
+	def makeLog(self, logdir, name):
 		if not os.path.isdir(logdir):
 			os.makedirs(logdir)
 		
-		# default logfile name = logdir + vcname + timestamp
+		# default logfile name = logdir + name + timestamp
 		timestamp = datetime.today().strftime("%Y%m%d-%H:%M")
-		return "%s/%s-%s.log" % (logdir, vcname, timestamp)
+		return "%s/%s-%s.log" % (logdir, name, timestamp)
 
 	def run(self, params, args):
 
@@ -99,9 +96,22 @@ class Command(pragma.commands.Command):
 			self.abort("IPOP features not yet supported")
 		enable_ent = ent.lower() in ("yes", "true", "t", "1")
 
-		# Read in site configuration file and imports values:
-		#   site_ve_driver, temp_directory
+		# Read site configuration file, imports values:
+		#   site_ve_driver, temp_directory, log_directory
+		# chekc if the values exists.
 		execfile(self.siteconf, {}, globals())
+		try:
+			log_directory
+		except NameError:
+			self.abort('Missing setting log_directory in configuration file %s ' % self.siteconf)
+		try:
+			temp_directory
+		except NameError:
+			self.abort('Missing setting temp_directory in configuration file %s ' % self.siteconf)
+		try:
+			site_ve_driver
+		except NameError:
+			self.abort('Missing setting site_ve_driver in configuration file %s ' % self.siteconf)
 
 		# create logger
 		if logfile == None:
@@ -115,42 +125,30 @@ class Command(pragma.commands.Command):
 		if not os.path.isdir(temp_directory):
 			self.abort('VM images staging directory %s does not exist' % temp_directory)
 
-		# create a unique temp dir for storage of files
-		our_temp_dir = tempfile.mkdtemp(
-			suffix=pragma.utils.get_id(), prefix='pragma-', 
-			dir=temp_directory)
-
-		# set repostiroy 
-		repository = self.getRepository()
-
 		# load driver
 		driver = self.importDriver(site_ve_driver)
 		if driver == None:
-			self.abort( "Unknown driver %s" % site_ve_driver )
+			self.abort( "Unknown driver %s. Check configuration file setting for site_ve_driver." % site_ve_driver )
 
-		vc_in_xmlroot = None
-		try:
-			vc_in_xmlroot = repository.get_vc(vcname)
-		except KeyError:
-			self.abort('vc-name "' + vcname + '" not found')
-		vc_in = pragma.conf.VcIn(vc_in_xmlroot, 
-			os.path.dirname(repository.get_vc_file(vcname)))
+		# initialize repostiroy 
+		repository = self.getRepository()
 
-		# Download vc to cache
-		repository.download_and_process_vc(vcname, vc_in)
+		# initialize output xml object
+		repository.createXmlOutputObject(temp_directory)
 
-		# Check arch
-		if vc_in.get_arch() != "x86_64":
-			self.abort("Unsupported arch '%s' for %s" % (vc_in.get_arch(), vcname))
+		# parse virtual image xml file to get all the info
+                repository.createXmlInputObject(vcname)
 
-		#
-		# We call allocate and create vc-out.xml
-		#
-		vc_out = pragma.conf.VcOut(
-			os.path.join(our_temp_dir, "vc-out.xml"))
+		# Download virtual image to cache
+		repository.processImage(vcname)
+
+		self.abort("Exiting DEBUG")
+
+		# We call allocate 
 		#if not( driver.allocate(
 		#	num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)):
 		#	self.abort("Unable to allocate virtual cluster")
+
 		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 		# cleanup

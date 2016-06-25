@@ -3,36 +3,48 @@ import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-logger = logging.getLogger('pragma.conf')
 
-class VcIn:
+class XmlInput:
 	def __init__(self, xmltree, dir):
 		self.xml = xmltree
 		self.dir = dir
-		
-	def get_arch(self):
+		logging.basicConfig()
+		self.logger = logging.getLogger(self.__module__)
+
+
+	def getArch(self):
 		virt =  self.xml.find("virtualization")
 		if virt != None:
 			return virt.attrib['arch']
 		else:
-			logger.error("Unable to find virtualization tag")
+			self.logger.error("Unable to find virtualization tag")
 			return None
+
+	def getImageNames(self):
+		""" Returns an array of virtual image file names """
+		names = []
+		for imagename in self.xml.findall(".//disk/source"):
+			if 'file' in imagename.attrib:
+				names.append(imagename.attrib['file'])
+		return names
+
 
 	def get_disk(self, node):
 		disk = self.xml.find("%s/domain/devices/disk/source" % node)
 		if disk != None:
 			return disk.attrib
 		else:
-			logger.error("Unable to find disk for node %s" % node)
+			self.logger.error("Unable to find disk for node %s" % node)
 			return None
 
 
-
-class VcOut:
+class XmlOutput:
 
 	def __init__(self, filename):
 		self.filename = filename
 		self.compute_nodes = {}
+		logging.basicConfig()
+		self.logger = logging.getLogger(self.__module__)
 
 	def __str__(self):
 		vc = ET.Element('vc')
@@ -168,12 +180,12 @@ class VcOut:
 		file = open(self.compute_nodes[node]['vc_out'], "w")
 		file.write(self.get_compute_vc_out(node))
 		file.close
-		logger.debug("Writing vc-out file to %s" % self.compute_nodes[node]['vc_out'])
+		self.logger.debug("Writing vc-out file to %s" % self.compute_nodes[node]['vc_out'])
 
 	def write(self):
 		file = open(self.filename, "w")
 		file.write(str(self))
 		file.close
-		logger.debug("Writing vc-out file to %s" % self.filename)
+		self.logger.debug("Writing vc-out file to %s" % self.filename)
 		for node in self.compute_nodes:
 			self.write_compute(node)
