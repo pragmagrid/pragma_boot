@@ -142,7 +142,9 @@ class Command(pragma.commands.Command):
 		# Download virtual image to cache
 		repository.processImage(vcname)
 
-		self.abort("Exiting DEBUG")
+		#FIXME rm this line
+		# and update allocate and deploy calls with new vc_in and vc_out  changes
+		self.abort("Exiting DEBUG") 
 
 		# We call allocate 
 		#if not( driver.allocate(
