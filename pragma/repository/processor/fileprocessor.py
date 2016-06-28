@@ -57,7 +57,6 @@ class FileProcessor:
 
     def Gzip(self):
         """ Decompress a single file """
-        return
 
         for part in self.parts:
             logger.info("Decompressing %s ..." % part)
