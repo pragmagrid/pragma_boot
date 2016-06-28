@@ -2,6 +2,7 @@ import logging
 import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+from pragma.utils import Abort
 
 
 class XmlInput:
@@ -34,10 +35,15 @@ class XmlInput:
         names = []
         for key in self.diskinfo.keys():
             vals = self.diskinfo[key]
-            if 'file' in vals:
-                names.append(vals['file'])
+            parts = vals['parts']
+            if parts:
+                names += parts
+            else:
+                if 'file' in vals:
+                    names.append(vals['file'])
 
         return names
+
 
     def setDiskInfo(self):
         """Parse xml tree info and collect disk-related information for
@@ -53,16 +59,36 @@ class XmlInput:
             # collect disk info for each nodetype
             node = vctree.find("./%s" % nodetype) # object for frontend or compute 
             try:
-                #FIXME need an example with 'parts' in xml to verify
-                parts = []
-                findparts = node.findall(".//part")
-                diskinfo.update({'parts':parts})
-
                 diskinfo.update(node.find(".//disk/driver").attrib) # add keys 'type', 'name'
                 diskinfo.update(node.find(".//disk/source").attrib) # add key 'file'
+                type,parts = self.getFileType(node)                 # check file type
+                if type:
+                    diskinfo['type'] = type
+                    if not parts:
+                        Abort("Error in cluster xml file. Check <part> definition for disk image %s" % diskinfo['file'])
+                diskinfo.update({'parts':parts})
                 self.diskinfo[nodetype] = diskinfo
+
             except AttributeError:
                 continue
+
+    def getFileType(self, node):
+        """ check the virtual image file type and if there are multiple  parts"""
+        # check if <file type="ftype"> is present
+        ftype = node.find(".//file")
+        try: 
+            type = ftype.attrib['type']
+        except AttributeError:
+            type = None
+
+        # collect file parts
+        parts = []
+        if type:
+            partlist = node.findall(".//part")
+            for item in partlist:
+                parts.append(item.text)
+
+        return type, parts
 
     def getDiskInfo(self):
         return self.diskinfo
