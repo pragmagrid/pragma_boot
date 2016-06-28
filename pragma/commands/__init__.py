@@ -17,12 +17,12 @@ from xml.sax import make_parser
 from xml.sax._exceptions import SAXParseException
 
 
-def Abort(message, doExit=1):
-	"""Print a standard error message and throw a
-	pragma.util.CommandError"""
-	
-	syslog.syslog(syslog.LOG_ERR, message)
-	raise pragma.util.CommandError(message)
+#def Abort(message, doExit=1):
+#	"""Print a standard error message and throw a
+#	pragma.util.CommandError"""
+#	
+#	syslog.syslog(syslog.LOG_ERR, message)
+#	raise pragma.util.CommandError(message)
 
 
 class OSArgumentProcessor:
