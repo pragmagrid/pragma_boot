@@ -9,8 +9,16 @@ from xml.sax import handler
 from datetime import datetime
 from subprocess import PIPE, Popen
 
+import syslog
 
 logger = logging.getLogger('pragma.util')
+
+def Abort(message, doExit=1):
+        """Print a standard error message and throw a CommandError"""
+
+        syslog.syslog(syslog.LOG_ERR, message)
+        raise CommandError(message)
+
 
 def get_id():
     return "%i-%s" % (os.getpid(), datetime.now().strftime("%Y-%m-%d"))
