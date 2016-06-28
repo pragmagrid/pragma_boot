@@ -4,6 +4,8 @@ import syslog
 import logging
 import pragma.utils
 import subprocess
+
+from shutil import rmtree
 from tempfile import mkdtemp
 from pragma.repository.processor.fileprocessor import FileProcessor
 from pragma.repository.processor.xmlprocessor import XmlInput, XmlOutput
@@ -43,10 +45,19 @@ class BaseRepository(object):
         if not self.stagingDir:
             self.stagingDir = mkdtemp(suffix=pragma.utils.get_id(), prefix='pragma-', dir=path)
 
+    def rmStagingDir(self):
+        """ rm staging directory """
+        if os.path.isdir(self.stagingDir):
+            rmtree(self.stagingDir)
+        
     def createXmlOutputObject(self, path):
-        """ create output xml object"""
+        """ create output xml object """
         self.setStagingDir(path)
         self.xmlout = XmlOutput(os.path.join(self.stagingDir, "vc-out.xml"))
+
+    def getXmlOutputObject(self):
+        """ return xml output object """
+        return self.xmlout
 
     def listRepository(self):
         """ Returns a sorted array of available virtual images names"""
@@ -106,8 +117,11 @@ class BaseRepository(object):
 
     def getVmXmlTree(self, name):
         """Returns an xmltree object corrsponding to a parsed xml file for a VM 'name'"""
-        if name not in self.vcdb:
-           self.abort('Virtual image %s does not exist.' % name)
+        # download cluster xml description file
+        if not os.path.isfile(self.vcdb[name]):
+            rpath = self.getRemoteFilePath(os.path.basename(self.vcdb[name]))
+            lpath = self.vcdb[name]
+            self.download(rpath, lpath)
 
         return ET.parse(self.vcdb[name])
 
@@ -121,6 +135,7 @@ class BaseRepository(object):
             self.abort("Unsupported VM architecture '%s' for virtual image %s" % (arch, name))
 
     def getXmlInputObject(self, name):
+        """ returns an xml input object for a VM identified by name """
         return self.xmlin[name]
 
     def downloadImage(self, vcname):
@@ -128,16 +143,27 @@ class BaseRepository(object):
         vmXmlObject = self.xmlin[vcname]
         names = vmXmlObject.getImageNames()
         for filename in names:
-            rpath = os.path.join(self.repository_url, vcname, filename)
-            lpath = os.path.join(self.repo, vcname, filename)
+            rpath = self.getRemoteFilePath(filename)
+            lpath = self.getLocalFilePath(os.path.join(vcname, filename))
             if not os.path.isfile(lpath):
                 self.download(rpath, lpath)
 
-    def processImage(self, vcname):
-        self.downloadImage(vcname )
+    def processCluster(self, name, path):
 
-        base_dir = os.path.dirname(os.path.join(self.repo, self.vcdb[vcname]))
-        vmXmlObject = self.xmlin[vcname]
+        # check cluster name 
+        if name not in self.vcdb:
+           self.abort('Virtual image %s does not exist.' % name)
+
+        # check cluster xml description file , download if abcent
+        # and create xml input object from it
+        self.createXmlInputObject(name)
+
+        # download cluster images
+        self.downloadImage(name)
+
+        # process cluster images if needed
+        base_dir = os.path.dirname(os.path.join(self.repo, self.vcdb[name]))
+        vmXmlObject = self.xmlin[name]
 
 	diskinfo = vmXmlObject.getDiskInfo()
         for node in diskinfo.keys():
@@ -146,6 +172,10 @@ class BaseRepository(object):
             file = os.path.join(self.repo,diskinfo[node]['file'])
             fp = FileProcessor(base_dir, file, parts, type)
             fp.process()
+
+        # create xml output object
+        self.createXmlOutputObject(path)
+
         return
 
     def is_downloaded(self):

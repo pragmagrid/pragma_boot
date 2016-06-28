@@ -96,9 +96,8 @@ class Command(pragma.commands.Command):
 			self.abort("IPOP features not yet supported")
 		enable_ent = ent.lower() in ("yes", "true", "t", "1")
 
-		# Read site configuration file, imports values:
-		#   site_ve_driver, temp_directory, log_directory
-		# chekc if the values exists.
+		# Read site configuration file, imports values, check if exist:
+		# site_ve_driver, temp_directory, log_directory
 		execfile(self.siteconf, {}, globals())
 		try:
 			log_directory
@@ -125,37 +124,36 @@ class Command(pragma.commands.Command):
 		if not os.path.isdir(temp_directory):
 			self.abort('VM images staging directory %s does not exist' % temp_directory)
 
-		# load driver
+		# check and load driver
 		driver = self.importDriver(site_ve_driver)
 		if driver == None:
 			self.abort( "Unknown driver %s. Check configuration file setting for site_ve_driver." % site_ve_driver )
 
 		# initialize repostiroy 
 		repository = self.getRepository()
+                
+                # process cluster images and xml escirption file:
+		#     create input and output xml objects
+		#     download virtual cluster files image to cache
+		#     process virtual cluster files (decompress, concatenate if needed)
+		repository.processCluster(vcname, temp_directory)
 
-		# initialize output xml object
-		repository.createXmlOutputObject(temp_directory)
-
-		# parse virtual image xml file to get all the info
-                repository.createXmlInputObject(vcname)
-
-		# Download virtual image to cache
-		repository.processImage(vcname)
-
-		#FIXME rm this line
-		# and update allocate and deploy calls with new vc_in and vc_out  changes
-		self.abort("Exiting DEBUG") 
+# FIXME update remaining below calls with new vc_in and vc_out  changes
 
 		# We call allocate 
 		#if not( driver.allocate(
 		#	num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)):
 		#	self.abort("Unable to allocate virtual cluster")
 
-		driver.deploy(vc_in, vc_out, our_temp_dir)
+#		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 		# cleanup
 		#vc_out.clean()
-		#os.rmdir(our_temp_dir)
+
+		repository.rmStagingDir() # was os.rmdir(our_temp_dir)
+
+                #FIX ME, rm when done
+		self.abort("Exiting DEBUG") 
 
 
 RollName = "pragma_boot"
