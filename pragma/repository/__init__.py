@@ -5,7 +5,7 @@ import logging
 import pragma.utils
 import subprocess
 from tempfile import mkdtemp
-from pragma.repository.processor import process_file
+from pragma.repository.processor.fileprocessor import FileProcessor
 from pragma.repository.processor.xmlprocessor import XmlInput, XmlOutput
 
 
@@ -66,7 +66,7 @@ class BaseRepository(object):
         # FIXME redo to put all loggin to a single log file for the command
         log = "/tmp/pragma_boot.download.log"
 
-        wget = pragma.utils.which("xwget")
+        wget = pragma.utils.which("wget")
         if wget : # using wget 
             subprocess.check_call([wget, "--append-output=%s" % log, "-S", "-O", lpath, rpath])
         else:     # using curl 
@@ -124,7 +124,7 @@ class BaseRepository(object):
         return self.xmlin[name]
 
     def downloadImage(self, vcname):
-        """Download all files specified in vc definition """
+        """Download all files specified in virtual cluster definition """
         vmXmlObject = self.xmlin[vcname]
         names = vmXmlObject.getImageNames()
         for filename in names:
@@ -136,11 +136,17 @@ class BaseRepository(object):
     def processImage(self, vcname):
         self.downloadImage(vcname )
 
-	#FIXME check this function
+        base_dir = os.path.dirname(os.path.join(self.repo, self.vcdb[vcname]))
+        vmXmlObject = self.xmlin[vcname]
+
+	diskinfo = vmXmlObject.getDiskInfo()
+        for node in diskinfo.keys():
+            parts = diskinfo[node]['parts']
+            type = diskinfo[node]['type']
+            file = os.path.join(self.repo,diskinfo[node]['file'])
+            fp = FileProcessor(base_dir, file, parts, type)
+            fp.process()
         return
-        #base_dir = os.path.dirname(os.path.join(self.repo, self.vcdb[vcname]))
-        #for f in self.get_vc(vcname).findall("./files/file"):
-        #    process_file(base_dir, f)
 
     def is_downloaded(self):
         raise NotImplementedError
