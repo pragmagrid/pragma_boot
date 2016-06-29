@@ -15,16 +15,6 @@ class BaseRepository(object):
 
     def __init__(self, settings={}):
         self.settings = settings
-        try:
-            self.repo = self.settings["repository_dir"]
-        except KeyError:
-            self.abort('Check repository_settings{} in configuration file. Missing \"repository_dir\".' )
-
-        # database filename, contains virtual clusters names and their xml files
-        try:
-            self.vcdbFilename = self.settings["vcdb_filename"]
-        except KeyError:
-            self.vcdbFilename = 'vcdb.txt' 
 
         self.vcdbFile   = None # database filename full path
         self.vcdb       = {}   # format {'vcname': '/path/to/cluster.xml', ...}
@@ -32,8 +22,31 @@ class BaseRepository(object):
         self.xmlout     = None # XmlOutput object 
         self.stagingDir = None # directory for staging images
 
+        self.initRepo()
+
+    def initRepo(self):
+        # check if  repository_dir was present in configuration file
+        try:
+            self.repo = self.settings["repository_dir"]
+        except KeyError:
+            self.abort('Check repository_settings{} in configuration file. Missing \"repository_dir\".' )
+
+        # create repository directory if not present
+        if not os.path.exists(self.repo):
+            try:
+                os.makedirs(self.repo)
+            except OSError as e:
+                self.abort('Failed to create repository directory %s. %s' % (self.repo, e) )
+
+        # database file, contains virtual clusters names and their xml files
+        try:
+            self.vcdbFilename = self.settings["vcdb_filename"]
+        except KeyError:
+            self.vcdbFilename = 'vcdb.txt' 
+
 	logging.basicConfig()
 	self.logger = logging.getLogger(self.__module__)
+
 
     def abort(self, msg):
         syslog.syslog(syslog.LOG_ERR, msg)
