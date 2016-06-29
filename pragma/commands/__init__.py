@@ -538,30 +538,22 @@ class DatabaseConnection:
 
 
 class Command:
-	"""Base class for all Rocks commands the general command line form
+	"""Base class for all pragma commands the general command line form
 	is as follows:
 
-		rocks ACTION COMPONENT OBJECT [ <ARGNAME ARGS> ... ]
+		pragma ACTION COMPONENT OBJECT [ <ARGS> ... ]
 		
 		ACTION(s):
-			add
-			create
+			boot
+			clean
 			list
-			load
-			sync
+			help
+			shutdown
 	"""
 
 	MustBeRoot = 0
 
 	def __init__(self, basedir):
-		"""Creates a DatabaseConnection for the RocksCommand to use.
-		This is called for all commands, including those that do not
-		require a database connection."""
-
-		# DISABLE self.db = DatabaseConnection(database)
-		# new database connection in rocks.db
-		# soon (or later) self.db will be removed and only newdb will be left
-		# DISABLE self.newdb = self.db.database
 
 		self.text = ''
 		self.basepath  = None # path to pragma_bot install
@@ -576,7 +568,7 @@ class Command:
 
 		self._args = None
 		self._params = None
-		if os.environ.has_key('ROCKSDEBUG'):
+		if os.environ.has_key('PRAGMADEBUG'):
 			self._debug = True
 		else:
 			self._debug = False
@@ -591,26 +583,27 @@ class Command:
 				self.abort('Unable to find configuration file: ' + self.siteconf)
 
 	def getRepository(self):
-        	"""Returns repository object based on site_conf.conf file"""
-	
+		"""Returns repository object based on site_conf.conf file"""
+
 		if not self.siteconf:
 			self.abort('Unable to find configuration file: ' + self.siteconf)
 
-		# Read site configuration file and import values: repository_class, repository_settings
-        	execfile(self.siteconf, {}, globals())
-	
+		# Read site configuration file and import values for repository_settings
+		execfile(self.siteconf, {}, globals())
+
+		var = 'repository_class'
 		try:
-			fullpath = repository_class.split(".")
+			moduleclass = repository_settings[var]
 		except NameError: 
-			self.abort('Variable  repository_class must be defined in %s' % self.siteconf)
+			self.abort('Variable %s must be defined in %s' % (var, self.siteconf))
 
-        	from_module = ".".join(fullpath[:-1])
-        	classname = fullpath[-1]
-        	module = __import__(from_module, fromlist=[classname])
-        	klass = getattr(module, classname)
-        	repository = klass(repository_settings)
+		modulepath = "pragma.repository.%s" % moduleclass
+		classname = "Repository"
+		module = __import__(modulepath, fromlist=[classname])
+		klass = getattr(module, classname)
+		repository = klass(repository_settings)
 
-        	return repository
+		return repository
 
 
 	def importDriver(self, drivername):

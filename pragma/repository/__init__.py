@@ -14,7 +14,6 @@ from pragma.repository.processor.xmlprocessor import XmlInput, XmlOutput
 class BaseRepository(object):
 
     def __init__(self, settings={}):
-        super(BaseRepository, self).__init__()
         self.settings = settings
         try:
             self.repo = self.settings["repository_dir"]

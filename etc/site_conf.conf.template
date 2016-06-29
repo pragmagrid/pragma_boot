@@ -1,38 +1,39 @@
-# Site Configuration File
-# This file is a python script
+################ Site Configuration File ################ 
 
-# This is the viritualization engine driver base path.
-# Available drivers are
-# - kvm_rocks
-# - opennebula_kvm
+# Choose is the viritualization engine driver type
+# that your site supports. Available drivers are:
+#     - cloudstack
+#     - kvm_rocks
+#     - opennebula_kvm
 site_ve_driver = "kvm_rocks"
 
-# This is the temporary directory for staging vm images
-# disk before deployment.
-temp_directory="/state/partition1/temp"
+# Temporary directory for staging virtual images before deployment.
+temp_directory = "/state/partition1/temp"
 
-# This is default directory for log files
-log_directory="/var/log/pragma_boot"
+# Default directory for log files
+log_directory = "/var/log/pragma_boot"
 
-# This is a repository class to use
-# Available classes are
-# - pragma.repository.local.Local
-# - pragma.repository.http.Http
-# - pragma.repository.cloudfront.CloudFront
-repository_class = "pragma.repository.local.Local"
+# path to cluster image repository (either absolute or
+# relative to pragma_boot directory)
+image_repository = "vm-images"
 
-
-# This is a configuration dict for repository class
+# Set individual variables in repositroy_settings based on your site configuration.
 repository_settings = {
-    # This is a local repository directory.
-    # If cloud storage is enabled, it will be used for caching VC images locally
-    'repository_dir' : "/state/partition1/vm-images"
+    # Required repository class to use. Available : local, http, cloudfront
+    'repository_class' : "local", 
 
-    # The following settings is for Http repository and CloudFront repository
+    # Required local repository directory to use for caching virtual images 
+    'repository_dir' : "/state/partition1/vm-images",
+
+    # Optional virtual images database file. Defaults to 'repository_dir'/vcdb.txt 
+    'vcdb_filename' : "myfile",
+
+    # The following settings are required for http repository
+    #"repository_url": "http://calit2-119-121.ucsd.edu",
+
+    # The following required settings are required cloudfront repository. 
     # "repository_url": "https://dq6qef18n2yy3.cloudfront.net",
-
-    # The following settings is for CloudFront repository
-    # "keypair_id": "PKAJRN3LTYGHFYOJ77Q",
-    # "private_key_file": "/root/cloudfront-pk.pem"
-
+    #"keypair_id": "PKAJRN3LTYGHFYOJ77Q",
+    #"private_key_file": "/root/cloudfront-pk.pem",
 }
+
