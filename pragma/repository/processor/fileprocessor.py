@@ -4,13 +4,10 @@ import subprocess
 import logging
 from pragma.utils import which
 
-logger = logging.getLogger('pragma_boot')
-
-
 class FileProcessor:
  
     def __init__(self, base_dir, fname, parts, type="raw"):
-        self.base_dir = base_dir # direcotry for virtual images in the repository
+        self.base_dir = base_dir # directory for virtual images in the repository
         self.filename = fname    # virtyual image filename 
 
         self.parts = []          # splitted virtual image splitted parts names
@@ -23,6 +20,7 @@ class FileProcessor:
                          "splited": "Splited",
                          "raw": "Raw",
         }
+        self.logger = logging.getLogger(self.__module__)
 
         self.setType(type)
         self.setDecompress()
@@ -59,18 +57,18 @@ class FileProcessor:
         """ Decompress a single file """
 
         for part in self.parts:
-            logger.info("Decompressing %s ..." % part)
-            logger.debug("Execute: %s %s %s" % (self.decompressor, "-f", part))
+            self.logger.info("Decompressing %s ..." % part)
+            self.logger.debug("Execute: %s %s %s" % (self.decompressor, "-f", part))
             subprocess.check_call([self.decompressor, "-f", part])
 
     def Splited(self):
         """Combine splitted files into a single image"""
 
         command = "cat %s > %s" % (" ".join(self.parts),  self.filename)
-        logger.debug("Execute: %s" % command)
+        self.logger.debug("Execute: %s" % command)
         subprocess.check_call(command, shell=True)  # DANGER!!
 
-        logger.info("Deleting parts...")
+        self.logger.info("Deleting parts...")
         for part in self.parts:
             os.remove(part)
 
@@ -79,10 +77,10 @@ class FileProcessor:
         """Combine splitted and decompressed files into a single image"""
 
         command = "cat %s | %s -f > %s" % ( " ".join(self.parts), self.decompressor, self.filename)
-        logger.info("Decompressing splited gzip...")
-        logger.debug("Execute: %s" % command)
+        self.logger.info("Decompressing splited gzip...")
+        self.logger.debug("Execute: %s" % command)
         subprocess.check_call(command, shell=True)  # DANGER!!
 
-        logger.info("Deleting parts...")
+        self.logger.info("Deleting parts...")
         for part in self.parts:
             os.remove(part)

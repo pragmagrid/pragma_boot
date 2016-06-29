@@ -116,9 +116,9 @@ class Command(pragma.commands.Command):
 		if logfile == None:
 			logfile = self.makeLog(log_directory, vcname)
 		logging.basicConfig(filename=logfile,
-			format='%(asctime)s %(levelname)s %(message)s',
+			format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 			level=getattr(logging,loglevel.upper()))
-		logger = logging.getLogger('pragma_boot')
+		logger = logging.getLogger(self.__module__)
 
 		# check if temp directory exists 
 		if not os.path.isdir(temp_directory):
@@ -148,9 +148,7 @@ class Command(pragma.commands.Command):
 #		driver.deploy(vc_in, vc_out, our_temp_dir)
 
 		# cleanup
-		#vc_out.clean()
-
-		repository.rmStagingDir() # was os.rmdir(our_temp_dir)
+		repository.clean() 
 
                 #FIX ME, rm when done
 		self.abort("Exiting DEBUG") 

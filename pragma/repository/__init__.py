@@ -40,6 +40,11 @@ class BaseRepository(object):
         syslog.syslog(syslog.LOG_ERR, msg)
         raise pragma.utils.CommandError(msg)
 
+    def clean(self):
+        """ rm temp files and directories """
+        # delete temp stating directory 
+        self.rmStagingDir()
+
     def setStagingDir(self, path):
         """ create a unique temporary directory for staging virtual images """
         if not self.stagingDir:
