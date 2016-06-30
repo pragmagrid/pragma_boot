@@ -50,7 +50,7 @@ class Driver(pragma.drivers.Driver):
 
 
 
-	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
+	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out):
 		"""
 		Allocate a new virtual cluster from Cloudstack
 
@@ -60,7 +60,6 @@ class Driver(pragma.drivers.Driver):
 		:param enable_ent: Boolean to add ENT interfaces to nodes
 		:param vc_in: Path to virtual cluster specification
 		:param vc_out: Path to new virtual cluster information
-		:param repository: Path to virtual cluster repository
 		:return:
 		"""
 		vc_out.set_key(key)
