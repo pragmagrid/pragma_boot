@@ -34,7 +34,7 @@ class Driver(pragma.drivers.Driver):
 				used_vlans[int(result.group(1))] = 1
 		self.used_vlans = used_vlans.keys()
 
-	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out, repository):
+	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out):
 		"""
 		Allocate a new virtual cluster from Rocks
 
@@ -44,7 +44,6 @@ class Driver(pragma.drivers.Driver):
 		:param enable_ent: Boolean to add ENT interfaces to nodes
 		:param vc_in: Path to virtual cluster specification
 		:param vc_out: Path to new virtual cluster information
-		:param repository: Path to virtual cluster repository
 		:return:
 		"""
 
@@ -63,6 +62,7 @@ class Driver(pragma.drivers.Driver):
 			container_hosts = available_containers
 		except:
 			pass
+
 		containers_needed = self.calculate_num_nodes(cpus, container_hosts, leave_processors)
 		pragma_ent = None
 		try:
@@ -74,8 +74,14 @@ class Driver(pragma.drivers.Driver):
 
 		# get free ip and vlan
 		(our_ip, our_fqdn) = self.find_free_ip(public_ips)
+		if (our_ip is None):
+			 return 0
+
 		fe_name = our_fqdn.split(".")[0]
 		our_vlan = self.find_free_vlan(vlans)
+		if our_vlan is None:
+			return 0
+
 		if not memory:
 			memory = self.default_memory
 		
@@ -100,7 +106,9 @@ class Driver(pragma.drivers.Driver):
 			cpus_per_node[node] = containers_needed[phy_hosts[node]]
 
 		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
-		vc_out.set_frontend(fe_name, our_ip, our_fqdn)
+
+		# FIXME put proper private ip 
+		vc_out.set_frontend(fe_name, our_ip,"10.1.1.1", our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
 		(macs,ips) = self.get_network(fe_name, cnodes)
 		vc_out.set_network(macs,ips, netmask, gw, dns)
@@ -108,7 +116,11 @@ class Driver(pragma.drivers.Driver):
 			vc_out.set_kvm_diskdir(diskdir)
 		except:
 			pass
+
 		vc_out.write()
+
+		return 1
+
 
 	def boot(self, node):
 		"""
@@ -172,7 +184,8 @@ class Driver(pragma.drivers.Driver):
 			cpus_allocated += container_capacity[container]
 
 		if cpus_allocated < cpus_requested:
-			self.logger.error("Sorry, there is not enough capacity to fulfill your request of %i cpus" % cpus_requested)
+			self.logger.error("There is not enough capacity to fulfill your request of %i cpus" % cpus_requested)
+			print "Error: There is not enough capacity to fulfill your request of %i cpus" % cpus_requested
 			sys.exit(1)
 		return containers_needed
 
@@ -278,9 +291,12 @@ class Driver(pragma.drivers.Driver):
 				avail_ips.remove(ip)
 			except:
 				pass
+
 		if len(avail_ips) < 1:
 			self.logger.error("No available public IPs")
-			return None
+			print "Error: No available public IPs"
+			return (None, None)
+
 		# just grab first one in list
 		our_ip = avail_ips[0]
 		(our_fqdn, our_aliases, addl_ips) = socket.gethostbyaddr(our_ip)
@@ -302,6 +318,7 @@ class Driver(pragma.drivers.Driver):
 				pass
 		if len(avail_vlans) < 1:
 			self.logger.error("No available vlans")
+			print "Error: No available vlans"
 			return None
 		return avail_vlans[0]
 
