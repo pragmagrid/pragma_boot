@@ -50,7 +50,7 @@ class Driver(pragma.drivers.Driver):
 
 
 
-	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out):
+	def allocate(self, cpus, memory, key, enable_ent, repository):
 		"""
 		Allocate a new virtual cluster from Cloudstack
 
@@ -58,10 +58,12 @@ class Driver(pragma.drivers.Driver):
 		:param memory: Amount of memory per compute node
 		:param key: Path to SSH Key to install
 		:param enable_ent: Boolean to add ENT interfaces to nodes
-		:param vc_in: Path to virtual cluster specification
-		:param vc_out: Path to new virtual cluster information
+		:param repository: repository with xml in/out objects
 		:return:
 		"""
+		vc_in = repository.getXmlInputObject(repository.cluster)
+		vc_out = repository.getXmlOutputObject()
+
 		vc_out.set_key(key)
 
 		#(fe_template, compute_template) = self.find_templates(vc_in)
@@ -118,15 +120,18 @@ class Driver(pragma.drivers.Driver):
 		"""
 		raise NotImplementedError("Please implement clean method")
 
-	def deploy(self, vc_in, vc_out, temp_dir):
+	def deploy(self, repository):
 		"""
 		Deploy the specified virtual cluster
 
-		:param vc_in: Virtual cluster source specification
-		:param vc_out: Network configuration for new virtual cluster
-		:param temp_dir: Path to temporary directory
+		:param repository: repository with xml in/out objects
 		:return:
 		"""
+		#vc_in = repository.getXmlInputObject(repository.cluster)
+		#temp_dir = repository.getStagingDir()
+
+		vc_out = repository.getXmlOutputObject()
+
 		frontend = vc_out.get_frontend()
 		self.cloudstackcall.updateVirtualMachine(frontend["name"], str(vc_out))
 		#for compute in vc_out.get_computes():

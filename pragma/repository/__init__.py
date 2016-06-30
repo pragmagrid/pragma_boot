@@ -175,6 +175,8 @@ class BaseRepository(object):
         if name not in self.vcdb:
            self.abort('Virtual image %s does not exist.' % name)
 
+        self.cluster = name
+
         # check cluster xml description file , download if abcent
         # and create xml input object from it
         self.createXmlInputObject(name)

@@ -34,7 +34,7 @@ class Driver(pragma.drivers.Driver):
 				used_vlans[int(result.group(1))] = 1
 		self.used_vlans = used_vlans.keys()
 
-	def allocate(self, cpus, memory, key, enable_ent, vc_in, vc_out):
+	def allocate(self, cpus, memory, key, enable_ent, repository):
 		"""
 		Allocate a new virtual cluster from Rocks
 
@@ -42,10 +42,11 @@ class Driver(pragma.drivers.Driver):
 		:param memory: Amount of memory per compute node
 		:param key: Path to SSH Key to install
 		:param enable_ent: Boolean to add ENT interfaces to nodes
-		:param vc_in: Path to virtual cluster specification
-		:param vc_out: Path to new virtual cluster information
+		:param repository: repository with xml in/out objects
 		:return:
 		"""
+                vc_in = repository.getXmlInputObject(repository.cluster)
+                vc_out = repository.getXmlOutputObject()
 
 		# Load network configuration and import values:
 		# public_ips, netmask, gw, dns, fqdn, vlans, diskdir, container_hosts, ent
@@ -248,15 +249,18 @@ class Driver(pragma.drivers.Driver):
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 				"sync config")
 
-	def deploy(self, vc_in, vc_out, temp_dir):
+	def deploy(self, repository):
 		"""
 		Deploy the specified virtual cluster
 
-		:param vc_in: Virtual cluster source specification
-		:param vc_out: Network configuration for new virtual cluster
-		:param temp_dir: Path to temporary directory
+		:param repository: repository with xml in/out objects
 		:return:
 		"""
+		# get references to xml in/out objects and temp directory 
+		vc_in = repository.getXmlInputObject(repository.cluster)
+		vc_out = repository.getXmlOutputObject()
+		temp_dir = repository.getStagingDir()
+
 		network_conf = [
 			'/etc/udev/rules.d/70-persistent-net.rules',
 			'/etc/sysconfig/network-scripts/ifcfg-eth*'

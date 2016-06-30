@@ -132,26 +132,21 @@ class Command(pragma.commands.Command):
 		# initialize repostiroy 
 		repository = self.getRepository()
                 
-                # process cluster images and xml escirption file:
+                # process cluster images and xml descirption file:
 		#     create input and output xml objects
 		#     download virtual cluster files image to cache
 		#     process virtual cluster files (decompress, concatenate if needed)
 		repository.processCluster(vcname, temp_directory)
 
-		# get references to xml in/out objects and temp directory 
-		inObj = repository.getXmlInputObject(vcname)
-		outObj = repository.getXmlOutputObject()
-		tDir = repository.getStagingDir()
-
 		# allocate cluster (in rocks db)
-		if not(driver.allocate(num_cpus, memory, key, enable_ent, inObj, outObj)):
-			self.abort("Unable to allocate virtual cluster")
+		#if not(driver.allocate(num_cpus, memory, key, enable_ent, repository)):
+		#	self.abort("Unable to allocate virtual cluster")
 
 		#FIX ME, rm when checked deploy()
 		self.abort("Exiting DEBUG") 
 
 		# start cluster
-#		driver.deploy(inObj, outObj, tDir)
+		#driver.deploy(repository)
 
 		# cleanup
 		repository.clean() 
