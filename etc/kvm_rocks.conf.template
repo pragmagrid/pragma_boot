@@ -1,0 +1,27 @@
+# This file contains settings for the kvm_rocks driver.
+# Update all setting to your site configuration
+# all variables must conform to the format used by python
+
+# an array of available public IPs to use for booting virtual  hosts 
+public_ips = ["198.202.88.50", "198.202.88.51", "198.202.88.52", "198.202.88.53"]
+
+# public network netmask 
+netmask = "255.255.255.0"
+
+# public network gateway 
+gw="198.202.88.1"
+
+# public network DNS server
+dns="8.8.8.8"
+
+# available vlans that can be used for private network
+vlans= range(4,20)
+
+# specify alternate directory for images if using NFS; required (leave empty for default)
+diskdir = ""
+
+# VIrtual containers to use for hosting virtual machines (space separated string)
+only_container_hosts = "vm-container-0-0 vm-container-0-1 vm-container-0-2 vm-container-0-3"
+
+# limit number of cpus used by pragma boot on each node
+max_cpus = 8
