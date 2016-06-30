@@ -70,14 +70,14 @@ class Command(pragma.commands.Command):
 			('vc-name', 'num-cpus'))
 
 		if not vcname:
-			self.abort('must supply a name for the virtual cluster')
+			self.abort('Must supply a name for the virtual cluster')
 		if not num_cpus:
-			self.abort('must supply the number of CPUs')
+			self.abort('Must supply number of CPUs')
 
 		try:
 			num_cpus = int(num_cpus)
 		except:
-			self.abort('num-cpus must be an integer')
+			self.abort('Number of CPUs must be an integer')
 
 		# fillParams with the above default values
 		(ent, ipop_clientinfo_file, ipop_serverinfo_url,
@@ -96,7 +96,7 @@ class Command(pragma.commands.Command):
 			self.abort("IPOP features not yet supported")
 		enable_ent = ent.lower() in ("yes", "true", "t", "1")
 
-		# Read site configuration file, imports values, check if exist:
+		# Read site configuration file, import values, check if exist:
 		# site_ve_driver, temp_directory, log_directory
 		execfile(self.siteconf, {}, globals())
 		try:
@@ -127,7 +127,7 @@ class Command(pragma.commands.Command):
 		# check and load driver
 		driver = self.importDriver(site_ve_driver)
 		if driver == None:
-			self.abort( "Unknown driver %s. Check configuration file setting for site_ve_driver." % site_ve_driver )
+			self.abort("Unknown driver %s. Check configuration file for driver setting." % site_ve_driver)
 
 		# initialize repostiroy 
 		repository = self.getRepository()
@@ -138,20 +138,23 @@ class Command(pragma.commands.Command):
 		#     process virtual cluster files (decompress, concatenate if needed)
 		repository.processCluster(vcname, temp_directory)
 
-# FIXME update remaining below calls with new vc_in and vc_out  changes
+		# get references to xml in/out objects and temp directory 
+		inObj = repository.getXmlInputObject(vcname)
+		outObj = repository.getXmlOutputObject()
+		tDir = repository.getStagingDir()
 
-		# We call allocate 
-		#if not( driver.allocate(
-		#	num_cpus, memory, key, enable_ent, vc_in, vc_out, repository)):
-		#	self.abort("Unable to allocate virtual cluster")
+		# allocate cluster (in rocks db)
+		if not(driver.allocate(num_cpus, memory, key, enable_ent, inObj, outObj)):
+			self.abort("Unable to allocate virtual cluster")
 
-#		driver.deploy(vc_in, vc_out, our_temp_dir)
+		#FIX ME, rm when checked deploy()
+		self.abort("Exiting DEBUG") 
+
+		# start cluster
+#		driver.deploy(inObj, outObj, tDir)
 
 		# cleanup
 		repository.clean() 
-
-                #FIX ME, rm when done
-		self.abort("Exiting DEBUG") 
 
 
 RollName = "pragma_boot"
