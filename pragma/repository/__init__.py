@@ -62,6 +62,10 @@ class BaseRepository(object):
         if not self.stagingDir:
             self.stagingDir = mkdtemp(suffix=pragma.utils.get_id(), prefix='pragma-', dir=path)
 
+    def getStagingDir(self):
+        """ returns staging directory path """
+        return self.stagingDir 
+
     def rmStagingDir(self):
         """ rm staging directory """
         if os.path.isdir(self.stagingDir):
