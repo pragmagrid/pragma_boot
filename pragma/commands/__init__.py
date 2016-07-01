@@ -594,7 +594,7 @@ class Command:
 		var = 'repository_class'
 		try:
 			moduleclass = repository_settings[var]
-		except NameError: 
+		except KeyError: 
 			self.abort('Variable %s must be defined in %s' % (var, self.siteconf))
 
 		modulepath = "pragma.repository.%s" % moduleclass
