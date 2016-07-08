@@ -469,6 +469,10 @@ class Driver(pragma.drivers.Driver):
 		return clusters
 
 
+	def listRepository(self, repository):
+		 return  repository.listRepository()
+
+
 	def shutdown(self, vcname):
 		"""
 		Shutdown the nodes of the specified virtual cluster.
