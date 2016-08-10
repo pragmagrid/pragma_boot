@@ -8,6 +8,7 @@ import urllib2
 import urllib
 import logging
 
+
 class CloudStackCall:
 
     def __init__(self, url, key, secret, templatefilter):
@@ -22,8 +23,6 @@ class CloudStackCall:
 
         # prefix for VM names
         self.vmNamePrefix = 'vm-'
-        # suffix for VM compute nodes names
-        self.vmNameSuffix = '-compute-'
         self.setParams()
 
     def setParams(self):
@@ -44,31 +43,19 @@ class CloudStackCall:
         for key, value in params.items():
             self.request[key] = value
 
-        # create request string
         self.requestStr = ''
         for k in self.request.keys():
-            self.requestStr += '='.join([k, urllib.quote_plus(self.request[k])]) + '&'
-        self.requestStr = self.requestStr[:-1] # remove last '&'
-
+            self.requestStr += '='.join([k, urllib.quote_plus(self.request[k])]) + "&"
         self.createSignature()
 
     def createSignature(self):
         """ Compute the signature with hmac, 
             do a 64 bit encoding and a url encoding:
         """
-
-        # create signature string
-        sig_str = ''
-        for k in sorted(self.request.iterkeys()):
-            sig_str += '='.join([k.lower(),urllib.quote_plus(self.request[k].lower().replace('+','%20'))]) + '&'
-        sig_str = sig_str[:-1] # remove last '&'
-
-        # encode signature
-        self.sig = hmac.new(self.apiSecret,sig_str,hashlib.sha1)
-        self.sig = hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest()
-        self.sig = base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest())
-        self.sig = base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest()).strip()
-        self.sig = urllib.quote_plus(base64.encodestring(hmac.new(self.apiSecret,sig_str,hashlib.sha1).digest()).strip())
+        sig_str = '&'.join(['='.join([k.lower(),urllib.quote_plus(self.request[k], safe="*").lower().replace('+','%20').replace("%3A", ":")]) 
+                   for k in sorted(self.request.iterkeys())])
+        self.sig = urllib.quote_plus(base64.b64encode(hmac.new(self.apiSecret, sig_str,
+                                   hashlib.sha1).digest()).strip())
 
     def getError(self, exception):
         error_response = json.loads(exception.read())
@@ -129,20 +116,30 @@ class CloudStackCall:
         params['forVpc'] = 'false' #FIXME
         response = self.execAPICall(command, params)
 
-        return response
+        #XXX in response  count does not always corresponds to the list length
+        #count = response['count']
+        #count = len(response['networkoffering'])
+        #for i in range(count):
+        #    d = response['networkoffering'][i]
+        #    print "networkOffering=", d['name'], d['id']
 
+        return response
 
     def listNetworks(self):
         command = 'listNetworks'
         response = self.execAPICall(command)
-        return response
+        #count = response['count']
+        #for i in range(count):
+        #    d = response['network'][i]
+        #    #XXX print "network=", d['name'], d['id'], d['networkofferingid']
 
+        return response
 
     def listZones(self):
         command = 'listZones'
         response = self.execAPICall(command)
-        return response
 
+        return response
 
     def getZoneID(self ):
         self.zoneID = None
@@ -159,7 +156,6 @@ class CloudStackCall:
         self.zoneID = d['id']
 
         return self.zoneID
-
 
     def listTemplates(self, name = None):
         command = 'listTemplates'
@@ -186,118 +182,49 @@ class CloudStackCall:
             logging.error("Problem querying for virtual machines")
             return None
 
-    def listVirtualClusters(self, name = None):
-        vms = {}  # dictionary of available VMS {name: state}
-        vc = []   # return value, list of virtual clusters with the status 
-
-        # virtual machine  name is not found
-        response = self.listVirtualMachines(name)
-        if not response:
-            self.clusterNotFound(name)
-            return vc
-
-        count = response['count']
-        for i in range(count):
-            d = response['virtualmachine'][i]
-            vms[d['name']] =  d['state']
-
-        # find longest VM name
-        names = vms.keys()
-        names.sort(key = len)
-        for n in names:
-            if self.vmNameSuffix in n:
-               break
-            len_fe = len(n)
-        len_fe = max(len('frontend'), len_fe)
-        len_compute = max(len('compute nodes'), len(names[-1]))
-
-        # find longest VM status
-        status = vms.values()
-        status.sort(key = len)
-        len_status = max(len('status'), len(status[-1]))
-
-        lineformat = "%%-%ds  %%-%ds  %%-%ds  " % (len_fe,len_compute,len_status)
-
-
-        if name: # list only one cluster 
-            fe = None
-            for k in sorted(vms.keys()):
-                if name in k:
-                    if fe:  # adding compute node info
-                        vc.append(lineformat % (":", k, vms[k]))
-                    else:  # adding frontend
-                        fe = k 
-                        vc.append(lineformat % (k, '-'*len_compute, vms[k]))
-
-        else: # list all clusters
-            fe = None
-            for k in sorted(vms.keys()):
-                if fe: 
-                    if fe in k: # add compute node
-                        vc.append(lineformat % (":", k, vms[k]))
-                    else: # add  next frontend
-                        fe = k
-                        vc.append(lineformat % (k, '-'*len_compute, vms[k]))
-                else: # add  first frontend
-                    fe = k 
-                    vc.append(lineformat % (k, '-'*len_compute, vms[k]))
-
-        return vc
-
-
     def listServiceOfferings(self):
         command = 'listServiceOfferings'
         response = self.execAPICall(command)
         return response
 
-    def getVirtualMachineIPs(self):
+    def getVirtualMachineIPs(self, id = None):
         """
-        Returns a list of IPs for the existing Virtual Machine instances
+        Returns a list of IPs for the Virtual Machine instances
 
         :return:  list of IPs 
         """
-
-        ips = []
-
-        response = self.listVirtualMachines()
+        response = self.listVirtualMachines(id)
         # check for errors
         if response is None:
-           return ips
+           return None
         # check for empty list of machines
         if "count" not in response:
-            return ips
+            return []
 
+        ips = []
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
-            numnics = len(d['nic'])
-            for n in range(numnics):
-                nic = d['nic'][n]
-                ips.append(nic['ipaddress'])
+            # FIXME : need to deal with multiple nics
+            nic = d['nic'][0]
+            ips.append(nic['ipaddress'])
+            #XXXprint nic['networkname']
         return ips
 
     def getVirtualMachineID(self, name):
-        """
-        Returns an ID for the Virtual Machine instance
-        :param name: Virtual Machine name 
-
-        :return:  id (str) or None if no VM with this name was found
-        """
-        id = None
         response = self.listVirtualMachines(name)
         if not response:
-           logging.error(" No virtual host %s found" % name)
-           return id
+           print "error: no Virtual Machine %s found" % name
+           return
 
+        ids = []
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
             if d['name'] == name:
-                id = d['id']
-                break
+                ids.append(d['id'])
 
-        return id
-
+        return ids
 
     def getNetworkOfferingsID(self, name = None):
         response = self.listNetworkOfferings(name)
@@ -313,8 +240,13 @@ class CloudStackCall:
         offering = response['networkoffering'][0]
         id = offering['id']
 
-        return id
+        #for i in range(count):
+        #    d = response['networkoffering'][i]
+        #    if d['name'] == name:
+        #        id = (d['id'])
+        #        break
 
+        return id
 
     def getTemplateID(self, name):
         id = None
@@ -325,7 +257,6 @@ class CloudStackCall:
         id = res['template'][0]['id']
 
         return id
-
 
     def getServiceOfferingID(self, ncpu, largest = False):
         id = None
@@ -353,7 +284,6 @@ class CloudStackCall:
         else:
             return id
 
-
     def getFreeIP(self):
         """
         Find IPs of the existing Virtual Machines
@@ -361,6 +291,7 @@ class CloudStackCall:
         and its last octet (int)
         :return : a tuple (IP, octet)
         """
+        lastoctet = 255
         
         octets = []
         subnet = None
@@ -369,7 +300,6 @@ class CloudStackCall:
             ips = self.getGatewayIPs()
 
         for i in ips:
-            # answer contains [ first-3-octets, last-octet]
             answer = i.rsplit('.', 1)
             octets.append(int(answer[1]))
             subnet = answer[0]
@@ -379,18 +309,32 @@ class CloudStackCall:
             logging.error("No IP information available from Cloudstack")
             return (None, None)
 
+
         #FIXME check for ip range
-        lastoctet = 255
         octet = octets[0]
         while (octet in octets):
             octet = octet + 1
+        ipaddress = "%s.%d" % (subnet, octet)
         if octet >= lastoctet:
             logging.error("No IPs available")
             return (None, None)
         
-        ipaddress = "%s.%d" % (subnet, octet)
-
         return (ipaddress, octet)
+
+    def getGatewayIPs(self, name = None):
+        ips = []
+        response = self.listNetworks()
+        if not response:
+            return ips
+        count = response['count']
+        for i in range(count):
+            d = response['network'][i]
+            gatewayIP = d['gateway']
+            #XXX print "network=", d['name'], d['displaytext'], d['networkofferingid'], d['zoneid'], d['gateway']
+            if gatewayIP not in ips:
+                ips.append(d['gateway'])
+        
+        return ips
 
 
     def allocateVirtualCluster(self, feTmpl, fecpu, computeTmpl, ccpu, num):
@@ -441,7 +385,7 @@ class CloudStackCall:
         # allocate compute nodes 
         ids = "%s" % networks[privateNet]
         for i in range(num):
-            name = "%s%d%s%d" % (self.vmNamePrefix, octet, self.vmNameSuffix, i)
+            name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
             print "name", name
             res = self.allocateVirtualMachine(ccpu, computeTmpl, name, ip = None, ids = ids)
             allocation.append(res)
@@ -478,8 +422,6 @@ class CloudStackCall:
         if ip:
             params['ipaddress'] = ip
 
-        for p in params.keys():
-            print "DEBUG", p, params[p]
         response = self.execAPICall(command, params)
 
         return response
@@ -487,154 +429,41 @@ class CloudStackCall:
     def deployVirtualMachine(self, ncpu, name):
         pass
         
-    def stopVirtualMachine(self, id):
-        """ 
-        Stop virtual machine given its id
-        :param id: Virtual Machine id 
-        :return : an API call response as a dictionary 
-        """ 
-        command = 'stopVirtualMachine'
-
-        params = {}
-        params['id'] = id
-        response = self.execAPICall(command, params)
-
+    def startVirtualMachine(self, name):
+        ids = self.getVirtualMachineID(name)
+        try:
+            response = self.execAPICall("startVirtualMachine", {"id": ids[0]})
+        except urllib2.HTTPError as e:
+            logging.error("Unable to start vm %s: %s" % (name, self.getError(e)))
+            return None
         return response
 
-    def startVirtualMachine(self, id):
+    def stopVirtualMachine(self, name):
         """ 
-        Start virtual machine given its id
-        :param id: Virtual Machine id 
-        :return : an API call response as a dictionary 
-        """ 
-        command = 'startVirtualMachine'
-
-        params = {}
-        params['id'] = id
-        response = self.execAPICall(command, params)
-
-        return response
-
-
-    def startVirtualCluster(self,name):
-        """ 
-        Start virtual cluster given its name
-        :param name: Virtual Cluster name 
-        :return : an API call response as a dictionary with 1 item
-                  key = name, value = jobid (for start call) 
-        """ 
-        started = {}
-
-        response = self.listVirtualMachines(name)
-        count = response['count']
-        for i in range(count):
-            d = response['virtualmachine'][i]
-            vmname = d['name']
-            vmid = d['id']
-            vmresponse = self.startVirtualMachine(vmid)
-            print "DEBUG keys", vmresponse.keys()
-            started[vmname] = vmresponse['jobid']
-
-        return started
-
-    def clusterNotFound(self,name):
-        print "Error: cannot resolve host \"%s\"" % name
-        return
-
-    def stopVirtualCluster(self,name):
-        """ 
-        Stop virtual cluster given its name
-        :param name: Virtual Cluster name 
+        Stop virtual machine given its name
+        :param name: Virtual Machine name 
         :return : an API call response as a dictionary with 1 item
                   key = name, value = jobid (for stop call) 
         """ 
-        header = "HOST    STATUS"
+        command = 'stopVirtualMachine'
+
         stopped = {}
-
-        response = self.listVirtualMachines(name)
-        if not response: # cluster name not found
-            self.clusterNotFound(name)
-            return 0
-
-        count = response['count']
-        for i in range(count):
-            d = response['virtualmachine'][i]
-            vmname = d['name']
-            vmid = d['id']
-            state = d['state']
-            if state == "Stopped": 
-                stopped[vmname] = "Already in stopped state"
-            else:
-                vmresponse = self.stopVirtualMachine(vmid)
-                stopped[vmname] = "Stopping, jobid " + vmresponse['jobid']
-
-        # create output format string 
-        names = stopped.keys()
-        names.sort(key = len)
-        for n in names:
-            if self.vmNameSuffix in n:
-               break
-            len_fe = len(n)
-        len_name = max(len('HOST'), len(names[-1]))  # longest host name
-        lineformat = "%%-%ds  %%-20s  " % (len_name) # format string
-
-        print lineformat % ("HOST", "STATUS")
-        if stopped: 
-            for k in sorted(stopped.keys()):
-                print  lineformat % (k, stopped[k])
-            return 1
-        else:
-            print "nothing to stop"
-            return 0
-
-    def updateVirtualMachine(self, name, userdata):
-        id = self.getVirtualMachineID(name)
-        if not id:
-            logging.error("Unable to add userdata to a VM %s" % name)
-            return None
-
-        params = {
-            "userdata": base64.encodestring(userdata),
-            "id": id
-        }
-        try:
-            response = self.execAPICall("updateVirtualMachine", params)
-        except urllib2.HTTPError as e:
-            logging.error("Unable to allocate frontend: %s" % self.getError(e))
-            return None
-
-        return response
-
-    def queryAsyncJobResult(self, id):
-        command = 'queryAsyncJobResult'
-
-        params = {}
-        params['jobid'] = id
-
-        try:
+        print "ids", ids
+        for id in ids:
+            params = {}
+            params['id'] = id
             response = self.execAPICall(command, params)
+            stopped[name] = response['jobid']
+
+        return stopped
+
+    def updateVirtualMachine(self, name, updates):
+        ids = self.getVirtualMachineID(name)
+        updates["id"] = ids[0]
+        try:
+            response = self.execAPICall("updateVirtualMachine", updates)
         except urllib2.HTTPError as e:
-            logging.error(self.getError(e))
+            logging.error("Unable to update vm %s: %s" % (name,self.getError(e)))
             return None
-
-        return response
-
-
-    def listAsyncJobs(self):
-        """ On success returns a dictionary { 'count': num, 'asyncjobs': [list]}
-            Each item in a list is a dictionary. To get VM values use dict key 'jobresult' 
-            which has a value as a dictionary {u'virtualmachine': {vm info here}
-            Any command using listAsyncJobs() will need to process return values 
-                count = response['count']
-                for i in range(count):
-                    r = response['asyncjobs'][i]
-                    d = r['virtualmachine'][i]
-                    vmname = d['name']
-                    vmid = d['id']
-                    ...
-        """
-        command = 'listAsyncJobs'
-
-        response = self.execAPICall(command)
         return response
 
