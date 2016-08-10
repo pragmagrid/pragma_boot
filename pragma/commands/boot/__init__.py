@@ -129,7 +129,7 @@ class Command(pragma.commands.Command):
 		if driver == None:
 			self.abort("Unknown driver %s. Check configuration file for driver setting." % site_ve_driver)
 
-		# initialize repostiroy 
+		# initialize repository 
 		repository = self.getRepository()
                 
                 # process cluster images and xml descirption file:
@@ -139,14 +139,11 @@ class Command(pragma.commands.Command):
 		repository.processCluster(vcname, temp_directory)
 
 		# allocate cluster (in rocks db)
-		#if not(driver.allocate(num_cpus, memory, key, enable_ent, repository)):
-		#	self.abort("Unable to allocate virtual cluster")
-
-		#FIX ME, rm when checked deploy()
-		self.abort("Exiting DEBUG") 
+		if not(driver.allocate(num_cpus, memory, key, enable_ent, repository)):
+		   self.abort("Unable to allocate virtual cluster")
 
 		# start cluster
-		#driver.deploy(repository)
+		driver.deploy(repository)
 
 		# cleanup
 		repository.clean() 

@@ -67,7 +67,7 @@ class Driver(pragma.drivers.Driver):
 		vc_out.set_key(key)
 
 		#(fe_template, compute_template) = self.find_templates(vc_in)
-		(fe_template, compute_template) = ("biolinux-frontend-original", "biolinux-compute-original")
+		(fe_template, compute_template) = ("biolinux-frontend-cloudstack", "biolinux-compute-original")
 
 		# allocate frontend VM
 		try:
@@ -127,13 +127,20 @@ class Driver(pragma.drivers.Driver):
 		:param repository: repository with xml in/out objects
 		:return:
 		"""
-		#vc_in = repository.getXmlInputObject(repository.cluster)
-		#temp_dir = repository.getStagingDir()
+		vc_in = repository.getXmlInputObject(repository.cluster)
+		temp_dir = repository.getStagingDir()
 
 		vc_out = repository.getXmlOutputObject()
 
+                # deploy frontend
 		frontend = vc_out.get_frontend()
-		self.cloudstackcall.updateVirtualMachine(frontend["name"], str(vc_out))
+		updates = {"userdata": base64.b64encode(str(vc_out))}
+		response = self.cloudstackcall.updateVirtualMachine(frontend["name"], updates)
+		if response is not None:
+			info = self.cloudstackcall.startVirtualMachine(frontend["name"])
+		if response is None:
+			self.logger.error("Unable to deploy frontend")
+			return False
 		#for compute in vc_out.get_computes():
 		#	compute_vc_out = self.cloud
 		#	self.cloudstackcall.updateVirtualMachine(compute, vc_out)
