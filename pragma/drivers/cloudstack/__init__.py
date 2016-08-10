@@ -181,6 +181,25 @@ class Driver(pragma.drivers.Driver):
 		return (frontend_templatename, compute_templatename)
 
 
+	def listRepository(self, repository = None):
+		"""
+		Returns list of templates available for instantiating VMs 
+		:param: repository unused 
+
+		:return: list 
+			
+		"""
+                templates = []
+
+        	response = self.cloudstackcall.listTemplates()
+                count = response['count']
+                for i in range(count):
+                    d = response['template'][i]
+                    templates.append(d['name'])
+
+                return templates 
+
+
 	def list(self, vcname=None):
 		"""
 		Return list of virtual machines sorted by cluster with each VM status
