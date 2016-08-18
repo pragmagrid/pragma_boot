@@ -67,7 +67,7 @@ class Driver(pragma.drivers.Driver):
 		vc_out.set_key(key)
 
 		#(fe_template, compute_template) = self.find_templates(vc_in)
-		(fe_template, compute_template) = ("biolinux-frontend-cloudstack", "biolinux-compute-original")
+		(fe_template, compute_template) = ("biolinux-frontend-cloudstack", "biolinux-compute-cloudstack")
 
 		# allocate frontend VM
 		try:
@@ -77,7 +77,6 @@ class Driver(pragma.drivers.Driver):
 
 		if octet is None:
 			octet = 0
-		octet += 10 # artificially change IP address to give time to clean others from system; remove from prod code
 		name = "%s%d" % (self.vmNamePrefix, octet)
 		ips, macs, cpus_per_node = {}, {}, {}
 		vm_response = self.allocate_machine(1, fe_template, name, ip, ips, macs, cpus_per_node)
@@ -105,7 +104,8 @@ class Driver(pragma.drivers.Driver):
 			i+=1
 
 		vc_out.set_compute_nodes(compute_nodes, cpus_per_node)
-		vc_out.set_network(macs,ips, netmask, gateway, "8.8.8.8")
+		# TODO: need to fix gateway and netmask params after public interface is figured out
+		vc_out.set_network(macs,ips, netmask, gateway, gateway, "8.8.8.8")
 		vc_out.write()
 
 		return 1
@@ -134,19 +134,29 @@ class Driver(pragma.drivers.Driver):
 
                 # deploy frontend
 		frontend = vc_out.get_frontend()
-		updates = {"userdata": base64.b64encode(str(vc_out))}
-		response = self.cloudstackcall.updateVirtualMachine(frontend["name"], updates)
-		if response is not None:
-			info = self.cloudstackcall.startVirtualMachine(frontend["name"])
-		if response is None:
-			self.logger.error("Unable to deploy frontend")
+		if not(self.initializeAndStartVM(frontend["name"], str(vc_out))):
+			self.logger.error("Unable to deploy frontend %s" % frontend["name"])
 			return False
-		#for compute in vc_out.get_computes():
-		#	compute_vc_out = self.cloud
-		#	self.cloudstackcall.updateVirtualMachine(compute, vc_out)
+		self.logger.info("Successfully deployed frontend %s" % frontend["name"])
+		# deploy computes
+		for name in vc_out.get_compute_names():
+			compute_vc_out = vc_out.get_compute_vc_out(name)
+			if not(self.initializeAndStartVM(name, compute_vc_out)):
+				self.logger.error("Unable to deploy compute %s" % name)
+				return False
+			self.logger.info("Successfully deployed compute %s" % name)
 
 
-
+	def initializeAndStartVM(self, name, vc_out):
+		updates = {"userdata": base64.b64encode(str(vc_out))}
+		vm_id = self.cloudstackcall.getVirtualMachineID(name)
+		response = self.cloudstackcall.updateVirtualMachine(vm_id, updates)
+		if response is None:
+			return False
+		info = self.cloudstackcall.startVirtualMachine(vm_id)
+		if response is None:
+			return False
+		return True
 
 	def find_templates(self, vc_in):
 		"""
