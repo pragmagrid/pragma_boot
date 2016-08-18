@@ -491,15 +491,6 @@ class CloudStackCall:
     def deployVirtualMachine(self, ncpu, name):
         pass
 
-    def startVirtualMachine(self, name):
-        ids = self.getVirtualMachineID(name)
-        try:
-            response = self.execAPICall("startVirtualMachine", {"id": ids[0]})
-        except urllib2.HTTPError as e:
-            logging.error("Unable to start vm %s: %s" % (name, self.getError(e)))
-            return None
-        return response
-
     def stopVirtualMachine(self, id):
         """ 
         Stop virtual machine given its id
@@ -524,8 +515,12 @@ class CloudStackCall:
 
         params = {}
         params['id'] = id
-        response = self.execAPICall(command, params)
 
+        try:
+            response = self.execAPICall(command, params)
+        except urllib2.HTTPError as e:
+            logging.error("Unable to start vm %s: %s" % (name, self.getError(e)))
+            return None
         return response
 
 
@@ -600,9 +595,8 @@ class CloudStackCall:
             print "nothing to stop"
             return 0
 
-    def updateVirtualMachine(self, name, updates):
-        ids = self.getVirtualMachineID(name)
-        updates["id"] = ids[0]
+    def updateVirtualMachine(self, id, updates):
+        updates["id"] = id
         try:
             response = self.execAPICall("updateVirtualMachine", updates)
         except urllib2.HTTPError as e:
