@@ -27,29 +27,6 @@ class Driver(pragma.drivers.Driver):
 		self.logger.info("Loading driver %s information from %s" % (self.drivername, self.driverconf) )
 
 
-	def allocate_machine(self, num_cpus, template, name, ip, ips, macs, cpus_per_node, largest=False):
-		try:
-			res = self.cloudstackcall.allocateVirtualMachine(num_cpus, template, name, ip, None, largest)
-		except urllib2.HTTPError as e:
-			logging.error("Unable to allocate frontend: %s" % self.cloudstackcall.getError(e))
-			return None
-		vm_response = self.cloudstackcall.listVirtualMachines(None, res["id"])
-		if "virtualmachine" not in vm_response:
-			self.logger.error("Unable to query for virtual machine %s" % name)
-			return None
-		nics = vm_response["virtualmachine"][0]["nic"]
-		ips[name] = {}
-		macs[name] = {}
-		for index, nic in enumerate(nics):
-			ips[name][self.nic_names[index]] = nics[index]["ipaddress"]
-			macs[name][self.nic_names[index]] = nics[index]["macaddress"]
-		cpus_used = vm_response["virtualmachine"][0]["cpunumber"]
-		cpus_per_node[name] = cpus_used
-
-		return vm_response
-
-
-
 	def allocate(self, cpus, memory, key, enable_ent, repository):
 		"""
 		Allocate a new virtual cluster from Cloudstack
@@ -69,43 +46,30 @@ class Driver(pragma.drivers.Driver):
 		#(fe_template, compute_template) = self.find_templates(vc_in)
 		(fe_template, compute_template) = ("biolinux-frontend-cloudstack", "biolinux-compute-cloudstack")
 
-		# allocate frontend VM
-		try:
-			ip, octet = self.cloudstackcall.getFreeIP()
-		except TypeError:
-			return 0
+                allocation = self.cloudstackcall.allocateVirtualCluster(fe_template, 1, compute_template, cpus)
+		print allocation
 
-		if octet is None:
-			octet = 0
-		name = "%s%d" % (self.vmNamePrefix, octet)
+		fe_ids = allocation.pop(0)
+                response = self.cloudstackcall.listVirtualMachines(None, fe_ids["id"])
+		fe = response["virtualmachine"][0]
+
 		ips, macs, cpus_per_node = {}, {}, {}
-		vm_response = self.allocate_machine(1, fe_template, name, ip, ips, macs, cpus_per_node)
-		if vm_response is None:
-			logging.error("Unable to create virtual cluster frontend")
-			return 0
-		macs[name]["public"] = "02:00:7d:4d:00:3d" # remove once 2 nics added
-		nic = vm_response["virtualmachine"][0]["nic"][0]
-		netmask = nic['netmask']
-		gateway = nic['gateway']
-		vc_out.set_frontend(name, "10.1.1.1", ips[name]["private"], "%s.aist.jp" % name) # change once 2 nics added
+		vc_out.set_frontend(fe["name"], fe["nic"][1]["ipaddress"], fe["nic"][0]["ipaddress"], "%s.aist.jp" % fe["name"]) # change once fqdn added
+		ips[fe["name"]] = {"private": fe["nic"][0]["ipaddress"], "public": fe["nic"][1]["ipaddress"]}
+		macs[fe["name"]] = {"private": fe["nic"][0]["macaddress"], "public": fe["nic"][1]["macaddress"]}
 
-		# allocate compute nodes
-		i = 0
 		compute_nodes = []
-		while(cpus > 0):
-			name = "%s%d-compute-%d" % (self.vmNamePrefix, octet, i)
-			vm_response = self.allocate_machine(cpus, compute_template, name, None, ips, macs, cpus_per_node, True)
-			if vm_response is None:
-				logging.error("Unable to create virtual cluster frontend")
-				return 0
-			compute_nodes.append(name)
-			cpus -= cpus_per_node[name]
-			logging.info("Allocated VM %s with %i cpus; %i cpus left to allocate" % (name, cpus_per_node[name], cpus))
-			i+=1
+		for compute_ids in allocation:
+                	response = self.cloudstackcall.listVirtualMachines(None, compute_ids["id"])
+			compute = response["virtualmachine"][0]
+			compute_nodes.append(compute["name"])
+			cpus_per_node[compute["name"]] = compute["cpunumber"]
+			ips[compute["name"]] = { "private" : compute["nic"][0]["ipaddress"] }
+			macs[compute["name"]] = { "private" : compute["nic"][0]["macaddress"] }
 
 		vc_out.set_compute_nodes(compute_nodes, cpus_per_node)
 		# TODO: need to fix gateway and netmask params after public interface is figured out
-		vc_out.set_network(macs,ips, netmask, gateway, gateway, "8.8.8.8")
+		vc_out.set_network(macs, ips, fe["nic"][1]["netmask"], fe["nic"][1]["gateway"], fe["nic"][0]["gateway"], "8.8.8.8")
 		vc_out.write()
 
 		return 1

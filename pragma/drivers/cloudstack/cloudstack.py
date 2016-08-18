@@ -397,7 +397,7 @@ class CloudStackCall:
 
         return ips
 
-    def allocateVirtualCluster(self, feTmpl, fecpu, computeTmpl, ccpu, num):
+    def allocateVirtualCluster(self, feTmpl, fecpu, computeTmpl, cpus):
         """
         Allocate Virtual cluster
 
@@ -433,7 +433,7 @@ class CloudStackCall:
         publicNet = self.publicNetworkName
         if publicNet not in networks.keys():
             newnet = self.createNetwork(publicNet)
-            networks[privateNet] = newnet['network']['id']
+            networks[publicNet] = newnet['network']['id']
 
         ids = "%s,%s" % (networks[privateNet], networks[publicNet])
 
@@ -444,11 +444,15 @@ class CloudStackCall:
 
         # allocate compute nodes 
         ids = "%s" % networks[privateNet]
-        for i in range(num):
+        i = 0
+        while(cpus > 0):
             name = "%s%d%s%d" % (self.vmNamePrefix, octet, self.vmNameSuffix, i)
-            print "name", name
-            res = self.allocateVirtualMachine(ccpu, computeTmpl, name, ip = None, ids = ids)
+            res = self.allocateVirtualMachine(cpus, computeTmpl, name, ip = None, ids = ids, largest = True)
             allocation.append(res)
+            vm_info = self.listVirtualMachines(None, res["id"])
+            cpus_used = vm_info["virtualmachine"][0]["cpunumber"]
+            cpus -= cpus_used
+            i += 1
 
         return allocation
 
