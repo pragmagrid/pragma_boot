@@ -108,6 +108,9 @@ class XmlOutput:
     def __init__(self, filename):
         self.filename = filename
         self.compute_nodes = {}
+        self.ips = {}
+        self.macs = {}
+        self.gateway = { 'public' : '10.1.1.1', 'private' : '10.1.1.1' }
         logging.basicConfig()
         self.logger = logging.getLogger(self.__module__)
 
@@ -117,7 +120,7 @@ class XmlOutput:
         frontend = ET.SubElement(vc, 'frontend')
         ET.SubElement(frontend, 'public', attrib = { 
             'netmask':self.netmask,
-            'gw':self.gateway,
+            'gw':self.gateway['public'],
             'fqdn':self.frontend['fqdn'],
             'ip':self.frontend['public_ip'],
             'mac':self.macs[self.frontend['name']]['public'],
@@ -131,7 +134,7 @@ class XmlOutput:
         for node in self.compute_nodes:
             ET.SubElement(computes, 'node', attrib = { 
             'name':self.compute_nodes[node]['name'],
-            'ip':self.compute_nodes[node]['ip'],
+            'ip':self.ips[node]['private'],
             'mac':self.macs[node]['private'],
             'cpus':str(self.cpus_per_node[node])})
         self.append_network_key(vc)
@@ -162,9 +165,9 @@ class XmlOutput:
         compute = ET.SubElement(vc, 'compute')
         ET.SubElement(compute, 'private', attrib = {
             'fqdn':self.compute_nodes[node]['name'],
-            'ip':self.compute_nodes[node]['ip'],
+            'ip':self.ips[node]['private'],
             'netmask':'255.255.0.0',
-            'gw':'10.1.1.1',
+            'gw': self.gateway['private'],
             'mac':self.macs[node]['private']})
         self.append_network_key(vc)
         return self.prettify(vc)
@@ -223,11 +226,11 @@ class XmlOutput:
     def set_kvm_diskdir(self, dir):
         self.kvm_diskdir = dir
 
-    def set_network(self, macs, ips, netmask, gateway, dns):
+    def set_network(self, macs, ips, netmask, public_gateway, private_gateway, dns):
         self.macs = macs
         self.ips = ips
         self.netmask = netmask
-        self.gateway = gateway
+        self.gateway = { 'public' : public_gateway, 'private' : private_gateway }
         self.dns = dns
         
     def set_compute_nodes(self, compute_nodes, cpus_per_node):
@@ -235,7 +238,7 @@ class XmlOutput:
         dir = os.path.dirname(self.filename)
         for node in compute_nodes:
             self.compute_nodes[node] = {}
-            self.compute_nodes[node]['ip'] = '10.1.1.%i' % counter
+            self.ips[node] = { 'private' : '10.1.1.%i' % counter }
             self.compute_nodes[node]['name'] = 'compute-%i' % (254-counter)
             self.compute_nodes[node]['vc_out'] = os.path.join(dir, "%s.xml" % node)
             counter-=1
