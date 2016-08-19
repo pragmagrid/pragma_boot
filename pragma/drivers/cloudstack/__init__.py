@@ -47,8 +47,6 @@ class Driver(pragma.drivers.Driver):
 		(fe_template, compute_template) = ("biolinux-frontend-cloudstack", "biolinux-compute-cloudstack")
 
                 allocation = self.cloudstackcall.allocateVirtualCluster(fe_template, 1, compute_template, cpus)
-		print allocation
-
 		fe_ids = allocation.pop(0)
                 response = self.cloudstackcall.listVirtualMachines(None, fe_ids["id"])
 		fe = response["virtualmachine"][0]
@@ -82,7 +80,8 @@ class Driver(pragma.drivers.Driver):
 		:param vcname: Name of virtual cluster to be cleaned
 		:return: True if clean was successful, otherwise False
 		"""
-		raise NotImplementedError("Please implement clean method")
+        	response = self.cloudstackcall.destroyVirtualCluster(vcname)
+        	return response
 
 	def deploy(self, repository):
 		"""
@@ -197,8 +196,6 @@ class Driver(pragma.drivers.Driver):
 		:return: An array of virtual machines ordered by cluster 
 		 	 each array item has the VM name and its status. 
 		"""
-		command = 'stopVirtualCluster'
-
         	response = self.cloudstackcall.stopVirtualCluster(vcname)
         	return response
 

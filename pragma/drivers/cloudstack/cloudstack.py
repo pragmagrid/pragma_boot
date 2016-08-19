@@ -4,6 +4,8 @@ import hashlib
 import hmac
 import base64
 import json
+import sys
+import time
 import urllib2
 import urllib
 import logging
@@ -108,6 +110,21 @@ class CloudStackCall:
         response = self.execAPICall(command, params)
         return response
 
+    def deleteNetwork(self, id):
+        """ 
+        Delete network 
+        :param id: The id of the network to delete
+        :return : an API call response as a dictionary with 1 item
+                  key = id, value = jobid (for delete call) 
+        """ 
+        command = 'deleteNetwork'
+
+        params = {}
+        params['id'] = id
+
+        response = self.execAPICall(command, params)
+        return response
+
     def listNetworkOfferings(self, name = None):
         command = 'listNetworkOfferings'
         params = {}
@@ -121,6 +138,17 @@ class CloudStackCall:
 
         return response
 
+    def getNetwork(self, name):
+        """ 
+        Get the network object information for specific network
+        :param name: The name of the network 
+        :return : an object containing key value pairs
+        """ 
+        res = self.listNetworks()
+        for network in res["network"]:
+            if network["name"] == name:
+                return network
+        return None
 
     def listNetworks(self):
         command = 'listNetworks'
@@ -182,10 +210,12 @@ class CloudStackCall:
 
         # virtual machine  name is not found
         response = self.listVirtualMachines(name)
-        if not response:
+        if response is None:
             self.clusterNotFound(name)
             return vc
-
+        if len(response) < 1:
+          return vc
+        
         count = response['count']
         for i in range(count):
             d = response['virtualmachine'][i]
@@ -287,6 +317,20 @@ class CloudStackCall:
                 break
 
         return id
+
+    def getVirtualMachinePrivateNetwork(self, name):
+        """ 
+        Get the private network name of a virtual machine
+        :param name: virtual machine  name 
+        :return : a string containing the name of the private network
+        """ 
+        response = self.listVirtualMachines(name)
+        networks = {}
+        for vm in response['virtualmachine']:
+            if vm['name'] == name:
+                for nic in vm['nic']:
+                    if nic["networkname"] != self.publicNetworkName:
+                        return nic["networkname"]
 
 
     def getNetworkOfferingsID(self, name = None):
@@ -486,14 +530,26 @@ class CloudStackCall:
         if ip:
             params['ipaddress'] = ip
 
-        for p in params.keys():
-            print "DEBUG", p, params[p]
         response = self.execAPICall(command, params)
 
         return response
 
     def deployVirtualMachine(self, ncpu, name):
         pass
+
+    def destroyVirtualMachine(self, id):
+        """ 
+        Destroy virtual machine given its id
+        :param id: Virtual Machine id 
+        :return : an API call response as a dictionary 
+        """ 
+        command = 'destroyVirtualMachine'
+
+        params = {}
+        params['id'] = id
+        response = self.execAPICall(command, params)
+
+        return response
 
     def stopVirtualMachine(self, id):
         """ 
@@ -553,6 +609,68 @@ class CloudStackCall:
         print "Error: cannot resolve host \"%s\"" % name
         return
 
+    def destroyVirtualCluster(self,name, max_attempts = 100):
+        """ 
+        Remove virtual cluster given its name
+        :param name: Virtual Cluster name 
+        :param max_attempts: Maximum attempts at deleting virtual cluster network
+        :return : True if successful, otherwise False
+        """ 
+
+        # virtual cluster can only be destroyed if all VMs are stopped
+        running = []
+        response = self.listVirtualMachines(name)
+        if not response: # cluster name not found
+            self.clusterNotFound(name)
+            return False
+        for vm in response['virtualmachine']:
+            if vm['state'] != "Stopped": 
+                running.append(vm['name'])
+        if len(running) > 0:
+            print "\nError, unable to destroy virtual cluster"
+            print "The following VMs are not in Stopped state: %s" % ", ".join(running)
+            return False
+        
+        # get vc private network so we can destroy later
+        privateNetwork = self.getVirtualMachinePrivateNetwork(name)
+
+        # destroy VMs
+        jobids = {}
+        for vm in response['virtualmachine']:
+            vmresponse = self.destroyVirtualMachine(vm['id'])
+            jobids[vm['name']] = vmresponse['jobid']
+        jobresults = self.waitForAsyncJobResults(jobids.values())
+        destroyed = {}
+        for vmname, jobid in jobids.items():
+            if jobresults[jobid]['jobresultcode'] == 0:
+                destroyed[vmname] = "Destroyed"
+            else:
+                destroyed[vmname] = str(jobresults[jobid]['jobresult'])
+        
+        # print vm status
+        self.printVMStatusTable(destroyed)
+        print
+
+	# Now clean up private network -- does not delete until some server
+	# state clears out so we just repeat call until it succeeds
+	sys.stdout.write("Removing network %s (this may take 5 mins)..." % privateNetwork)
+        vc_net = self.getNetwork(privateNetwork)
+        for i in range(0,max_attempts):
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            job = self.deleteNetwork(vc_net["id"])
+            jobresult = self.waitForAsyncJobResults([job["jobid"]])
+            if jobresult[job["jobid"]]['jobresultcode'] == 0:
+                print "success"
+                return True
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            time.sleep(10)
+        
+        # else we were unsuccessful after max_attempts
+        print "\nError, unable to delete network %s" % privateNetwork
+        return False
+
     def stopVirtualCluster(self,name):
         """ 
         Stop virtual cluster given its name
@@ -580,20 +698,8 @@ class CloudStackCall:
                 vmresponse = self.stopVirtualMachine(vmid)
                 stopped[vmname] = "Stopping, jobid " + vmresponse['jobid']
 
-        # create output format string 
-        names = stopped.keys()
-        names.sort(key = len)
-        for n in names:
-            if self.vmNameSuffix in n:
-               break
-            len_fe = len(n)
-        len_name = max(len('HOST'), len(names[-1]))  # longest host name
-        lineformat = "%%-%ds  %%-20s  " % (len_name) # format string
-
-        print lineformat % ("HOST", "STATUS")
         if stopped: 
-            for k in sorted(stopped.keys()):
-                print  lineformat % (k, stopped[k])
+            self.printVMStatusTable(stopped)
             return 1
         else:
             print "nothing to stop"
@@ -642,3 +748,27 @@ class CloudStackCall:
         response = self.execAPICall(command)
         return response
 
+    def waitForAsyncJobResults(self, job_ids, checkperiod=10, max_attempts=100):
+        """ Wait for jobstatus to go to nonzero (0 is pending)"""
+        jobresults = {}
+        for i in range(0, max_attempts):
+            time.sleep(checkperiod)
+            for job_id in job_ids:
+                job = self.queryAsyncJobResult(job_id)
+                if job['jobstatus'] != 0:
+                    jobresults[job_id] = job
+            if len(jobresults) ==  len(job_ids):
+                return jobresults
+        # otherwise we return the ones we have
+        return jobresults
+
+
+    def printVMStatusTable(self, status):
+        names = status.keys()
+        names.sort(key = len)
+        len_name = max(len('HOST'), len(names[-1]))  # longest host name
+        lineformat = "%%-%ds  %%-20s  " % (len_name) # format string
+
+        print lineformat % ("HOST", "STATUS")
+        for k in sorted(status.keys()):
+            print  lineformat % (k, status[k])
