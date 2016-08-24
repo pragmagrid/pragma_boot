@@ -118,7 +118,7 @@ which has a python syntax and specifies settings for the physical site configura
     Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
 
 * **cloudfront** - virtual images are hosted on Amazon CloudFront with automatic signed url creation.
-  This repository class requires the following settings :
+  This repository class requires the following settings:
 
   * **repository_url** : CloudFront `domain name` of the distribution to use. 
     Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
@@ -127,15 +127,12 @@ which has a python syntax and specifies settings for the physical site configura
     
   To generate CloudFront Key Pair:
 
-  1. Log into AWS Console
-  2. Click on account name and select `Security Credentials`
-  3. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
-  4. Download public key, private key and take note of access key id (keypair id)
-
-Python Dependencies
-====================
-
-For using cloudfront repository need these dependencies
-
-* boto
-* rsa
+  #. Log into AWS Console
+  #. Click on account name and select `Security Credentials`
+  #. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
+  #. Download public key, private key and take note of access key id (keypair id)
+  
+  For using cloudfront repository need to install dependencies:
+  
+  * boto
+  * rsa
