@@ -1,5 +1,8 @@
+.. highlight:: rest
+
 The pragma_boot 
 ----------------------
+.. contents::
 
 The pragma_boot script was rewritten in python to accommodate more drivers and
 reposittories. The main script is now called **pragma**  and it is used 
@@ -18,26 +21,24 @@ The following represents a list of current sub-commands:
 
 Installation
 ==============
-
 We recommend install in opt/pragma_boot
 
 #. Check out github repository ::
 
-       cd /opt
-       git clone  https://github.com/pragmagrid/pragma_boot
+   cd /opt
+   git clone  https://github.com/pragmagrid/pragma_boot
 
 #. Create configuration files for your site  in ``/opt/pragma_boot/etc`` based on site information. 
    The directory contains templates for site configuration file and driver configuration files. 
    For example ::
 
-       cd /opt/pragma_boot/etc 
-       cp site_conf.conf.template site_conf.conf  (and edit according to your site info) 
-       cp kvm_rocks.conf.template kvm_rocks.conf  (and edit according to your driver info) 
+   cd /opt/pragma_boot/etc 
+   cp site_conf.conf.template site_conf.conf  (and edit according to your site info) 
+   cp kvm_rocks.conf.template kvm_rocks.conf  (and edit according to your driver info) 
 
 
 PRAGMA Virtual Cluster Requirements
 ==================================
-
 A virtual cluster has a virtual frontend and virtual compute nodes. 
 To create a virtual cluster which is compatible with PRAGMA infrastructure the 
 nodes must respect the following criteria:
@@ -58,7 +59,6 @@ nodes must respect the following criteria:
 
 Supported Drivers 
 =======================
-
 There are 2 supported drivers represeting site virtualization engine:
 
 #. **cloudstack** - for  CloudStack-enabled site
