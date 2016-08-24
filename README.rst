@@ -104,8 +104,8 @@ virtualization engine will use for the instantiated virtual images.
   virtual clusters. Theere may be multiple offerings in CloudStack. Default is
   "DefaultIsolatedNetworkOfferingWithSourceNatService"
 
-Cloud Repository
-================
+Supported Repositories
+=======================
 
 **pragma** currently supports 3 repository classes which can be configured in site_conf.conf file
 which has a python syntax and specifies settings for the physical site configuration. 
