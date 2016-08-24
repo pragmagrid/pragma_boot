@@ -8,13 +8,13 @@ to instantiate Virtual Machine in PRAGMA testbed sites.
 The agruments to **pragma** depend on the specific command being executed.
 The following represents a list of current sub-commands:
  
-* boot {vc-name} {num-cpus} [enable-ent=boolean] [enable-ipop-client=string] [enable-ipop-server=string] [key=string] [logfile=string] [loglevel=string] 
-* clean {vc-name} 
-* help {command} 
-* list cluster {vc-name} 
-* list help [subdir=string] 
-* list repository 
-* shutdown {vc-name} 
+* **boot** {vc-name} {num-cpus} [enable-ent=boolean] [enable-ipop-client=string] [enable-ipop-server=string] [key=string] [logfile=string] [loglevel=string] 
+* **clean** {vc-name} 
+* **help** {command} 
+* **list cluster** {vc-name} 
+* **list help** [subdir=string] 
+* **list repository** 
+* **shutdown** {vc-name} 
 
 Installation
 ==============
@@ -38,23 +38,23 @@ We recommend install in opt/pragma_boot
 PRAGMA Virtual Cluster Requirements
 ==================================
 
+A virtual cluster has a virtual frontend and virtual compute nodes. 
 To create a virtual cluster which is compatible with PRAGMA infrastructure the 
-nodes must respect the following criteria (with the current versio of software):
+nodes must respect the following criteria:
 
-- Physical frontend must have fuse and libguestfs-tools-c
-- All host run inside kvm-based virtualization engine.
-- Each VM have a single disk image
+- Physical frontend must have ``fuse`` and ``libguestfs-tools-c`` installed (for a site with kvm_rocks driver)
+- All host runs inside kvm-based virtualization engine (for a site with kvm_rocks driver)
+- Each VM has a single disk image
 - VM disk images can be compressed using Lempel-Ziv coding (with extension .gz)
-- VM disk images must be in raw format (no cow, or other format supported)
-- The first partition is the / partition
+- VM disk images must be in raw format (no other formats are supported now)
+- The first partition on the disk image is the / partition
 - No LVM/RAID or other fancy FS type is supported
-- Frontend VM contains 2 network interfaces. The first one connects to private
-  network. The other connect to public network
-- Compute VM contains 1 network interface connected to private network
-- when the frontend boot, it expects a file in /root/vc-out.xml as described
-  above to configure its network interfaces and the list of compute hosts
-- when the compute node boot, it expects a file in /root/vc-out.xml as descibed 
-  above to configure its network
+- Virtual frontend has 2 network interfaces. The first one connects to private
+  network, the second connects to public network
+- Virtual compute node has 1 network interface connected to a private network
+- When the frontend boots, it expects a file in /root/vc-out.xml 
+  to configure its network interfaces and the list of compute hosts
+- When the compute node boots, it expects a file in /root/vc-out.xml to configure its network
 
 Supported Drivers 
 =======================
