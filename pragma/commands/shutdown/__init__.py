@@ -31,6 +31,7 @@ class Command(pragma.commands.Command):
 		if not driver:
 			self.abort("Uknown driver %s" % site_ve_driver)
 
+                print "Shutting down virtual cluster %s" % vcname
 		if driver.shutdown(vcname):
 			print "\nCluster %s successfully shutdown" % vcname
 
