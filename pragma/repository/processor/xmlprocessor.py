@@ -119,14 +119,14 @@ class XmlOutput:
 
         frontend = ET.SubElement(vc, 'frontend')
         ET.SubElement(frontend, 'public', attrib = { 
-            'netmask':self.netmask,
+            'netmask':self.public_netmask,
             'gw':self.gateway['public'],
             'fqdn':self.frontend['fqdn'],
             'ip':self.frontend['public_ip'],
             'mac':self.macs[self.frontend['name']]['public'],
             'name':self.frontend['name']})
         ET.SubElement(frontend, 'private', attrib = { 
-            'netmask':'255.255.0.0',
+            'netmask':self.private_netmask,
             'ip':self.frontend['private_ip'],
             'mac':self.macs[self.frontend['name']]['private']})
 
@@ -166,7 +166,7 @@ class XmlOutput:
         ET.SubElement(compute, 'private', attrib = {
             'fqdn':self.compute_nodes[node]['name'],
             'ip':self.ips[node]['private'],
-            'netmask':'255.255.0.0',
+            'netmask':self.private_netmask,
             'gw': self.gateway['private'],
             'mac':self.macs[node]['private']})
         self.append_network_key(vc)
@@ -212,7 +212,7 @@ class XmlOutput:
             self.compute_nodes[node_name]['vc_out'] = os.path.join(dir, "%s.xml" % node_name)
             self.cpus_per_node[node_name] = node_attrib["cpus"]
         dns = root.find("network").find("dns").attrib
-        self.set_network(macs, ips, public["netmask"], public["gw"], dns["ip"])
+        self.set_network(macs, ips, public["netmask"], private["netmask"], public["gw"], dns["ip"])
 
     def set_frontend(self, name, public_ip, private_ip, fqdn):
         self.frontend = {'name':name, 'public_ip':public_ip, 'private_ip':private_ip, 'fqdn':fqdn}
@@ -226,10 +226,11 @@ class XmlOutput:
     def set_kvm_diskdir(self, dir):
         self.kvm_diskdir = dir
 
-    def set_network(self, macs, ips, netmask, public_gateway, private_gateway, dns):
+    def set_network(self, macs, ips, public_netmask, private_netmask, public_gateway, private_gateway, dns):
         self.macs = macs
         self.ips = ips
-        self.netmask = netmask
+        self.public_netmask = public_netmask
+        self.private_netmask = private_netmask
         self.gateway = { 'public' : public_gateway, 'private' : private_gateway }
         self.dns = dns
         
