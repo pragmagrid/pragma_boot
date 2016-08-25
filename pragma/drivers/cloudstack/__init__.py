@@ -5,6 +5,8 @@ import hashlib
 import logging
 import pragma
 import pragma.utils
+import re
+import sys
 from cloudstack import CloudStackCall
 
 
@@ -43,23 +45,29 @@ class Driver(pragma.drivers.Driver):
 
 		vc_out.set_key(key)
 
-		#(fe_template, compute_template) = self.find_templates(vc_in)
-		(fe_template, compute_template) = ("biolinux-frontend-cloudstack", "biolinux-compute-cloudstack")
+		(fe_template, compute_template) = self.find_templates(vc_in)
+		if fe_template is None or compute_template is None:
+			return False
 
                 allocation = self.cloudstackcall.allocateVirtualCluster(fe_template, 1, compute_template, cpus)
-		fe_ids = allocation.pop(0)
-                response = self.cloudstackcall.listVirtualMachines(None, fe_ids["id"])
-		fe = response["virtualmachine"][0]
+		if len(allocation) < 1:
+			logger.error("Problem allocating virtual cluster")
+			return False
+                fe = allocation.pop(0)['virtualmachine']
 
 		ips, macs, cpus_per_node = {}, {}, {}
-		vc_out.set_frontend(fe["name"], fe["nic"][1]["ipaddress"], fe["nic"][0]["ipaddress"], "%s.aist.jp" % fe["name"]) # change once fqdn added
-		ips[fe["name"]] = {"private": fe["nic"][0]["ipaddress"], "public": fe["nic"][1]["ipaddress"]}
-		macs[fe["name"]] = {"private": fe["nic"][0]["macaddress"], "public": fe["nic"][1]["macaddress"]}
+		nics = {}
+		for nic in fe["nic"]:
+			nics[nic["networkname"]] = nic
+		fe_pub = nics.pop(self.cloudstackcall.publicNetworkName)
+		fe_priv = nics[nics.keys()[0]]
+		vc_out.set_frontend(fe["name"], fe_pub["ipaddress"], fe_priv["ipaddress"], "%s.aist.jp" % fe["name"]) # change once fqdn added
+		ips[fe["name"]] = {"private": fe_priv["ipaddress"], "public": fe_pub["ipaddress"]}
+		macs[fe["name"]] = {"private": fe_priv["macaddress"], "public": fe_pub["macaddress"]}
 
 		compute_nodes = []
-		for compute_ids in allocation:
-                	response = self.cloudstackcall.listVirtualMachines(None, compute_ids["id"])
-			compute = response["virtualmachine"][0]
+		for compute_obj in allocation:
+			compute = compute_obj['virtualmachine']
 			compute_nodes.append(compute["name"])
 			cpus_per_node[compute["name"]] = compute["cpunumber"]
 			ips[compute["name"]] = { "private" : compute["nic"][0]["ipaddress"] }
@@ -67,10 +75,10 @@ class Driver(pragma.drivers.Driver):
 
 		vc_out.set_compute_nodes(compute_nodes, cpus_per_node)
 		# TODO: need to fix gateway and netmask params after public interface is figured out
-		vc_out.set_network(macs, ips, fe["nic"][1]["netmask"], fe["nic"][1]["gateway"], fe["nic"][0]["gateway"], "8.8.8.8")
+		vc_out.set_network(macs, ips, fe_pub["netmask"], fe_priv["netmask"], fe_pub["gateway"], fe_priv["gateway"], "8.8.8.8")
 		vc_out.write()
 
-		return 1
+		return True
 
 
 	def clean(self, vcname):
@@ -101,6 +109,7 @@ class Driver(pragma.drivers.Driver):
 			self.logger.error("Unable to deploy frontend %s" % frontend["name"])
 			return False
 		self.logger.info("Successfully deployed frontend %s" % frontend["name"])
+
 		# deploy computes
 		for name in vc_out.get_compute_names():
 			compute_vc_out = vc_out.get_compute_vc_out(name)
