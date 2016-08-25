@@ -74,8 +74,8 @@ class Driver(pragma.drivers.Driver):
 			macs[compute["name"]] = { "private" : compute["nic"][0]["macaddress"] }
 
 		vc_out.set_compute_nodes(compute_nodes, cpus_per_node)
-		# TODO: need to fix gateway and netmask params after public interface is figured out
-		vc_out.set_network(macs, ips, fe_pub["netmask"], fe_priv["netmask"], fe_pub["gateway"], fe_priv["gateway"], "8.8.8.8")
+		# note that gateway for private interface is the fe private ip
+		vc_out.set_network(macs, ips, fe_pub["netmask"], fe_priv["netmask"], fe_pub["gateway"], fe_priv["ipaddress"], "8.8.8.8")
 		vc_out.write()
 
 		return True
