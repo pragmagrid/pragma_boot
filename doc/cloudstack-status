@@ -1,0 +1,106 @@
+
+                     Cloudstack integration in pragma_boot
+
+==============================================================
+Mar 22-29, 2016 AIST
+==============================================================
+
+Goal: write a new driver for pragma_boot to use a CloudStack
+      as an underlying virtual cluster provisioning platform.
+
+Plan: Use CloudStack REST API to access to deploy and undeploy virtual 
+      machines and clusters at AIST. 
+
+Mapping of pragma_boot functions to CloudStack API:
+-------------------------------------------------------------------------------------------------------------
+pragma_boot        cloudstack API                      Description                    Status
+-------------------------------------------------------------------------------------------------------------
+allocate         deployVirtualMachine (startvm=false)  allocates VC                   done
+deploy           startVirtualMachine                   deploy VC                      in progress
+shutdown VMname  stopVIrtualMachine                    shuts down VC                  done, updated June 19
+clean VMname     destroyVirtualMachine                 deallocate VC, rm disk images  in progress
+list cluster     listVirtualMachine                    list virtual clusters status   done, updated June 19
+list repository  listRepository                        list avail virtual images      done, July 8
+-------------------------------------------------------------------------------------------------------------
+
+Basic funciotonality of pragma_boot  using CloudStack API is completed. 
+
+The remaining issues are:
+
+A. UCSD todo list
+
+1. Finalize functions "in progress" using REST API
+2. Finalize implementation of deploy, shutdown and clean functions of pragma_boot.
+3. vc-out.xml file propagation using userdata field and corresponding changes 
+   to dynip roll and vm-out parser (debug authentication error.)
+4. Test upload of templates from local repository and google drive. 
+5. Test dual NIC configuration on the frontend
+6. Test deploying rocks-based virtual cluster (will test the networking)
+7. Error checking for boundary conditions
+8. Commenting code and making documentation
+9. Test email from git
+
+B. AIST todo list
+
+1. Access to CloudStack from one of pragma hosts. 
+2. Review CloudStack driver once UCSD complestes the code
+   and enable public IP access to the VM's launched via CloudStack 
+
+
+Assumptions
+
+1.  vcdb.txt file has the same format as for all other drivers.
+    It lists cluster images (templates names have to be the same).
+
+
+==============================================================
+June 9, 2016 UCSD: Jason, Shava, Nadya
+==============================================================
+
+Work in progress:
+
+- Nadya dual network interfaces 
+- Shava trying to pass network info through user data interface
+- Modifying Tarm's code 
+- Special mode of clonezilla
+  Upload virtual cluster -> create iso images -> move to google drive
+  But would need a clonezilla instance on AIST resources to convert between
+  clonezilla iso to qcawt. A better option will be to download a specific
+  image (template) form the drive. Assumes that we can put pointer to GD url to pull template
+ 
+Planned work:
+
+- Need more public real ip addresses to truly test
+- Is it ok to snapshot the Biolinux VM now?
+  How much of VM depends on IP of VM?
+- VM with data service on it that is bootable by pragmaboot
+ 
+- End of June
+  work out propagation of new network config to user VM
+  Change, simplify and improve commands:
+      "list clusters"   - done
+      "list repository" - done
+      "shutdown VM"     - done
+      "delete VM" 
+  Jason - ask Gabriel about receipe for installing data service
+ 
+- Mid July
+  Update networking interfaces, how to ask for public networking, upload new templates/VM
+  New templates in cloudstack GUI, Community, MyISOs, Shared?
+ 
+- End of July
+  Finish, integrate method to get new images, cleanup
+ 
+- Mid Aug
+  Integrate/test cloud scheduler, demo prep
+  Need public access at this time, otherwise no demo
+ 
++ As soon as possible  DONE
+  Jason to ASK: CS 4.8 api call - stopvirtualmachine, only returns jobID,
+  complete list of info is not there. Why? Access control of user compared to
+  admin? Is some functionality missing in GUI based on ACL.
+
+  Answer: need to use functions that deal with Async jobs
+          Wrote
+              queryAsyncJobResult(id)
+              listAsyncJobs()
