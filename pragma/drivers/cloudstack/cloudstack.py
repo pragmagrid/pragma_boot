@@ -7,6 +7,7 @@ import json
 import re
 import sys
 import time
+from pragma.utils import IP_ADDRESS_LEN
 import urllib2
 import urllib
 import logging
@@ -265,8 +266,12 @@ class CloudStackCall:
           return vc
         
         count = response['count']
+        ips = {}
         for i in range(count):
             d = response['virtualmachine'][i]
+            if len(d['nic']) > 1:
+                ip = self.listPublicIpAddresses(d['id'])
+                ips[d['name']] = ip['ipaddress']
             vms[d['name']] =  d['state']
 
         # find longest VM name
@@ -284,31 +289,30 @@ class CloudStackCall:
         status.sort(key = len)
         len_status = max(len('status'), len(status[-1]))
 
-        lineformat = "%%-%ds  %%-%ds  %%-%ds  " % (len_fe,len_compute,len_status)
-
+        lineformat = "%%-%ds  %%-%ds  %%-%ds  %%-%ds " % (len_fe,len_compute,len_status, IP_ADDRESS_LEN)
 
         if name: # list only one cluster 
             fe = None
             for k in sorted(vms.keys()):
                 if name in k:
                     if fe:  # adding compute node info
-                        vc.append(lineformat % (":", k, vms[k]))
+                        vc.append(lineformat % (":", k, vms[k], "-"*IP_ADDRESS_LEN))
                     else:  # adding frontend
                         fe = k 
-                        vc.append(lineformat % (k, '-'*len_compute, vms[k]))
+                        vc.append(lineformat % (k, '-'*len_compute, vms[k], ips[k]))
 
         else: # list all clusters
             fe = None
             for k in sorted(vms.keys()):
                 if fe: 
                     if fe in k: # add compute node
-                        vc.append(lineformat % (":", k, vms[k]))
+                        vc.append(lineformat % (":", k, vms[k], "-"*IP_ADDRESS_LEN))
                     else: # add  next frontend
                         fe = k
-                        vc.append(lineformat % (k, '-'*len_compute, vms[k]))
+                        vc.append(lineformat % (k, '-'*len_compute, vms[k], ips[k]))
                 else: # add  first frontend
                     fe = k 
-                    vc.append(lineformat % (k, '-'*len_compute, vms[k]))
+                    vc.append(lineformat % (k, '-'*len_compute, vms[k], ips[k]))
 
         return vc
 

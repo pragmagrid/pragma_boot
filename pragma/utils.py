@@ -12,6 +12,7 @@ from subprocess import PIPE, Popen
 import syslog
 
 logger = logging.getLogger('pragma.util')
+IP_ADDRESS_LEN = 15
 
 def Abort(message, doExit=1):
         """Print a standard error message and throw a CommandError"""
@@ -290,6 +291,6 @@ def getListHeader(strings):
 	len_compute = max(len('COMPUTE NODES'), len_compute)
 	len_status = max(len('STATUS'), len_status)
 
-        lineformat = "%%-%ds  %%-%ds  %%-%ds  " % (len_fe,len_compute,len_status)
+        lineformat = "%%-%ds  %%-%ds  %%-%ds  %%-%ds" % (len_fe,len_compute,len_status, IP_ADDRESS_LEN)
 
-	return lineformat % ('FRONTEND', 'COMPUTE NODES', 'STATUS')
+	return lineformat % ('FRONTEND', 'COMPUTE NODES', 'STATUS', 'PUBLIC IP')
