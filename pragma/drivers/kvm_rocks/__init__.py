@@ -108,11 +108,11 @@ class Driver(pragma.drivers.Driver):
 
 		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 
-		# FIXME put proper private ip 
-		vc_out.set_frontend(fe_name, our_ip,"10.1.1.1", our_fqdn)
+		(macs,ips, priv_ip, priv_netmask) = self.get_network(fe_name, cnodes)
+		vc_out.set_frontend(fe_name, our_ip, priv_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
-		(macs,ips) = self.get_network(fe_name, cnodes)
-		vc_out.set_network(macs,ips, netmask, gw, dns)
+                vc_out.set_network(macs, ips, netmask, priv_netmask, gw, priv_ip, "8.8.8.8")
+
 		try:
 			vc_out.set_kvm_diskdir(diskdir)
 		except:
@@ -404,17 +404,23 @@ class Driver(pragma.drivers.Driver):
 		for node in compute_nodes:
 			macs[node] = {}
 			ips[node] = {}
-		mac_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+\S+\s+(\S+)\s+(\S+)" % frontend)
+		mac_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+\S+\s+(\S+)\s+(\S+)\s+(\S+)" % frontend)
+		priv_ip = None
+		priv_netmask = None
 		for line in out:
 			result = mac_pat.search(line)
 			if result:
+				node_name = result.group(1)
 				network_type = result.group(2)
 				if re.search("[\-]+", network_type) is not None: 
 					network_type = 'private'
-				macs[result.group(1)][network_type] = result.group(3)
-				ips[result.group(1)][network_type] = result.group(4)
+				if node_name == frontend and network_type == 'private':
+					priv_ip = result.group(4)
+					priv_netmask = result.group(5)
+				macs[node_name][network_type] = result.group(3)
+				ips[node_name][network_type] = result.group(4)
 
-		return (macs,ips)
+		return (macs,ips, priv_ip, priv_netmask)
 
 	def get_physical_hosts(self, vcname):
 		"""
