@@ -20,15 +20,17 @@ class Driver(pragma.drivers.Driver):
 		self.logger.debug("Loaded driver %s" % self.__class__.__module__)
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"list host interface")
+		self.public_ips = {}
 		self.used_ips = []
 		self.used_vlans = []
 		used_vlans = {}
-		ip_pat = re.compile("(\d+\.\d+\.\d+\.\d+)")
+		ip_pat = re.compile("^(\S+):.*?(\d+\.\d+\.\d+\.\d+)")
 		vlan_pat = re.compile("\d\d:\d\d:.*\s+(\d+)\s+\-+\s+\-+$")
 		for interface in out:
 			result = ip_pat.search(interface)
 			if result:
-				self.used_ips.append(result.group(1))
+				self.public_ips[result.group(1)] = result.group(2)
+				self.used_ips.append(result.group(2))
 			result = vlan_pat.search(interface)
 			if result:
 				used_vlans[int(result.group(1))] = 1
@@ -447,6 +449,7 @@ class Driver(pragma.drivers.Driver):
 			 First string is a header 
 		"""
 
+		rockscmd = None
 		if len(argv) == 0:
 			rockscommand = "list cluster status=1"
 		else:
@@ -459,7 +462,7 @@ class Driver(pragma.drivers.Driver):
 			return [] 
 
 		clusters = []
-		pat = ' VM ' # search for this pattern in the output
+		pat = ' VM' # search for this pattern in the output
 		for line in out:
 			if line.find(pat) < 0 : # don't include physical nodes
 				continue
@@ -467,6 +470,15 @@ class Driver(pragma.drivers.Driver):
 
 		# remove pattern ' VM    ' from the output
 		clusters = [s.replace(pat + '    ', '') for s in clusters]
+
+		# insert public IP addresses
+		fe_pat = re.compile("^(\S+):")
+		for i,line in enumerate(clusters):
+			ip = '-'*pragma.utils.IP_ADDRESS_LEN
+			result = fe_pat.search(line)
+			if result:
+				ip = self.public_ips[result.group(1)]
+			clusters[i] = "%s  %s" % (clusters[i],ip) 
 
 		# add listing header
 		header = pragma.utils.getListHeader(clusters)
