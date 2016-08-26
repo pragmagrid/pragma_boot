@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import base64
 import json
+import re
 import sys
 import time
 import urllib2
@@ -31,6 +32,8 @@ class CloudStackCall:
     def setParams(self):
         self.publicNetworkName = 'public'
         self.privateNetworkName = 'private'
+        self.defaultPorts = ['22', '443', '80']
+        self.defaultProto = ['tcp', 'udp', 'icmp']
         self.getZoneID()
         self.networkofferingID = self.getNetworkOfferingsID()
 
@@ -98,17 +101,62 @@ class CloudStackCall:
 
         return response_dict
 
-    def createNetwork(self, name):
-        command = 'createNetwork'
+    def createEgressFirewallRule(self, network_id, protocol, cidrlist = '0.0.0.0/0'):
+        """ 
+	Open network firewall to specified protocol and cidr list.  This is a
+        blocking call.
+
+        :param network_id: The id of the network to open
+        :param protocol: Name of protocol (tcp, udp, or icmp)
+        :param cidrlist: Allowed source IP addresses in CIDR notation
+
+        :return : an API call response as a dictionary 
+        """ 
+        command = 'createEgressFirewallRule'
 
         params = {}
+        params['networkid'] = id
+        params['protocol'] = protocol
+        params['cidrlist'] = cidrlist
+
+        return self.execAPICallAndWait(command, params)
+        print response
+
+    def createNetwork(self, name):
+        """ 
+	Create a new network in default zone.  
+
+        :param name: The name to give the new network
+        :return : an API call response as a dictionary 
+        """ 
+        command = 'createNetwork'
+
+        params = self.getFreeNetwork()
         params['name'] = name
         params['displaytext'] = name
         params['networkofferingid'] = self.networkofferingID 
         params['zoneid'] = self.zoneID 
 
-        response = self.execAPICall(command, params)
-        return response
+        return self.execAPICall(command, params)
+
+    def openNetwork(self, network_id, protos=None):
+        """ 
+        Open up the firewall to the specified protocols (e.g., tcp)
+
+        :param network_id: The id of the network to open
+        :param protos: Optional list of specific protocols
+
+        :return : True if successful, otherwise False
+        """ 
+        if protos is None:
+            protos = self.defaultProto
+        for proto in protos:
+            firewall_response = self.createEgressFirewallRule(network_id, proto)
+            if 'firewallrule' not in firewall_response:
+                logging.error("Problem setting egress firewall rule for %s" % proto)
+                return False
+
+        return True
 
     def deleteNetwork(self, id):
         """ 
@@ -272,9 +320,9 @@ class CloudStackCall:
 
     def getVirtualMachineIPs(self, id = None):
         """
-        Returns a list of IPs for the existing Virtual Machine instances
+        Returns a list of public IPs for the existing Virtual Machine instances
 
-        :return:  list of IPs 
+        :return:  list of public IPs 
         """
 
         ips = []
@@ -293,7 +341,8 @@ class CloudStackCall:
             numnics = len(d['nic'])
             for n in range(numnics):
                 nic = d['nic'][n]
-                ips.append(nic['ipaddress'])
+                if nic['networkname'] == self.publicNetworkName:
+                    ips.append(nic['ipaddress'])
         return ips
 
     def getVirtualMachineID(self, name):
@@ -387,6 +436,29 @@ class CloudStackCall:
         else:
             return id
 
+    def getFreeNetwork(self):
+        """ 
+	Get an unused private network space.  This is a simple algorithm that
+	will allocate 10.xx.xx.0/24 spaces.  Cloudstack will not allow anything
+        bigger than 24.
+
+	:return : New network information as a dictionary with keys startip,
+                  endip, gateway, and netmask
+        """ 
+        networks = self.listNetworks()
+        for i in range(3, 255):
+            for j in range(3, 255):
+                candidateNetwork = "10.%d.%d.0/24" % (i,j)
+                found = False
+                if networks:
+                    for net in networks['network']:
+                        if net['cidr'] == candidateNetwork:
+                            found = True
+                if not found:
+                    return { 'startip': '10.%d.%d.2' % (i,j),
+                             'endip': '10.%d.%d.255' % (i,j),
+                             'gateway': '10.%d.%d.1' % (i,j),
+                             'netmask': '255.255.255.0' }
 
     def getFreeIP(self):
         """
@@ -400,7 +472,7 @@ class CloudStackCall:
         subnet = None
         ips = self.getVirtualMachineIPs()
         if not ips :
-            ips = self.getGatewayIPs()
+            ips = self.getGatewayIPs(self.publicNetworkName)
 
         for i in ips:
             # answer contains [ first-3-octets, last-octet]
@@ -427,6 +499,13 @@ class CloudStackCall:
         return (ipaddress, octet)
 
     def getGatewayIPs(self, name = None):
+        """ 
+	Return the gateway IPs for all network or just the specific network 
+
+        :param name:  Name of network to return gateway IP address
+
+        :return : an array containing the IP addresses as strings
+        """ 
         ips = []
         response = self.listNetworks()
         if not response:
@@ -435,7 +514,8 @@ class CloudStackCall:
         for i in range(count):
             d = response['network'][i]
             gatewayIP = d['gateway']
-            #XXX print "network=", d['name'], d['displaytext'], d['networkofferingid'], d['zoneid'], d['gateway']
+            if name is not None and d['name'] != name:
+                continue
             if gatewayIP not in ips:
                 ips.append(d['gateway'])
 
@@ -454,13 +534,7 @@ class CloudStackCall:
 
         allocation = []
 
-        # find IP for frontend 
-        ip, octet = self.getFreeIP()
-        if not ip:
-            print "No free IP is available"
-            return allocation
-
-        # allocate cluster private network
+        # allocate cluster public network if it doesn't exist
         networks = {}
         response = self.listNetworks()
 
@@ -469,21 +543,47 @@ class CloudStackCall:
             d = response['network'][i]
             networks[d['name']] =  d['id'] 
 
+        publicNet = self.publicNetworkName
+        if publicNet not in networks.keys():
+            newnet = self.createNetwork(publicNet)
+            if not self.openNetwork(newnet['network']['id']):
+                logging.error("Unable to open public network")
+            networks[publicNet] = newnet['network']['id']
+
+        response = self.associateIpAddress(networks[publicNet])
+        if 'ipaddress' not in response and 'id' not in response['ipaddress']:
+            logging.error("Unable to acquire public IP address")
+            return []
+        publicip_id = response['ipaddress']['id']
+        logging.info("Acquired public IP address %s" % response['ipaddress']['ipaddress'])
+        for port in self.defaultPorts:
+            firewall_obj = self.createFirewallRule(publicip_id, 'tcp', port)
+            if 'firewallrule' not in firewall_obj:
+                logging.error("Unable to open firewall on IP address for port %s" % port)
+                return []
+
+        # allocate cluster private network
+        # find IP for frontend 
+        ip, octet = self.getFreeIP()
+        if not ip:
+            print "No free IP is available"
+            return allocation
+
         privateNet = self.privateNetworkName + '%d' % octet
         if privateNet not in networks.keys():
             newnet = self.createNetwork(privateNet)
             networks[privateNet] = newnet['network']['id']
             
-        publicNet = self.publicNetworkName
-        if publicNet not in networks.keys():
-            newnet = self.createNetwork(publicNet)
-            networks[publicNet] = newnet['network']['id']
-
-        ids = "%s,%s" % (networks[privateNet], networks[publicNet])
-
         # allocate frontend VM
         name = "%s%d" % (self.vmNamePrefix, octet)
-        res = self.allocateVirtualMachine(fecpu, feTmpl, name, ip, ids)
+        res = self.allocateVirtualMachine(fecpu, feTmpl, name, networks[privateNet], networks[publicNet], ip)
+        
+        fe_id = res["virtualmachine"]['id']
+        for port in self.defaultPorts:
+            portforward_obj = self.createPortForwardingRule(publicip_id, 'tcp', port, fe_id)
+            if 'portforwardingrule' not in portforward_obj:
+                logging.error("Unable to forward port %s from public IP to VM" % port)
+                return []
         allocation.append(res)
 
         # allocate compute nodes 
@@ -491,17 +591,101 @@ class CloudStackCall:
         i = 0
         while(cpus > 0):
             name = "%s%d%s%d" % (self.vmNamePrefix, octet, self.vmNameSuffix, i)
-            res = self.allocateVirtualMachine(cpus, computeTmpl, name, ip = None, ids = ids, largest = True)
+            res = self.allocateVirtualMachine(cpus, computeTmpl, name, networks[privateNet], None, None, True)
             allocation.append(res)
-            vm_info = self.listVirtualMachines(None, res["id"])
-            cpus_used = vm_info["virtualmachine"][0]["cpunumber"]
+            cpus_used = res["virtualmachine"]["cpunumber"]
             cpus -= cpus_used
             i += 1
 
         return allocation
 
+    def execAPICallAndWait(self, command, params):
+        """ 
+	Execute the specified asynchronous Cloudstack call and wait for the
+        result
 
-    def allocateVirtualMachine(self, ncpu, templatename, name, ip = None, ids = None, largest = False):
+        :param command:  Name of Cloudstack REST API call
+	:param params:  Dictionary containing the Cloudstack command args 
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        job = None
+        try:
+            job = self.execAPICall(command, params)
+        except urllib2.HTTPError as e:
+            logging.error("Problem sending Cloudstack command %s: %s" % command)
+            return None
+        jobresults = self.waitForAsyncJobResults([job['jobid']])
+        if 'jobresult' not in jobresults[job['jobid']]:
+            logging.error("'jobresult' not found in response: %s" % str(jobresults))
+            return None
+        return jobresults[job['jobid']]['jobresult']
+
+    def createPortForwardingRule(self, ip_id, protocol, port, vm_id):
+        """ 
+	Forward traffic from Cloudstack public IP port to VM private IP port
+
+        :param ip_id:  Cloudstack identifier for public IP
+	:param protocol:  Protocol of traffic to forward
+	:param port:  Port of traffic to forward
+        :param vm_id:  Cloudstack identifier for virtual machine
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        command = 'createPortForwardingRule'
+
+        params = {}
+        params['ipaddressid'] = ip_id
+        params['protocol'] = protocol
+        params['publicport'] = port
+        params['privateport'] = port
+        params['virtualmachineid'] = vm_id
+
+        return self.execAPICallAndWait(command, params)
+
+    def createFirewallRule(self, ip_id, protocol, port, cidrlist='0.0.0.0/0'):
+        """ 
+	Allow traffic to Cloudstack public IP port 
+
+        :param ip_id:  Cloudstack identifier for public IP
+	:param protocol:  Open traffic to protocol 
+        :param port:  Port to open
+        :param cidrlist: Allowed source IP addresses in CIDR notation
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        command = 'createFirewallRule'
+
+        params = {}
+        params['ipaddressid'] = ip_id
+        params['protocol'] = protocol
+        params['startport'] = port
+        params['endport'] = port
+        params['cidrlist'] = cidrlist 
+
+        return self.execAPICallAndWait(command, params)
+
+    def associateIpAddress(self, networkid):
+        """ 
+	Create a new public IP address for the specified network
+
+        :param networkid:  Cloudstack identifier for network
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        command = 'associateIpAddress'
+
+        params = {}
+        params['networkid'] = networkid
+        params['zoneid'] = self.zoneID
+
+        return self.execAPICallAndWait(command, params)
+
+    def allocateVirtualMachine(self, ncpu, templatename, name, private_id, public_id = None, ip = None, largest = False):
         command = 'deployVirtualMachine'
 
         # find required parameters for API call
@@ -524,15 +708,18 @@ class CloudStackCall:
         params['templateid'] = tid
         params['zoneid'] = self.zoneID
         params['startvm'] = 'false'
-        if ids:
-            params['networkids'] = ids
-
-        if ip:
-            params['ipaddress'] = ip
+        params['iptonetworklist[0].networkid'] = private_id
+        if public_id:
+            params['iptonetworklist[1].networkid'] = public_id
+            if ip: 
+                params['iptonetworklist[1].ip'] = ip
 
         response = self.execAPICall(command, params)
+        jobresults = self.waitForAsyncJobResults([response['jobid']])
+        if 'jobresult' not in jobresults[response['jobid']]:
+            return None
+        return jobresults[response['jobid']]['jobresult']
 
-        return response
 
     def deployVirtualMachine(self, ncpu, name):
         pass
@@ -634,6 +821,17 @@ class CloudStackCall:
         # get vc private network so we can destroy later
         privateNetwork = self.getVirtualMachinePrivateNetwork(name)
 
+        # release public IP
+        for vm in response['virtualmachine']:
+            if vm['name'] == name: # frontend
+                ip = self.listPublicIpAddresses(vm['id'])
+                if ip is not None:
+                    ip_response = self.disassociateIpAddress(ip['id'])
+                    if 'success' in ip_response and ip_response['success']:
+                        print
+                        print "Released pubic IP address %s" % ip['ipaddress']
+                        print
+
         # destroy VMs
         jobids = {}
         for vm in response['virtualmachine']:
@@ -671,6 +869,78 @@ class CloudStackCall:
         print "\nError, unable to delete network %s" % privateNetwork
         return False
 
+    def disassociateIpAddress(self, ip_id):
+        """ 
+	Release public IP address 
+
+        :param ip_id:  Cloudstack identifier for public IP address
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        command = 'disassociateIpAddress'
+
+        params = {'id': ip_id}
+        try:
+            response = self.execAPICallAndWait(command, params)
+        except urllib2.HTTPError as e:
+            logging.error(self.getError(e))
+            return None
+        return response
+
+
+    def listPublicIpAddresses(self, vmid=None):
+        """ 
+	List all public IP addresses or just for specified VM
+
+        :param vmid:  Cloudstack identifier for virtual machine
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        command = 'listPublicIpAddresses'
+
+        try:
+            response = self.execAPICall(command, {})
+        except urllib2.HTTPError as e:
+            logging.error(self.getError(e))
+            return None
+
+        if 'publicipaddress' not in response:
+            return None
+
+        if vmid is None:
+            return response
+
+        for ip in response['publicipaddress']:
+            rules = self.listPortForwardingRules(ip['id'])
+            if 'count' not in rules:
+                continue
+            a_rule = rules['portforwardingrule'][0]
+            if a_rule['virtualmachineid'] == vmid:
+              return ip
+        return None
+
+    def listPortForwardingRules(self, ip_id):
+        """ 
+	List all port forwarding rules for the specified public IP 
+
+        :param ip_id:  Cloudstack identifier for public IP
+
+	:return : A dictionary containing the response from Cloudstack or None
+                  if error
+        """ 
+        command = 'listPortForwardingRules'
+
+        params = {'ipaddressid': ip_id}
+        try:
+            response = self.execAPICall(command, params)
+        except urllib2.HTTPError as e:
+            logging.error(self.getError(e))
+            return None
+        return response
+    
+
     def stopVirtualCluster(self,name):
         """ 
         Stop virtual cluster given its name
@@ -687,6 +957,7 @@ class CloudStackCall:
             return 0
 
         count = response['count']
+        jobids = {}
         for i in range(count):
             d = response['virtualmachine'][i]
             vmname = d['name']
@@ -696,7 +967,15 @@ class CloudStackCall:
                 stopped[vmname] = "Already in stopped state"
             else:
                 vmresponse = self.stopVirtualMachine(vmid)
-                stopped[vmname] = "Stopping, jobid " + vmresponse['jobid']
+                jobids[vmname] = vmresponse['jobid']
+
+        if len(jobids) > 0:
+            jobresults = self.waitForAsyncJobResults(jobids.values())
+            for vmname, jobid in jobids.items():
+                if jobresults[jobid]['jobresultcode'] == 0:
+                    stopped[vmname] = "Stopped"
+                else:
+                    stopped[vmname] = str(jobresults[jobid]['jobresult'])
 
         if stopped: 
             self.printVMStatusTable(stopped)
@@ -710,7 +989,7 @@ class CloudStackCall:
         try:
             response = self.execAPICall("updateVirtualMachine", updates)
         except urllib2.HTTPError as e:
-            logging.error("Unable to update vm %s: %s" % (name,self.getError(e)))
+            logging.error("Unable to update vm %s: %s" % (id,self.getError(e)))
             return None
         return response
 
