@@ -164,9 +164,9 @@ class BaseRepository(object):
         vmXmlObject = self.xmlin[vcname]
         names = vmXmlObject.getImageNames()
         for filename in names:
-            rpath = self.getRemoteFilePath(filename)
             lpath = self.getLocalFilePath(os.path.join(vcname, filename))
             if not os.path.isfile(lpath):
+                rpath = self.getRemoteFilePath(lpath)
                 self.download(rpath, lpath)
 
     def processCluster(self, name, path):
