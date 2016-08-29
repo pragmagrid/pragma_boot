@@ -110,7 +110,7 @@ class Driver(pragma.drivers.Driver):
 
 		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 
-		(macs,ips, priv_ip, priv_netmask) = self.get_network(fe_name, cnodes)
+		(macs,ips, priv_ip, priv_netmask) = self.get_network(fe_name, our_ip, cnodes)
 		vc_out.set_frontend(fe_name, our_ip, priv_ip, our_fqdn)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
                 vc_out.set_network(macs, ips, netmask, priv_netmask, gw, priv_ip, "8.8.8.8")
@@ -391,7 +391,7 @@ class Driver(pragma.drivers.Driver):
 				nodes[result.group(1)] = result.group(2)
 		return nodes
 
-	def get_network(self, frontend, compute_nodes):
+	def get_network(self, frontend, fe_publicip, compute_nodes ):
 		"""
 		Get network information for newly instantiated virtual cluster
 
@@ -402,13 +402,19 @@ class Driver(pragma.drivers.Driver):
 		(out, exitcode) = pragma.utils.getOutputAsList(
 			"rocks list host interface")
 		macs = {frontend:{}}
-		ips = {frontend:{}}
+		ips = {frontend:{'public': fe_publicip, 'private': '10.1.1.1'}}
+		fe_priv_netmask = "255.255.0.0"
+
+		# simple private IP distribution algorithm
+		ip_pat = "10.1.%d.%d"
+		(i, j) = (255,254)
 		for node in compute_nodes:
 			macs[node] = {}
-			ips[node] = {}
-		mac_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+\S+\s+(\S+)\s+(\S+)\s+(\S+)" % frontend)
-		priv_ip = None
-		priv_netmask = None
+			ips[node] = {'private': ip_pat % (i,j)}
+			(i,j) = (i,j-1) if j > 2 else (i-1, 254)
+
+		# get mac addresses
+		mac_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+\S+\s+(\S+)" % frontend)
 		for line in out:
 			result = mac_pat.search(line)
 			if result:
@@ -416,13 +422,9 @@ class Driver(pragma.drivers.Driver):
 				network_type = result.group(2)
 				if re.search("[\-]+", network_type) is not None: 
 					network_type = 'private'
-				if node_name == frontend and network_type == 'private':
-					priv_ip = result.group(4)
-					priv_netmask = result.group(5)
 				macs[node_name][network_type] = result.group(3)
-				ips[node_name][network_type] = result.group(4)
 
-		return (macs,ips, priv_ip, priv_netmask)
+		return (macs,ips, ips[frontend]['private'], fe_priv_netmask)
 
 	def get_physical_hosts(self, vcname):
 		"""
