@@ -25,8 +25,8 @@ We recommend install in opt/pragma_boot
 
 #. Check out github repository ::
 
-     cd /opt
-     git clone  https://github.com/pragmagrid/pragma_boot
+   cd /opt
+   git clone  https://github.com/pragmagrid/pragma_boot
 
 #. Create configuration files for your site  in ``/opt/pragma_boot/etc`` based on site information. 
    The directory contains templates for site configuration file and driver configuration files. 
