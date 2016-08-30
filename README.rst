@@ -21,7 +21,11 @@ The following represents a list of current sub-commands:
 
 Installation
 ==============
-We recommend install in opt/pragma_boot
+We recommend install in /opt/pragma_boot
+
+#. Install libguestfs-tools-c package ::
+
+   yum --enablerepo=base install libguestfs-tools-c
 
 #. Check out github repository ::
 
