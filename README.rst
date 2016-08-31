@@ -67,7 +67,7 @@ We recommend install in /opt/pragma_boot
    
    The network information in this file is what your physical site can use for the virtual clusters. 
    The IP addresses must have their associated FQDNs and the gateway and DNS info must be current. 
-   You need one IP and one vlan per virtual cluster. The example below supports hosting of 2 virtual clusters 
+   You need one IP and one vlan per virtual cluster. The example below supports hosting of 2 virtual clusters ::
    
      # public IP addresses pragma_boot can use
      public_ips=["111.110.109.2", "111.110.109.3"]
@@ -116,7 +116,7 @@ We recommend install in /opt/pragma_boot
    
       # export PATH=$PATH:/opt/pragma_boot/bin
       
-  List repositories  ::
+   List repositories  ::
   
       # pragma list repository
       VIRTUAL IMAGE
