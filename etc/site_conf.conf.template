@@ -13,10 +13,6 @@ temp_directory = "/state/partition1/temp"
 # Default directory for log files
 log_directory = "/var/log/pragma_boot"
 
-# path to cluster image repository (either absolute or
-# relative to pragma_boot directory)
-image_repository = "vm-images"
-
 # Set individual variables in repositroy_settings based on your site configuration.
 repository_settings = {
     # Required repository class to use. Available : local, http, cloudfront
@@ -26,7 +22,7 @@ repository_settings = {
     'repository_dir' : "/state/partition1/vm-images",
 
     # Optional virtual images database file. Defaults to 'repository_dir'/vcdb.txt 
-    'vcdb_filename' : "myfile",
+    'vcdb_filename' : "vcdb.txt",
 
     # The following settings are required for http repository
     #"repository_url": "http://calit2-119-121.ucsd.edu",
