@@ -25,22 +25,107 @@ We recommend install in /opt/pragma_boot
 
 #. Install libguestfs-tools-c package ::
 
-   yum --enablerepo=base install libguestfs-tools-c
+     yum --enablerepo=base install libguestfs-tools-c
 
 #. Check out github repository ::
 
-   cd /opt
-   git clone  https://github.com/pragmagrid/pragma_boot
+     cd /opt
+     git clone  https://github.com/pragmagrid/pragma_boot
 
 #. Create configuration files for your site  in ``/opt/pragma_boot/etc`` based on site information. 
    The directory contains templates for site configuration file and driver configuration files. 
    For example ::
 
-   cd /opt/pragma_boot/etc 
-   cp site_conf.conf.template site_conf.conf  (and edit according to your site info) 
-   cp kvm_rocks.conf.template kvm_rocks.conf  (and edit according to your driver info) 
+     cd /opt/pragma_boot/etc 
+     cp site_conf.conf.template site_conf.conf  (and edit according to your site info) 
+     cp kvm_rocks.conf.template kvm_rocks.conf  (and edit according to your driver info) 
+   
+   Example site_conf.conf file  for a site using kvm_rocks driver and a local repository::
+   
+     # Choose is the viritualization engine driver type
+     site_ve_driver = "kvm_rocks"
 
+     # Temporary directory for staging virtual images before deployment.
+     temp_directory = "/state/partition1/temp"
 
+     # Default directory for log files
+     log_directory = "/var/log/pragma_boot"
+
+     # Set individual variables in repositroy_settings based on your site configuration.
+     repository_settings = {
+        # Required repository class to use
+        'repository_class' : "local", 
+
+        # Required local repository directory to use for caching virtual images 
+        'repository_dir' : "/state/partition1/vm-images",
+
+        # Optional virtual images database file. Defaults to 'repository_dir'/vcdb.txt 
+        'vcdb_filename' : "vcdb.txt",
+     }
+
+   Example kvm_rocks.conf file ::
+   
+     # public IP addresses pragma_boot can use
+     public_ips=["111.110.109.2", "111.110.109.3"]
+
+     # metmask for public IP addresses
+     netmask="255.255.255.0"
+
+     # gateway 
+     gw="111.110.109.1"
+
+     # DNS server
+     dns="8.8.8.8"
+
+     # available vlans that can be used for private network
+     vlans= range(2,5)
+
+     # specify alternate directory for images if using NFS; required (leave empty for default)
+     diskdir = ""
+
+     # do not allocate all cpus, leave this many empty
+     num_processors_reserved = 2
+
+#. Create a local repository directory, the directory path  must correspond to the `repository_dir` in `site_conf.conf` file. 
+   For example ::
+
+     mkdir /state/partition1/vm-images 
+   
+   In this directory create images database file. The default is `vcdb.txt` and it is identified in `site_conf.conf` file
+   by `vcdb_name` variable.  Example vcdb.txt file ::
+   
+      rocks-sge-ipop,rocks-sge-ipop/rocks-sge-ipop.xml
+      wa-dock,wa-dock/wa-dock.xml
+      hku_biolinux,hku_biolinux/hku_biolinux.xml
+
+   This example file  describes a local repository with 3 virtual clusters. For each  cluster there is a corresponding directory 
+   where actual image files and a description xml file are located. For example ::
+   
+       # ls /state/partition1/vm-images/rocks-sge-ipop/
+       nbcr-226-sge-ipop-compute.vda  nbcr-226-sge-ipop-frontend.vda  rocks-sge-ipop.xml
+
+#. Test your configuration. 
+   
+   Add pragma boot directory to your path ::
+   
+      # export PATH=$PATH:/opt/pragma_boot/bin
+      
+  List repositories  ::
+  
+      # pragma list repository
+      VIRTUAL IMAGE
+      hku_biolinux
+      rocks-sge-ipop
+      wa-dock
+
+  The last 4 lines show the expected output for the vcdb.txt example file which lists 3 virtual clusters in the repository
+  
+  Boot a cluster with a frontend and no compute nodes using hku_biolinux image ::
+  
+      # pragma boot hku_biolinux 0 loglevel=DEBUG
+      
+  The log file will be in `/var/log/pragma_boot/`    
+          
 PRAGMA Virtual Cluster Requirements
 ==================================
 A virtual cluster has a virtual frontend and virtual compute nodes. 
