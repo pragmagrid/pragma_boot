@@ -63,7 +63,11 @@ We recommend install in /opt/pragma_boot
         'vcdb_filename' : "vcdb.txt",
      }
 
-   Example kvm_rocks.conf file ::
+   Example kvm_rocks.conf file 
+   
+   The network information in this file is what your physical site can use for the virtual clusters. 
+   The IP addresses must have their associated FQDNs and the gateway and DNS info must be current. 
+   You need one IP and one vlan per virtual cluster. The example below supports hosting of 2 virtual clusters 
    
      # public IP addresses pragma_boot can use
      public_ips=["111.110.109.2", "111.110.109.3"]
@@ -78,7 +82,7 @@ We recommend install in /opt/pragma_boot
      dns="8.8.8.8"
 
      # available vlans that can be used for private network
-     vlans= range(2,5)
+     vlans= range(22,23)
 
      # specify alternate directory for images if using NFS; required (leave empty for default)
      diskdir = ""
@@ -104,6 +108,8 @@ We recommend install in /opt/pragma_boot
        # ls /state/partition1/vm-images/rocks-sge-ipop/
        nbcr-226-sge-ipop-compute.vda  nbcr-226-sge-ipop-frontend.vda  rocks-sge-ipop.xml
 
+   Create  directories for the images you want to host and download images and their xml files. Email pragma-cloud-admin@googlegroups.com for the download link. 
+   
 #. Test your configuration. 
    
    Add pragma boot directory to your path ::
