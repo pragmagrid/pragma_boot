@@ -124,7 +124,7 @@ We recommend install in /opt/pragma_boot
       rocks-sge-ipop
       wa-dock
 
-  The last 4 lines show the expected output for the vcdb.txt example file which lists 3 virtual clusters in the repository
+   The last 4 lines show the expected output for the vcdb.txt example file which lists 3 virtual clusters in the repository
   
   Boot a cluster with a frontend and no compute nodes using hku_biolinux image ::
   
