@@ -126,11 +126,11 @@ We recommend install in /opt/pragma_boot
 
    The last 4 lines show the expected output for the vcdb.txt example file which lists 3 virtual clusters in the repository
   
-  Boot a cluster with a frontend and no compute nodes using hku_biolinux image ::
+   Boot a cluster with a frontend and no compute nodes using hku_biolinux image ::
   
       # pragma boot hku_biolinux 0 loglevel=DEBUG
       
-  The log file will be in `/var/log/pragma_boot/`    
+   The log file will be in `/var/log/pragma_boot/`    
           
 PRAGMA Virtual Cluster Requirements
 ==================================
