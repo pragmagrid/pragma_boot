@@ -20,8 +20,9 @@ vlans= range(4,20)
 # specify alternate directory for images if using NFS; required (leave empty for default)
 diskdir = ""
 
-# Virtual containers to use for hosting virtual machines (space separated string)
-available_containers = "vm-container-0-0 vm-container-0-1 vm-container-0-2 vm-container-0-3"
+# Restrict virtual containers to use for hosting virtual machines (space separated string)
+# By default will select all available containers
+# available_containers = "vm-container-0-0 vm-container-0-1 vm-container-0-2 vm-container-0-3"
 
 # reserve number of CPUs on each node for the OS
 num_processors_reserved = 2
