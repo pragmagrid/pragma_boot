@@ -12,8 +12,8 @@ logger = logging.getLogger('pragma.drivers.kvm_rocks.image_manager')
 
 
 class ImageManager:
-	LIST_VM_PATTERN = "^(\S*%s\S*):\s+\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+file:(\S+),vda,virtio"
-	LIST_DISK_PATTERN = "^(\S*%s\S*):\s+\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+(\S+),vda,virtio"
+	LIST_VM_PATTERN = "^(\S*%s\S*)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+file:(\S+),vda,virtio"
+	LIST_DISK_PATTERN = "^(\S*%s\S*)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+(\S+),vda,virtio"
 
 	def __init__(self, fe_name):
 		"""
@@ -32,8 +32,11 @@ class ImageManager:
 		for line in out:
 			result = host_pat.search(line)
 			if result:
-				self.phy_hosts[result.group(1)] = result.group(2)
-				self.disks[result.group(1)] = result.group(3)
+				node = result.group(1)
+				if not node: # single VM case
+					node = self.fe_name
+				self.phy_hosts[node] = result.group(2)
+				self.disks[node] = result.group(3)
 
 	def boot_cleanup(self):
 		"""
@@ -105,7 +108,10 @@ class ImageManager:
 		for line in out:
 			result = host_pat.search(line)
 			if result:
-				disks[result.group(1)] = result.group(3)
+				node = result.group(1)
+				if not node: # single VM case
+					node = vcname
+				disks[node] = result.group(3)
 		return disks
 
 	def install_to_image(self, path, files):
