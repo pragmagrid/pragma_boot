@@ -12,8 +12,8 @@ logger = logging.getLogger('pragma.drivers.kvm_rocks.image_manager')
 
 
 class ImageManager:
-	LIST_VM_PATTERN = "^(\S*%s\S*)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+file:(\S+),vda,virtio"
-	LIST_DISK_PATTERN = "^(\S*%s\S*)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+(\S+),vda,virtio"
+	LIST_VM_PATTERN = "^(\S*%s\S*?)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+file:(\S+),vda,virtio"
+	LIST_DISK_PATTERN = "^(\S*%s\S*?)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+(\S+),vda,virtio"
 
 	def __init__(self, fe_name):
 		"""
