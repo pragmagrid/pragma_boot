@@ -24,7 +24,7 @@ class Driver(pragma.drivers.Driver):
 		self.used_ips = []
 		self.used_vlans = []
 		used_vlans = {}
-		ip_pat = re.compile("^(\S+):.*?(\d+\.\d+\.\d+\.\d+)")
+		ip_pat = re.compile("^(\S+):.*?(\d+\.\d+\.\d+\.\d+)\s+\d")
 		vlan_pat = re.compile("\d\d:\d\d:.*\s+(\d+)\s+\-+\s+\-+$")
 		for interface in out:
 			result = ip_pat.search(interface)
