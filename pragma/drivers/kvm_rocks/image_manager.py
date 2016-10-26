@@ -500,8 +500,11 @@ class NfsImageManager(ImageManager):
 		result = re.search("file:([^,]+)", disk_spec)
 		disk = result.group(1)
 		print "  Removing disk %s from node %s" % (disk, host)
-		(out, exitcode) = pragma.utils.getOutputAsList(
-			"ssh %s rm -f %s" % (host, disk))
+		cmd = "rm -f %s" % disk
+		our_phy_frontend = socket.gethostname().split(".")[0]
+		if host != our_phy_frontend:
+			cmd = "ssh %s %s" % (host, cmd)
+		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
 		if exitcode != 0:
 			sys.stderr.write("Problem removing disk %s: %s\n" % (
 				host, "\n".join(out)))
