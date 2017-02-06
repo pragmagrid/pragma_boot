@@ -272,15 +272,15 @@ class ZfsImageManager(ImageManager):
 		logger.info("Cloning %s" % name)
 		clonename = "tmpclone-%s-%s" % (name, pragma.utils.get_id())
 
-		(out, ec) = pragma.utils.getOutputAsList("ssh %s zfs snapshot %s@%s" % (
-				zfs_spec['host'], zfs_spec['volume'], clonename))
+		(out, ec) = pragma.utils.getOutputAsList("ssh %s zfs snapshot %s/%s@%s" % (
+				zfs_spec['host'], zfs_spec['pool'], zfs_spec['volume'], clonename))
 		if ec != 0:
 			logger.error("Unable to snapshot %s" % zfs_spec['volume'])
 			return
 
 		(out, ec) = pragma.utils.getOutputAsList(
-			"ssh %s zfs clone %s@%s %s/%s-vol" % (
-				zfs_spec['host'], zfs_spec['volume'], 
+			"ssh %s zfs clone %s/%s@%s %s/%s-vol" % (
+				zfs_spec['host'], zfs_spec['pool'], zfs_spec['volume'],
 				clonename, zfs_spec['pool'], name))
 		if ec != 0:
 			logger.error("Unable to clone %s" % zfs_spec['volume'])
@@ -294,8 +294,8 @@ class ZfsImageManager(ImageManager):
 			return
 
 		(out, ec) = pragma.utils.getOutputAsList(
-			"ssh %s zfs get volsize %s" % (
-				zfs_spec['host'], zfs_spec['volume']))
+			"ssh %s zfs get volsize %s/%s" % (
+				zfs_spec['host'], zfs_spec['pool'], zfs_spec['volume']))
 		if ec != 0:
 			logger.error("Problem querying volsize for %s" % zfs_spec['volume'])
 			return
