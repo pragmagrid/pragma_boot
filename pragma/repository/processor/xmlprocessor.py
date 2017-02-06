@@ -6,9 +6,8 @@ from pragma.utils import Abort
 
 
 class XmlInput:
-    def __init__(self, xmltree, dir):
+    def __init__(self, xmltree):
         self.xml = xmltree
-        self.dir = dir
         logging.basicConfig()
         self.logger = logging.getLogger(self.__module__)
 
@@ -44,6 +43,8 @@ class XmlInput:
 
         return names
 
+    def replaceDisk(self):
+
 
     def setDiskInfo(self):
         """Parse xml tree info and collect disk-related information for
@@ -52,7 +53,6 @@ class XmlInput:
            For example:
            {'type': 'raw', 'name': 'qemu', 'file': 'disk-iamge.img}
         """
-
         vctree = self.xml.__dict__['_root']  # xml tree object 
         for nodetype in ('frontend', 'compute'):
             diskinfo = {}

@@ -1,3 +1,4 @@
+import logging
 import os
 import socket
 import string
@@ -605,6 +606,20 @@ class Command:
 
 		return repository
 
+	def config_logging(self, loglevel="INFO", logfile=None):
+		"""
+		Configure the logger for calling program.  If logfile is None, messages
+		will be printed to stdout.
+
+		:param loglevel: Level of messages to be printed [default: INFO]
+		:param logfile: Redirect messages to file if exists [default: None]
+
+		:return:  The configured logger object
+		"""
+		logging.basicConfig(filename=logfile,
+			format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+			level=getattr(logging, loglevel.upper()))
+		return logging.getLogger(sys.argv[0])
 
 	def importDriver(self, drivername):
 		classname = 'Driver'

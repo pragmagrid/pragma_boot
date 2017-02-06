@@ -131,10 +131,19 @@ class BaseRepository(object):
             rpath = self.getRemoteFilePath(self.vcdbFilename)
             self.download(rpath, self.vcdbFile)
 
+        self.readVcdb()
+
+    def readVcdb(self):
         with open(self.vcdbFile, 'r') as vcdbFile:
             for line in vcdbFile:
                 name, path = line.strip().split(',')
                 self.vcdb[name] = self.getLocalFilePath(path)
+
+    def writeVcdb(self):
+        with open(self.vcdbFile, 'w') as vcdbFile:
+            self.logger.info("Writing vcdb to %s" % self.vcdbFile)
+            for vc, xml in self.vcdb.iteritems():
+                vcdbFile.write("%s,%s\n" % (vc, xml))
 
     def getVmXmlTree(self, name):
         """Returns an xmltree object corrsponding to a parsed xml file for a VM 'name'"""
@@ -197,7 +206,8 @@ class BaseRepository(object):
             fp.process()
 
         # create xml output object
-        self.createXmlOutputObject(path)
+        if path is not None:
+            self.createXmlOutputObject(path)
 
         return
 
@@ -210,4 +220,8 @@ class BaseRepository(object):
 
     def clear_cache(self):
         """Clear repository cache entirely"""
+        raise NotImplementedError
+
+    def sync(self):
+        """Sync local repository to its remote one """
         raise NotImplementedError
