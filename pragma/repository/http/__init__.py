@@ -10,7 +10,6 @@ class Repository(BaseRepository):
         self.checkSettings()
         self.checkVcdbFile()
 
-
     def checkSettings(self):
         try:
             self.repository_url = self.settings["repository_url"]
