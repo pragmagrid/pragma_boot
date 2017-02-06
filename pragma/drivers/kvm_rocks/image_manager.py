@@ -252,8 +252,8 @@ class ZfsImageManager(ImageManager):
 
 		# remove volume
 		print "  Removing %s from %s" % (vol, nas)
-		(out, exitcode) = pragma.utils.getOutputAsList(
-			"ssh %s zfs destroy -r %s" % (nas, vol))
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"remove host storageimg %s %s %s" % (nas, pool, vol))
 		if exitcode != 0:
 			sys.stderr.write("Problem removing vol %s for %s: %s\n" % (
 				vol, node, "\n".join(out)))
@@ -358,7 +358,8 @@ class ZfsImageManager(ImageManager):
 			return False
 		out.pop(0) # pop off header
 		(nas, pool) = re.split("\s+", out[0])
-		vol = "%s/%s-vol" % (pool, node)
+		vol = "%s-vol" % node
+
 		return (vol, pool, nas)
 
 	def mount_from_nas(self, vol, zfs_spec):
@@ -500,8 +501,11 @@ class NfsImageManager(ImageManager):
 		result = re.search("file:([^,]+)", disk_spec)
 		disk = result.group(1)
 		print "  Removing disk %s from node %s" % (disk, host)
-		(out, exitcode) = pragma.utils.getOutputAsList(
-			"ssh %s rm -f %s" % (host, disk))
+		cmd = "rm -f %s" % disk
+		our_phy_frontend = socket.gethostname().split(".")[0]
+		if host != our_phy_frontend:
+			cmd = "ssh %s %s" % (host, cmd)
+		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
 		if exitcode != 0:
 			sys.stderr.write("Problem removing disk %s: %s\n" % (
 				host, "\n".join(out)))
