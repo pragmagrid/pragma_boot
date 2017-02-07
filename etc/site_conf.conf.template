@@ -24,6 +24,18 @@ repository_settings = {
     # Optional virtual images database file. Defaults to 'repository_dir'/vcdb.txt 
     'vcdb_filename' : "vcdb.txt",
 
+    # The following settings are required for clonezilla repository
+    # 'cziso': "/opt/cziso/bin/cziso",
+    # 'local_image_url': "zfs://nas-0-0/pragma/$imagename-vol",
+    # 'local_image_url': "file://$repository_dir/$imagename.raw",
+    # 'local_image_url': "file://$repository_dir/$imagename.qcow2",
+
+    # Only sync images from remote repository matching the below pattern
+    # 'include_images': 'image_name_pattern',
+
+    # Sync all images from remote repository except those matching below pattern
+    # 'exclude_images': 'image_name_pattern',
+
     # The following settings are required for http repository
     #"repository_url": "http://calit2-119-121.ucsd.edu",
 
