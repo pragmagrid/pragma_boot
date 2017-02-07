@@ -139,7 +139,8 @@ class GdriveObject:
 			# download to file
 			download_url = "%s&confirm=%s" % (url, confirm_code)
 			self.logger.debug("Download url is %s" % download_url)
-			self.logger.info("Downloading file %s to %s" % (google_id, lpath))
+			self.logger.info("Downloading file %s to %s" % (
+				self.name, self.local_file))
 			response = opener.open(download_url)
 			with open(self.local_file, "wb") as f:
 				f.write(response.read())
@@ -279,7 +280,7 @@ class CzisoVirtualCluster:
 	def sync(self, repo_path):
 		synced = False
 		if not os.path.exists(repo_path):
-			os.makedirs(vc_path)
+			os.makedirs(repo_path)
 		for gobject in [self.xml, self.frontend, self.compute]:
 			if gobject.sync():
 				synced = True
