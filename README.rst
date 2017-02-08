@@ -209,11 +209,11 @@ local
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are stored on the local disk.  The following parameters is required:
 
-**repository_class** - Should be set to "local".
+* **repository_class** - Should be set to "local".
 
-**repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
+* **repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
 
-**vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
+* **vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
 
   <virtual cluster name 1>,<path to libvirt xml description of virtual cluster 1>
   <virtual cluster name 2>,<path to libvirt xml description of virtual cluster 2>
@@ -236,13 +236,13 @@ http
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are hosted on any http/https server including Amazon S3. No authentication is supported.  The following parameters are required:
 
-**repository_class** - Should be set to "http".
+* **repository_class** - Should be set to "http".
 
-**repository_dir** - a path to a directory where the vdcb and images can be cached
+* **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
 
-**repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+* **repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
 
 clonezilla
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -252,13 +252,6 @@ To use the Clonezilla repository, the following dependencies must be installed:
 
 * `cziso <https://github.com/pragmagrid/cziso>`_
 
-
-Block quotes are just:
-
-    Indented paragraphs,
-
-        and they may nest. 
-        
 The following parameters are required in site_conf.conf:
 
 * **repository_class** - Should be set to "clonezilla".
@@ -294,17 +287,17 @@ To use the cloudfront repository, the following dependencies will need to be ins
 
 The following parameters are required in site_conf.conf:
 
-**repository_class** - Should be set to "cloudfront".
+* **repository_class** - Should be set to "cloudfront".
 
-**repository_dir** - a path to a directory where the vdcb and images can be cached
+* **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
 
-**repository_url** - CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
+* **repository_url** - CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
 
-**keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
+* **keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
 
-**private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
+* **private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
 
 To generate a CloudFront Key Pair: 
 
