@@ -6,8 +6,9 @@ from pragma.utils import Abort
 
 
 class XmlInput:
-    def __init__(self, xmltree):
+    def __init__(self, xmltree, dir):
         self.xml = xmltree
+        self.dir = dir 
         logging.basicConfig()
         self.logger = logging.getLogger(self.__module__)
 
