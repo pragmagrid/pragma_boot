@@ -209,6 +209,8 @@ local
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are stored on the local disk.  The following parameters is required:
 
+**repository_class** - Should be set to "local".
+
 **repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
 
 **vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
@@ -234,11 +236,45 @@ http
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are hosted on any http/https server including Amazon S3. No authentication is supported.  The following parameters are required:
 
+**repository_class** - Should be set to "http".
+
 **repository_dir** - a path to a directory where the vdcb and images can be cached
 
 **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
 
 **repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+
+clonezilla
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Clonezilla repository type is a remote repository similar to `http`_ except that the virtual cluster images are stored in a generic Clonezilla image format and can then be converted to any image type appropriate to your local installation (e.g., zvol, raw, qcow2) using the `Clonezilla <http://clonezilla.org/>`_ tool.  The default remote clonezilla repository can be found in `Google Drive <https://drive.google.com/drive/u/0/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
+
+To use the Clonezilla repository, the following dependencies must be installed:
+
+* `cziso <https://github.com/pragmagrid/cziso>`_
+
+The following parameters are required in site_conf.conf:
+
+**repository_class** - Should be set to "clonezilla".
+
+**repository_dir** - a path to a directory where the vdcb and images can be cached
+
+**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+
+**repository_url** - Base url of the Clonezilla repository in Google drive.  Please use `<https://drive.google.com/drive/u/1/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
+
+**cziso** - Full path to the cziso tool installed on this system.
+
+**local_image_url** - A cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
+
+* ZFS volume (Rocks): zfs://nas-0-0/pragma/$imagename-vol
+* RAW images: 'file://$repository_dir/$imagename.raw' or 'file://$repository_dir/$imagename.img'
+* QCOW2 images: 'file://$repository_dir/$imagename.qcow2'
+
+The following parameters are optional for the Clonezilla repository:
+
+**include_images** - Only sync images from remote repository that match a specified pattern. 
+
+**exclude_images** - Sync all images from remote repository except those matching the specified pattern.
 
 cloudfront
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -246,7 +282,12 @@ Virtual images are hosted on Amazon CloudFront with automatic signed url creatio
 
 To use the cloudfront repository, the following dependencies will need to be installed:
 
+* boto
+* rsa
+
 The following parameters are required in site_conf.conf:
+
+**repository_class** - Should be set to "cloudfront".
 
 **repository_dir** - a path to a directory where the vdcb and images can be cached
 
