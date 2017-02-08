@@ -63,6 +63,8 @@ We recommend install in /opt/pragma_boot
         'vcdb_filename' : "vcdb.txt",
      }
 
+   **Note:**  If you are using kvm_rocks and want to host all/some if the latest PRAGMA virtual cluster images, the easiest setup will be to configure site_conf.conf to use the "clonezilla" repository type.  Please see the `clonezilla`_ section below for more information.
+   
    Example kvm_rocks.conf file 
    
    The network information in this file is what your physical site can use for the virtual clusters. 
@@ -246,7 +248,7 @@ Virtual images are hosted on any http/https server including Amazon S3. No authe
 
 clonezilla
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The Clonezilla repository type is a remote repository similar to `http`_ except that the virtual cluster images are stored in a generic Clonezilla image format and can then be converted to any image type appropriate to your local installation (e.g., zvol, raw, qcow2) using the `Clonezilla <http://clonezilla.org/>`_ tool.  The default remote clonezilla repository can be found in `Google Drive <https://drive.google.com/drive/u/0/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
+The Clonezilla repository type is a remote repository similar to `http`_ except that the virtual cluster images are stored in a generic Clonezilla image format and can then be converted to any image type appropriate to your local installation (e.g., zvol, raw, qcow2) using the `Clonezilla tool <http://clonezilla.org/>`_.  The default remote clonezilla repository can be found in `Google Drive <https://drive.google.com/drive/u/0/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
 
 To use the Clonezilla repository, the following dependencies must be installed:
 
