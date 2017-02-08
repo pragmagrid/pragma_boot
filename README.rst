@@ -252,29 +252,36 @@ To use the Clonezilla repository, the following dependencies must be installed:
 
 * `cziso <https://github.com/pragmagrid/cziso>`_
 
+
+Block quotes are just:
+
+    Indented paragraphs,
+
+        and they may nest. 
+        
 The following parameters are required in site_conf.conf:
 
-**repository_class** - Should be set to "clonezilla".
+* **repository_class** - Should be set to "clonezilla".
 
-**repository_dir** - a path to a directory where the vdcb and images can be cached
+* **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
 
-**repository_url** - Base url of the Clonezilla repository in Google drive.  Please use the default value specified in the site_conf.conf file.
+* **repository_url** - Base url of the Clonezilla repository in Google drive.  Please use the default value specified in the site_conf.conf file.
 
-**cziso** - Full path to the cziso tool installed on this system.
+* **cziso** - Full path to the cziso tool installed on this system.
 
-**local_image_url** - A cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
+* **local_image_url** - A cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
 
-* ZFS volume (Rocks): zfs://nas-0-0/pragma/$imagename-vol
-* RAW images: 'file://$repository_dir/$imagename.raw' or 'file://$repository_dir/$imagename.img'
-* QCOW2 images: 'file://$repository_dir/$imagename.qcow2'
+  * ZFS volume (Rocks): zfs://nas-0-0/pragma/$imagename-vol
+  * RAW images: 'file://$repository_dir/$imagename.raw' or 'file://$repository_dir/$imagename.img'
+  * QCOW2 images: 'file://$repository_dir/$imagename.qcow2'
 
 The following parameters are optional for the Clonezilla repository:
 
-**include_images** - Only sync images from remote repository that match a specified pattern. 
+* **include_images** - Only sync images from remote repository that match a specified pattern. 
 
-**exclude_images** - Sync all images from remote repository except those matching the specified pattern.
+* **exclude_images** - Sync all images from remote repository except those matching the specified pattern.
 
 cloudfront
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
