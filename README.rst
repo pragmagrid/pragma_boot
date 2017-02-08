@@ -63,6 +63,8 @@ We recommend install in /opt/pragma_boot
         'vcdb_filename' : "vcdb.txt",
      }
 
+   **Note:**  If you are using kvm_rocks and want to host all/some if the latest PRAGMA virtual cluster images, the easiest setup will be to configure site_conf.conf to use the "clonezilla" repository type.  Please see the `clonezilla`_ section below for more information.
+   
    Example kvm_rocks.conf file 
    
    The network information in this file is what your physical site can use for the virtual clusters. 
@@ -209,9 +211,11 @@ local
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are stored on the local disk.  The following parameters is required:
 
-**repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
+* **repository_class** - Should be set to "local".
 
-**vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
+* **repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
+
+* **vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
 
   <virtual cluster name 1>,<path to libvirt xml description of virtual cluster 1>
   <virtual cluster name 2>,<path to libvirt xml description of virtual cluster 2>
@@ -234,11 +238,45 @@ http
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are hosted on any http/https server including Amazon S3. No authentication is supported.  The following parameters are required:
 
-**repository_dir** - a path to a directory where the vdcb and images can be cached
+* **repository_class** - Should be set to "http".
 
-**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-**repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+
+* **repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+
+clonezilla
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Clonezilla repository type is a remote repository similar to `http`_ except that the virtual cluster images are stored in a generic Clonezilla image format and can then be converted to any image type appropriate to your local installation (e.g., zvol, raw, qcow2) using the `Clonezilla tool <http://clonezilla.org/>`_.  The default remote clonezilla repository can be found in `Google Drive <https://drive.google.com/drive/u/0/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
+
+To use the Clonezilla repository, the following dependencies must be installed:
+
+* `cziso <https://github.com/pragmagrid/cziso>`_
+
+The following parameters are required in site_conf.conf:
+
+* **repository_class** - Should be set to "clonezilla".
+
+* **repository_dir** - a path to a directory where the vdcb and images can be cached
+
+* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+
+* **repository_url** - Base url of the Clonezilla repository in Google drive.  Please use the default value specified in the site_conf.conf file.
+
+* **cziso** - Full path to the cziso tool installed on this system.
+
+* **local_image_url** - A cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
+
+  * ZFS volume (Rocks): zfs://nas-0-0/pragma/$imagename-vol
+  * RAW images: 'file://$repository_dir/$imagename.raw' or 'file://$repository_dir/$imagename.img'
+  * QCOW2 images: 'file://$repository_dir/$imagename.qcow2'
+
+The following parameters are optional for the Clonezilla repository:
+
+* **include_images** - Only sync images from remote repository that match a specified pattern. 
+
+* **exclude_images** - Sync all images from remote repository except those matching the specified pattern.
 
 cloudfront
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -246,17 +284,22 @@ Virtual images are hosted on Amazon CloudFront with automatic signed url creatio
 
 To use the cloudfront repository, the following dependencies will need to be installed:
 
+* boto
+* rsa
+
 The following parameters are required in site_conf.conf:
 
-**repository_dir** - a path to a directory where the vdcb and images can be cached
+* **repository_class** - Should be set to "cloudfront".
 
-**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-**repository_url** - CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
+* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
 
-**keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
+* **repository_url** - CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
 
-**private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
+* **keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
+
+* **private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
 
 To generate a CloudFront Key Pair: 
 
