@@ -43,10 +43,7 @@ class XmlInput:
 
         return names
 
-    def replaceDisk(self):
-
-
-    def setDiskInfo(self):
+     def setDiskInfo(self):
         """Parse xml tree info and collect disk-related information for
            frontend and compute nodes. Return it as a dictionary where
            keys are 'frontend', 'compute' if exist, and values are dictionaries
