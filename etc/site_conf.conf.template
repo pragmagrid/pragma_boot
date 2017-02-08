@@ -5,43 +5,45 @@
 #     - cloudstack
 #     - kvm_rocks
 #     - opennebula_kvm
-site_ve_driver = "kvm_rocks"
+site_ve_driver = 'kvm_rocks'
 
 # Temporary directory for staging virtual images before deployment.
-temp_directory = "/state/partition1/temp"
+temp_directory = '/state/partition1/temp'
 
 # Default directory for log files
-log_directory = "/var/log/pragma_boot"
+log_directory = '/var/log/pragma_boot'
 
 # Set individual variables in repositroy_settings based on your site configuration.
 repository_settings = {
     # Required repository class to use. Available : local, http, clonezilla, cloudfront
-    'repository_class' : "local", 
+    'repository_class' : 'local', 
 
     # Required local repository directory to use for caching virtual images 
-    'repository_dir' : "/state/partition1/vm-images",
+    'repository_dir' : '/state/partition1/vm-images',
 
     # Optional virtual images database file. Defaults to 'repository_dir'/vcdb.txt 
-    'vcdb_filename' : "vcdb.txt",
+    'vcdb_filename' : 'vcdb.txt',
+
+    # The following settings are required for http repository
+    # 'repository_url': 'http://calit2-119-121.ucsd.edu',
 
     # The following settings are required for clonezilla repository
-    # 'cziso': "/opt/cziso/bin/cziso",
-    # 'local_image_url': "zfs://nas-0-0/pragma/$imagename-vol",
-    # 'local_image_url': "file://$repository_dir/$imagename.raw",
-    # 'local_image_url': "file://$repository_dir/$imagename.qcow2",
+    # 'repository_url': 'https://drive.google.com/drive/u/1/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU',
+    # 'cziso': '/opt/cziso/bin/cziso',
+    # Please choose one of the local image url formats below
+    # 'local_image_url': 'zfs://nas-0-0/pragma/$imagename-vol',
+    # 'local_image_url': 'file://$repository_dir/$imagename.raw',
+    # 'local_image_url': 'file://$repository_dir/$imagename.qcow2',
 
+    # The following are optional for the clonezilla repository
     # Only sync images from remote repository matching the below pattern
     # 'include_images': 'image_name_pattern',
-
     # Sync all images from remote repository except those matching below pattern
     # 'exclude_images': 'image_name_pattern',
 
-    # The following settings are required for http repository
-    #"repository_url": "http://calit2-119-121.ucsd.edu",
-
     # The following required settings are required cloudfront repository. 
-    # "repository_url": "https://dq6qef18n2yy3.cloudfront.net",
-    #"keypair_id": "PKAJRN3LTYGHFYOJ77Q",
-    #"private_key_file": "/root/cloudfront-pk.pem",
+    # 'repository_url': 'https://dq6qef18n2yy3.cloudfront.net',
+    # 'keypair_id': 'PKAJRN3LTYGHFYOJ77Q',
+    # 'private_key_file': '/root/cloudfront-pk.pem',
 }
 
