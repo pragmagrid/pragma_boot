@@ -242,7 +242,11 @@ Virtual images are hosted on any http/https server including Amazon S3. No authe
 
 cloudfront
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Virtual images are hosted on Amazon CloudFront with automatic signed url creation.  The following parameters are required:
+Virtual images are hosted on Amazon CloudFront with automatic signed url creation.  
+
+To use the cloudfront repository, the following dependencies will need to be installed:
+
+The following parameters are required in site_conf.conf:
 
 **repository_dir** - a path to a directory where the vdcb and images can be cached
 
@@ -252,14 +256,15 @@ Virtual images are hosted on Amazon CloudFront with automatic signed url creatio
 
 **keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
 
-**private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. To generate CloudFront Key Pair: 
+**private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
 
-  #. Log into AWS Console
-  #. Click on account name and select `Security Credentials`
-  #. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
-  #. Download public key, private key and take note of access key id (keypair id)
+To generate a CloudFront Key Pair: 
+
+#. Log into AWS Console
+#. Click on account name and select `Security Credentials`
+#. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
+#. Download public key, private key and take note of access key id (keypair id)
   
-  For using cloudfront repository need to install dependencies:
   
-  * boto
-  * rsa
+  
+
