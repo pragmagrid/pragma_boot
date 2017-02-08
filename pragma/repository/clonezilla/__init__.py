@@ -99,7 +99,8 @@ class Repository(pragma.repository.http.Repository):
 		for vc in remote_vcs:
 			self.logger.info("Syncing virtual cluster %s" % vc.name)
 			vc_path = os.path.join(self.repo, vc.name)
-			self.logger.info("  Syncing to remote repository %s" % vc.name)
+			self.logger.info(
+				"  Checking virtual cluster %s in remote repository" % vc.name)
 			vc.sync(vc_path)
 			self.logger.info("  Syncing %s virtual cluster to local format" % vc.name)
 			vc_xml = vc.convertToLocal(self.cziso, self.local_image_url)
@@ -203,10 +204,13 @@ class GdriveObject:
 			self.download()
 			return True
 		local_file_age = os.path.getmtime(self.get_local_file())
-		self.logger.info("    %s aleady up to date" % self.get_local_file())
 		if self.last_modified > local_file_age:
+			self.logger.debug("    %s age = %i" % (self.name, self.last_modified))
+			self.logger.debug("    %s age = %i" % (self.get_local_file(), os.path.getmtime(self.get_local_file())))
+			self.logger.info("    Newer version of %s found" % self.name)
 			self.download()
 			return True
+		self.logger.info("    %s already up to date" % self.get_local_file())
 		return False
 
 
@@ -237,10 +241,10 @@ class CzisoVirtualCluster:
 		if compute is None or frontend is None:
 			self.logger.error("Unknown image type %s" % local_image_url)
 			return
-		local_xml_file = LocalLibvirtXml(self.xml.get_local_file(), compute, frontend)
+		local_xml_file = LocalLibvirtXml(self.xml.get_local_file(), frontend, compute)
 		local_xml_file.sync()
 		if compute.sync() | frontend.sync():
-			local_xml_file.sync()
+			local_xml_file.write_local()
 		return local_xml_file.file
 
 	def readFromGdrive(self, id, name):
@@ -265,15 +269,15 @@ class CzisoVirtualCluster:
 			if re.search("frontend", vc_item.name):
 				self.frontend = vc_item
 		if self.xml is None:
-			self.logger.error("No XML found in Google driver folder %s" % id)
+			self.logger.error("No XML found in Google driver folder %s" % name)
 			return False
 		if self.compute is None:
 			self.logger.error(
-				"No compute iso found in Google driver folder %s" % id)
+				"No compute iso found in Google driver folder %s" % name)
 			return False
 		if self.frontend is None:
 			self.logger.error(
-				"No frontend iso found in Google driver folder %s" % id)
+				"No frontend iso found in Google driver folder %s" % name)
 			return False
 		return True
 
@@ -341,7 +345,12 @@ class CzisoImage:
 		:return:  True if sync was necessary; otherwise False if already up
 		to date
 		"""
+		self.logger.debug("    %s age = %i" % (
+			self.cziso_file, os.path.getmtime(self.cziso_file)))
+		self.logger.debug(
+			"    %s age = %i" % (self.local_url, self.get_mtime()))
 		if self.get_mtime() < os.path.getmtime(self.cziso_file):
+			self.logger.info("    Newer version of %s found" % self.cziso_file)
 			cmd = "%s restore %s %s overwrite=true >& %s" % (
 				self.cziso, self.cziso_file, self.local_url,
 				os.path.join(self.repo_dir, "%s-restore.log" % self.image_name))
@@ -382,7 +391,9 @@ class CzisoImageZfs(CzisoImage):
 		if matcher is not None:
 			creation_time_string = matcher.group(1)
 			creation_time = datetime.datetime.strptime(creation_time_string, "%a %b  %d %H:%M %Y")
-			return time.mktime(creation_time.timetuple())
+			# adding a minute onto age since granularity of ZFS vol is only mins
+			# better to round up than down
+			return time.mktime(creation_time.timetuple()) + 60
 		return 0
 
 	def setLibvirtDisk(self, libvirtxml, xpath):
