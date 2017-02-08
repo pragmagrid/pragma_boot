@@ -278,6 +278,17 @@ The following parameters are optional for the Clonezilla repository:
 
 * **exclude_images** - Sync all images from remote repository except those matching the specified pattern.
 
+This repository type is intended to be synced regularly (e.g., daily or weekly) with the remote repository.  Copy the following script in a executable file called /etc/cron.daily/pragma-sync.cron or /etc/cron.weekly/pragma-sync.cron depending on how frequent you want the sync to run. ::
+
+  #!/bin/bash
+
+  /opt/pragma_boot/bin/pragma sync repository
+  
+Remember to run make the file executable.  E.g., ::
+
+  # chmod a+x /etc/cron.daily/pragma-sync.cron
+  
+
 cloudfront
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are hosted on Amazon CloudFront with automatic signed url creation.  
