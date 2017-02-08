@@ -202,32 +202,69 @@ virtualization engine will use for the instantiated virtual images.
 Supported Repositories
 =======================
 
-**pragma** currently supports 3 repository classes which can be configured in site_conf.conf file
+**pragma** currently supports 4 repository classes which can be configured in the site_conf.conf file,
 which has a python syntax and specifies settings for the physical site configuration. 
 
-* **local** - virtual images are stored on the local disk, cloud repository is * disabled.
+local
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Virtual images are stored on the local disk.  The following parameters is required:
 
-* **http** - virtual images are hosted on any http/https server including Amazon S3. No authentication is supported.
+**repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
 
-  * **repository_url** : required setting, base url of the repository. For Amazon S3, the url is `https://s3.amazonaws.com/<bucket_name>`. 
-    Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+**vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
 
-* **cloudfront** - virtual images are hosted on Amazon CloudFront with automatic signed url creation.
-  This repository class requires the following settings:
-
-  * **repository_url** : CloudFront `domain name` of the distribution to use. 
-    Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
-  * **keypair_id** : CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
-  * **private_key_file** : full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
-    
-  To generate CloudFront Key Pair:
-
-  #. Log into AWS Console
-  #. Click on account name and select `Security Credentials`
-  #. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
-  #. Download public key, private key and take note of access key id (keypair id)
+  <virtual cluster name 1>,<path to libvirt xml description of virtual cluster 1>
+  <virtual cluster name 2>,<path to libvirt xml description of virtual cluster 2>
+  ...
   
-  For using cloudfront repository need to install dependencies:
+If raw or qcow2 file images are stored in the repository, their location is assumed to be relative to the libvirt xml description of the virtual cluster.  Therefore we recommend the following sub-directory structure for the repository_dir. ::
+
+  vcdb.txt
+  virtualcluster1/
+    virtualcluster1.xml
+    compute.[img,raw,qcow2]
+    frontend.[img,raw,qcow2]
+  virtualcluster2/
+    virtualcluster2.xml
+    compute.[img,raw,qcow2]
+    frontend.[img,raw,qcow2]
+  ...
   
-  * boto
-  * rsa
+http
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Virtual images are hosted on any http/https server including Amazon S3. No authentication is supported.  The following parameters are required:
+
+**repository_dir** - a path to a directory where the vdcb and images can be cached
+
+**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+
+**repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+
+cloudfront
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Virtual images are hosted on Amazon CloudFront with automatic signed url creation.  
+
+To use the cloudfront repository, the following dependencies will need to be installed:
+
+The following parameters are required in site_conf.conf:
+
+**repository_dir** - a path to a directory where the vdcb and images can be cached
+
+**vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+
+**repository_url** - CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
+
+**keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
+
+**private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
+
+To generate a CloudFront Key Pair: 
+
+#. Log into AWS Console
+#. Click on account name and select `Security Credentials`
+#. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
+#. Download public key, private key and take note of access key id (keypair id)
+  
+  
+  
+
