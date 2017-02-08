@@ -260,7 +260,7 @@ The following parameters are required in site_conf.conf:
 
 **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
 
-**repository_url** - Base url of the Clonezilla repository in Google drive.  Please use `<https://drive.google.com/drive/u/1/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
+**repository_url** - Base url of the Clonezilla repository in Google drive.  Please use the default value specified in the site_conf.conf file.
 
 **cziso** - Full path to the cziso tool installed on this system.
 
