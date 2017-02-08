@@ -15,7 +15,7 @@ log_directory = "/var/log/pragma_boot"
 
 # Set individual variables in repositroy_settings based on your site configuration.
 repository_settings = {
-    # Required repository class to use. Available : local, http, cloudfront
+    # Required repository class to use. Available : local, http, clonezilla, cloudfront
     'repository_class' : "local", 
 
     # Required local repository directory to use for caching virtual images 
