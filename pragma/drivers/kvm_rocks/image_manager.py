@@ -478,6 +478,7 @@ class NfsImageManager(ImageManager):
 		self.vc_dir = vc_dir
 		self.diskdir = kvm_dir
 		self.tmp_compute_img = None
+		self.our_phy_frontend = socket.gethostname().split(".")[0]
 		if self.diskdir:
 			self.set_rocks_disk_paths()
 
@@ -577,8 +578,10 @@ class NfsImageManager(ImageManager):
 		:return:
 		"""
 		for node in [self.fe_name] + self.compute_names:
-			(out, ec) = pragma.utils.getOutputAsList(
-				"ssh %s ls %s" % (self.phy_hosts[node], self.diskdir))
+			cmd = "ls %s" % self.diskdir
+			if self.phy_hosts[node] != self.our_phy_frontend:
+				cmd = "ssh %s %s" % (self.phy_hosts[node], cmd)
+			(out, ec) = pragma.utils.getOutputAsList(cmd)
 			if ec != 0:
 				logger.error("%s does not exist on %s" % (
 					self.diskdir, self.phy_hosts[node]))
