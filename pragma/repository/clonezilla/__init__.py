@@ -148,6 +148,12 @@ class GdriveObject:
 		else:
 			with open(self.local_file, "w") as f:
 				f.write(response_str)
+
+		# Do some file checking
+		self.logger.debug("%s size = %i" % (
+			self.local_file, os.path.getsize(self.local_file)))
+		if os.path.getsize(self.local_file) < 5:
+			return False
 		return True
 
 	def get_local_file(self):
@@ -320,6 +326,19 @@ class CzisoImage:
 		:return: A subclass of CzisoImage or None if local_image_url format
 		 not recognized
 		"""
+		logger = logging.getLogger(CzisoImage.__module__)
+		# do a quick check on the ISO file
+		(out, rc) = pragma.utils.getOutputAsList("file %s" % cziso_file)
+		if rc != 0:
+			logger.error("Error running file on %s: %s" % (
+				cziso_file, "\n".join(out)))
+			return None
+		if not re.search("ISO 9660 CD-ROM", out[0]):
+			logger.error("File type '%s' not right for %s" % (
+				out[0], cziso_file))
+			return None
+		logger.debug("ISO file %s looks good %s" % (out[0], cziso_file))
+
 		image_type = re.split(":", local_image_url)[0]
 		if image_type == 'zfs':
 			return CzisoImageZfs(cziso, local_image_url, cziso_file)
