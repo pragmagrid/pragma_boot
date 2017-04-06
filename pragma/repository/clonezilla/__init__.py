@@ -242,14 +242,16 @@ class CzisoVirtualCluster:
 
 		:return: The XML file of the converted local virtual cluster
 		"""
-		compute = CzisoImage.create(cziso, local_image_url, self.compute.get_local_file())
+		compute = None
+		if self.compute:
+			compute = CzisoImage.create(cziso, local_image_url, self.compute.get_local_file())
 		frontend = CzisoImage.create(cziso, local_image_url, self.frontend.get_local_file())
-		if compute is None or frontend is None:
+		if (self.compute and compute is None) or frontend is None:
 			self.logger.error("Unknown image type %s" % local_image_url)
 			return
 		local_xml_file = LocalLibvirtXml(self.xml.get_local_file(), frontend, compute)
 		local_xml_file.sync()
-		if compute.sync() | frontend.sync():
+		if (self.compute is None or compute.sync()) | frontend.sync():
 			local_xml_file.write_local()
 		return local_xml_file.file
 
@@ -277,10 +279,6 @@ class CzisoVirtualCluster:
 		if self.xml is None:
 			self.logger.error("No XML found in Google driver folder %s" % name)
 			return False
-		if self.compute is None:
-			self.logger.error(
-				"No compute iso found in Google driver folder %s" % name)
-			return False
 		if self.frontend is None:
 			self.logger.error(
 				"No frontend iso found in Google driver folder %s" % name)
@@ -291,7 +289,10 @@ class CzisoVirtualCluster:
 		synced = False
 		if not os.path.exists(repo_path):
 			os.makedirs(repo_path)
-		for gobject in [self.xml, self.frontend, self.compute]:
+		vc = [self.xml, self.frontend]
+		if self.compute is not None:
+			vc.append(self.compute)
+		for gobject in vc:
 			if gobject.sync():
 				synced = True
 		return synced
@@ -508,6 +509,7 @@ class LocalLibvirtXml:
 		"""
 		local_xml = ET.parse(self.remote_file)
 		self.frontend.setLibvirtDisk(local_xml, "//frontend//disk")
-		self.compute.setLibvirtDisk(local_xml, "//compute//disk")
+		if self.compute:
+			self.compute.setLibvirtDisk(local_xml, "//compute//disk")
 		self.logger.info("Writing local xml file to %s" % self.file)
 		local_xml.write(self.file)
