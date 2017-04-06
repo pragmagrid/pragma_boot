@@ -546,10 +546,17 @@ class NfsImageManager(ImageManager):
 		self.safe_remove_from_image(compute_mnt, delete_spec)
 		self.install_to_image(compute_mnt, install_spec)
 		self.umount_image(compute_mnt)
-		(out, ec) = pragma.utils.getOutputAsList("rsync -S %s %s:%s" % (
-			self.tmp_compute_img, self.phy_hosts[node], self.disks[node]))
+		(out, ec) = pragma.utils.getOutputAsList("sync")
 		if ec != 0:
-			logger.error("scp command failed: %s" % ("\n".join(out)))
+			logger.error("sync command failed: %s" % ("\n".join(out)))
+		(out, ec) = pragma.utils.getOutputAsList("sh -c -o pipefail \"tar -Scf - -C '%s' '%s' | ssh %s tar -C '%s' --xform=s/.*/%s/ -xf -\"" % (
+			os.path.dirname(self.tmp_compute_img),
+			os.path.basename(self.tmp_compute_img),
+			self.phy_hosts[node],
+			os.path.dirname(self.disks[node]),
+			os.path.basename(self.disks[node])))
+		if ec != 0:
+			logger.error("tar command failed: %s" % ("\n".join(out)))
 
 	def prepare_frontend(self, delete_spec, install_spec):
 		"""
