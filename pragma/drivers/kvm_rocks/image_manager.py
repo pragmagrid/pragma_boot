@@ -77,6 +77,8 @@ class ImageManager:
 		frontend_disk = vc_in.get_disk('frontend')
 		compute_names = vc_out.get_compute_names()
 		compute_disk = vc_in.get_disk('compute')
+		if not compute_disk:
+			compute_disk = frontend_disk
 		manager = None
 		if 'file' in frontend_disk and 'file' in compute_disk:
 			manager = NfsImageManager(frontend['name'],
@@ -546,9 +548,6 @@ class NfsImageManager(ImageManager):
 		self.safe_remove_from_image(compute_mnt, delete_spec)
 		self.install_to_image(compute_mnt, install_spec)
 		self.umount_image(compute_mnt)
-		(out, ec) = pragma.utils.getOutputAsList("sync")
-		if ec != 0:
-			logger.error("sync command failed: %s" % ("\n".join(out)))
 		(out, ec) = pragma.utils.getOutputAsList("sh -c -o pipefail \"tar -Scf - -C '%s' '%s' | ssh %s tar -C '%s' --xform=s/.*/%s/ -xf -\"" % (
 			os.path.dirname(self.tmp_compute_img),
 			os.path.basename(self.tmp_compute_img),
