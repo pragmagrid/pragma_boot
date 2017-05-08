@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 
 
 class Repository(pragma.repository.http.Repository):
+	DOWNLOAD_CHUNK_SIZE = 250 * 1024 * 1024
 
 	def __init__(self, settings):
 		"""
@@ -143,9 +144,20 @@ class GdriveObject:
 			self.logger.info("Downloading file %s to %s" % (
 				self.name, self.local_file))
 			response = opener.open(download_url)
-			with open(self.local_file, "wb") as f:
-				f.write(response.read())
+			f = open(self.local_file, "wb")
+			data_downloaded = 0
+			while True:
+				data = response.read(Repository.DOWNLOAD_CHUNK_SIZE)
+				if data:
+					f.write(data)
+					data_downloaded += len(data)
+					self.logger.debug("File %s downloading: %i MB so far" % (
+						self.name, int(data_downloaded/(1024*1024))))
+				else:
+					self.logger.debug("File %s download complete!" % self.name)
+					break
 		else:
+			# for small files
 			with open(self.local_file, "w") as f:
 				f.write(response_str)
 
