@@ -1,5 +1,3 @@
-.. highlight:: rest
-
 The pragma_boot 
 ----------------------
 .. contents::
@@ -23,7 +21,7 @@ Installation
 ==============
 We recommend install in /opt/pragma_boot
 
-#. Install libguestfs-tools-c package ::
+#. Install libguestfs-tools-c package on frontend node only ::
 
      yum --enablerepo=base install libguestfs-tools-c
 
