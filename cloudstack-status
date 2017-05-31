@@ -79,3 +79,12 @@ Assumptions
     It lists cluster images (templates names have to be the same).
 
 
+
+Info links
+-----------
+
+CLI https://cwiki.apache.org/confluence/display/CLOUDSTACK/CloudStack+cloudmonkey+CLI
+OpenStack vs. CloudStack http://searchnetworking.techtarget.com/tip/OpenStack-vs-CloudStack-Whats-the-best-approach
+Network example http://shankerbalan.net/blog/cloudstack-simple-advanced-network-example/
+OpenNebula vs. CloudStack vs. OpenStack http://www.geektantra.com/2014/10/opennebula-vs-openstack-vs-cloudstack/
+Physical networking architecture http://www.shapeblue.com/understanding-cloudstacks-physical-networking-architecture/
