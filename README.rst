@@ -282,8 +282,9 @@ The following parameters are required in site_conf.conf:
 
 * **cziso** - full path to the cziso tool installed on this system.
 
-* **local_image_url** - a cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).  
-The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
+* **local_image_url** - a cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).
+  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image
+  name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
 
   * for ZFS volume on rocks cluster: ``zfs://nas-0-0/pragma/$imagename-vol``
   * for RAW images: ``file://$repository_dir/$imagename.raw`` or ``file://$repository_dir/$imagename.img``
