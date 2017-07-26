@@ -354,6 +354,11 @@ class CzisoImage:
 		if not re.search("ISO 9660 CD-ROM", out[0]):
 			logger.error("File type '%s' not right for %s" % (
 				out[0], cziso_file))
+			try:
+				os.remove(cziso_file)
+				logger.info("Removed bad file %s so download can be re-tried next time this is run" % cziso_file)
+			except Exception as e:
+				logger.error("Error removing bad file %s: %s" % (cziso_file, str(e)))
 			return None
 		logger.debug("ISO file %s looks good %s" % (out[0], cziso_file))
 
