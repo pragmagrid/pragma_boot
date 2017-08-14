@@ -7,10 +7,10 @@ The following is a description of our available virtual cluster images:
 
 biolinux
 ==============
-Virtual cluster image based on `Bio-Linux <http://environmentalomics.org/bio-linux/`_, a bioinformatics workstation platform that adds more than 250 bioinformatics packages to an Ubuntu Linux 14.04 LTS base, providing around 50 graphical applications and several hundred command line tools. The Galaxy environment for browser-based data analysis and workflow construction is also incorporated.
+Virtual cluster image based on `Bio-Linux <http://environmentalomics.org/bio-linux/>`_, a bioinformatics workstation platform that adds more than 250 bioinformatics packages to an Ubuntu Linux 14.04 LTS base, providing around 50 graphical applications and several hundred command line tools. The Galaxy environment for browser-based data analysis and workflow construction is also incorporated.
 
 * **OS**: Ubuntu 14.04
-* **Disk Size**: ??
+* **Disk Size**: 39 GB
 * **Available Formats**: `cziso <https://drive.google.com/open?id=0B3cw7uKWQ3fXdHdLdV81YTBWQmM>`_, `raw <https://drive.google.com/open?id=0B3cw7uKWQ3fXTDgtcmc1NlYzUm8>`_
 
 centos7
@@ -42,6 +42,6 @@ wa-dock
 Virtual cluster image that provides the `DOCK <http://dock.compbio.ucsf.edu>`_ chemistry software.
 
 * **OS**: CentOS 6
-* **Disk size**: 100 GB
+* **Disk size**: 51 GB
 * **Available Formats**: `cziso <https://drive.google.com/open?id=0B3cw7uKWQ3fXOTl5ajA0UHBxTk0>`_, `raw <https://drive.google.com/open?id=0B3cw7uKWQ3fXSVd1a1BLTGJOXzg>`_
 
