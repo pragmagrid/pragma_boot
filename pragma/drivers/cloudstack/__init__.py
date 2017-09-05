@@ -105,10 +105,10 @@ class Driver(pragma.drivers.Driver):
 
                 # deploy frontend
 		frontend = vc_out.get_frontend()
-		if not(self.initializeAndStartVM(frontend["name"], str(vc_out))):
-			self.logger.error("Unable to deploy frontend %s" % frontend["name"])
+		if not(self.initializeAndStartVM(frontend, str(vc_out))):
+			self.logger.error("Unable to deploy frontend %s" % frontend)
 			return False
-		self.logger.info("Successfully deployed frontend %s" % frontend["name"])
+		self.logger.info("Successfully deployed frontend %s" % frontend)
 
 		# deploy computes
 		for name in vc_out.get_compute_names():
@@ -143,6 +143,8 @@ class Driver(pragma.drivers.Driver):
 		frontend_filename = os.path.basename(frontend_spec["file"])
 		frontend_templatename = frontend_filename.split(".")[0]
 		compute_spec = vc_in.get_disk("compute")
+		if not compute_spec:
+			compute_spec = frontend_spec
 		compute_filename = os.path.basename(compute_spec["file"])
 		compute_templatename = compute_filename.split(".")[0]
 

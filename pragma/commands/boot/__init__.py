@@ -18,8 +18,9 @@ class Command(pragma.commands.Command):
 	be started)
 	</arg>
 
-	<param type='boolean' name='enable-ent'>
-	Configure virtual cluster nodes on PRAGMA-ENT.
+	<param type='string' name='enable-ent'>
+	Configure virtual cluster nodes on PRAGMA-ENT using the provided CIDR
+	address.  E.g., 192.168.0.0/16
 	</param>
 
 	<param type='string' name='enable-ipop-client'>
@@ -83,7 +84,7 @@ class Command(pragma.commands.Command):
 		(ent, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
 			[
-			 ('enable-ent', "false"),
+			 ('enable-ent', ""),
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
@@ -94,7 +95,6 @@ class Command(pragma.commands.Command):
 
 		if ipop_serverinfo_url != "" or ipop_clientinfo_file != "":
 			self.abort("IPOP features not yet supported")
-		enable_ent = ent.lower() in ("yes", "true", "t", "1")
 
 		# Read site configuration file, import values, check if exist:
 		# site_ve_driver, temp_directory, log_directory
@@ -131,17 +131,16 @@ class Command(pragma.commands.Command):
 
 		# initialize repository 
 		repository = self.getRepository()
-                
-                # process cluster images and xml descirption file:
+
+		# process cluster images and xml descirption file:
 		#     create input and output xml objects
 		#     download virtual cluster files image to cache
 		#     process virtual cluster files (decompress, concatenate if needed)
 		repository.processCluster(vcname, temp_directory)
 
 		# allocate cluster (in rocks db)
-		if not(driver.allocate(num_cpus, memory, key, enable_ent, repository)):
-		   self.abort("Unable to allocate virtual cluster")
-
+		if not(driver.allocate(num_cpus, memory, key, ent, repository)):
+		   self.abort("Unable to allocate virtual cluster, please check log")
 		# start cluster
 		driver.deploy(repository)
 

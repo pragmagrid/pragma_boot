@@ -2,7 +2,7 @@ import logging
 import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-from pragma.utils import Abort
+from pragma.utils import Abort, ClusterNetwork
 
 
 class XmlInput:
@@ -104,36 +104,36 @@ class XmlOutput:
 
     def __init__(self, filename):
         self.filename = filename
-        self.compute_nodes = {}
-        self.ips = {}
-        self.macs = {}
-        self.gateway = { 'public' : '10.1.1.1', 'private' : '10.1.1.1' }
+        self.compute_filenames = {}
+        self.cpus_per_node = {}
+        self.network = None
         logging.basicConfig()
         self.logger = logging.getLogger(self.__module__)
 
     def __str__(self):
         vc = ET.Element('vc')
 
-        frontend = ET.SubElement(vc, 'frontend')
-        ET.SubElement(frontend, 'public', attrib = { 
-            'netmask':self.public_netmask,
-            'gw':self.gateway['public'],
-            'fqdn':self.frontend['fqdn'],
-            'ip':self.frontend['public_ip'],
-            'mac':self.macs[self.frontend['name']]['public'],
-            'name':self.frontend['name']})
-        ET.SubElement(frontend, 'private', attrib = { 
-            'netmask':self.private_netmask,
-            'ip':self.frontend['private_ip'],
-            'mac':self.macs[self.frontend['name']]['private']})
+        frontend = ET.SubElement(vc, 'frontend', attrib={
+            'fqdn': self.network.get_fqdn(),
+            'name': self.network.get_frontend(),
+            'gw': self.network.get_gw(self.network.get_frontend())
+        })
+        for net, iface in self.network.get_ifaces('frontend').items():
+            iface_attrs = iface.get_attrs()
+            iface_attrs.update(self.network.get_net_attrs(net))
+            ET.SubElement(frontend, net, attrib=iface_attrs)
 
-        computes = ET.SubElement(vc, 'compute', attrib = {'count':str(len(self.compute_nodes))})
-        for node in self.compute_nodes:
-            ET.SubElement(computes, 'node', attrib = { 
-            'name':self.compute_nodes[node]['name'],
-            'ip':self.ips[node]['private'],
-            'mac':self.macs[node]['private'],
-            'cpus':str(self.cpus_per_node[node])})
+        computes = ET.SubElement(vc, 'compute', attrib={
+            'count':str(len(self.network.get_computes()))})
+        for node in self.network.get_computes():
+            compute = ET.SubElement(computes, 'node', attrib={
+                'name':self.network.get_node_name(node),
+                'cpus':str(self.cpus_per_node[node]),
+                'gw': self.network.get_gw(node)})
+            for net, iface in self.network.get_ifaces(node).items():
+                iface_attrs = iface.get_attrs()
+                iface_attrs.update(self.network.get_net_attrs(net))
+                ET.SubElement(compute, net, attrib=iface_attrs)
         self.append_network_key(vc)
         return self.prettify(vc)
 
@@ -147,37 +147,36 @@ class XmlOutput:
     def clean(self):
         if os.path.exists(self.filename):
             os.remove(self.filename)
-        for node in self.compute_nodes:
-            if os.path.exists(self.compute_nodes[node]['vc_out']):
-                os.remove(self.compute_nodes[node]['vc_out'])
+        for node in self.compute_filenames:
+            if os.path.exists(self.compute_filenames[node]):
+                os.remove(self.compute_filenames[node])
 
     def get_compute_names(self):
-        return sorted(self.compute_nodes.keys())
+        return sorted(self.compute_filenames.keys())
 
     def get_compute_vc_out(self, node):
         vc = ET.Element('vc')
-        frontend = ET.SubElement(vc, 'frontend')
-        ET.SubElement(frontend, 'public', attrib = {
-            'fqdn':self.frontend['fqdn']})
-        compute = ET.SubElement(vc, 'compute')
-        ET.SubElement(compute, 'private', attrib = {
-            'fqdn':self.compute_nodes[node]['name'],
-            'ip':self.ips[node]['private'],
-            'netmask':self.private_netmask,
-            'gw': self.gateway['private'],
-            'mac':self.macs[node]['private']})
+        ET.SubElement(vc, 'frontend', attrib={
+            'fqdn': self.network.get_fqdn()})
+        compute = ET.SubElement(vc, 'compute', attrib={
+            'name': node,
+            'gw': self.network.get_gw(node)
+        })
+        for net, iface in self.network.get_ifaces(node).items():
+            iface_attrs = iface.get_attrs()
+            iface_attrs.update(self.network.get_net_attrs(net))
+            ET.SubElement(compute, net, attrib=iface_attrs)
         self.append_network_key(vc)
         return self.prettify(vc)
 
-
     def get_frontend(self):
-        return self.frontend 
+        return self.network.get_frontend()
 
     def get_kvm_diskdir(self):
         return self.kvm_diskdir 
 
     def get_vc_out(self, node):
-        return self.compute_nodes[node]['vc_out']
+        return self.compute_filenames[node]
 
     def prettify(self, elem):
         """Return a pretty-printed XML string for the Element.
@@ -188,28 +187,27 @@ class XmlOutput:
 
     def read(self):
         root = ET.parse(self.filename).getroot()
-        macs = {}
-        ips = {}
-        self.cpus_per_node = {}
-        self.key = root.find("key").text
+
+        self.key = root.find("key").text.strip()
         frontend = root.find('frontend')
-        private = frontend.find("private").attrib
-        public = frontend.find("public").attrib
-        self.set_frontend(public["name"], public["ip"], private["ip"], public["fqdn"])
-        macs[public["name"]] = { "public":public["mac"], "private":private["mac"]}
-        ips[public["name"]] = private["ip"]
+        self.network = ClusterNetwork(frontend.attrib['name'], frontend.attrib['fqdn'])
+        for net in frontend:
+            self.network.add_net(net.tag, net.attrib['subnet'], net.attrib['netmask'], net.attrib['mtu'])
+            self.network.add_iface(
+                self.network.get_frontend(), net.tag, net.attrib['ip'],
+                net.attrib['mac'], net.attrib['iface'])
+        self.network.add_gw(self.network.get_frontend(), frontend.attrib['gw'])
         compute = root.find('compute')
         dir = os.path.dirname(self.filename)
         for node in compute.getchildren():
-            node_attrib = node.attrib
-            node_name = node_attrib["name"]
-            self.compute_nodes[node_name] = node_attrib
-            macs[node_name] = { "private":node_attrib["mac"] }
-            ips[node_name] = node_attrib["ip"];
-            self.compute_nodes[node_name]['vc_out'] = os.path.join(dir, "%s.xml" % node_name)
-            self.cpus_per_node[node_name] = node_attrib["cpus"]
-        dns = root.find("network").find("dns").attrib
-        self.set_network(macs, ips, public["netmask"], private["netmask"], public["gw"], dns["ip"])
+            node_name = node.attrib["name"]
+            for net in node:
+                self.network.add_iface(node_name, net.tag,
+                   net.attrib['ip'], net.attrib['mac'], net.attrib['iface'])
+            self.network.add_gw(node_name, node.attrib['gw'])
+            self.compute_filenames[node_name] = os.path.join(dir, "%s.xml" % node_name)
+            self.cpus_per_node[node_name] = node.attrib["cpus"]
+        self.dns = root.find("network").find("dns").attrib["ip"]
 
     def set_frontend(self, name, public_ip, private_ip, fqdn):
         self.frontend = {'name':name, 'public_ip':public_ip, 'private_ip':private_ip, 'fqdn':fqdn}
@@ -223,35 +221,26 @@ class XmlOutput:
     def set_kvm_diskdir(self, dir):
         self.kvm_diskdir = dir
 
-    def set_network(self, macs, ips, public_netmask, private_netmask, public_gateway, private_gateway, dns):
-        self.macs = macs
-        self.ips = ips
-        self.public_netmask = public_netmask
-        self.private_netmask = private_netmask
-        self.gateway = { 'public' : public_gateway, 'private' : private_gateway }
+    def set_network(self, cluster_network, dns):
+        self.network = cluster_network
         self.dns = dns
         
     def set_compute_nodes(self, compute_nodes, cpus_per_node):
-        counter=254
         dir = os.path.dirname(self.filename)
         for node in compute_nodes:
-            self.compute_nodes[node] = {}
-            self.ips[node] = { 'private' : '10.1.1.%i' % counter }
-            self.compute_nodes[node]['name'] = 'compute-%i' % (254-counter)
-            self.compute_nodes[node]['vc_out'] = os.path.join(dir, "%s.xml" % node)
-            counter-=1
+            self.compute_filenames[node] = os.path.join(dir, "%s.xml" % node)
         self.cpus_per_node = cpus_per_node
 
     def write_compute(self, node):
-        file = open(self.compute_nodes[node]['vc_out'], "w")
+        file = open(self.compute_filenames[node], "w")
         file.write(self.get_compute_vc_out(node))
-        file.close
-        self.logger.debug("Writing vc-out file to %s" % self.compute_nodes[node]['vc_out'])
+        file.close()
+        self.logger.debug("Writing vc-out file to %s" % self.compute_filenames[node])
 
     def write(self):
         file = open(self.filename, "w")
         file.write(str(self))
-        file.close
+        file.close()
         self.logger.debug("Writing vc-out file to %s" % self.filename)
-        for node in self.compute_nodes:
+        for node in self.network.get_computes():
             self.write_compute(node)

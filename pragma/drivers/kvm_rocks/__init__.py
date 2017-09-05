@@ -25,7 +25,7 @@ class Driver(pragma.drivers.Driver):
 		self.used_vlans = []
 		used_vlans = {}
 		ip_pat = re.compile("^(\S+):.*?(\d+\.\d+\.\d+\.\d+)\s+\d")
-		vlan_pat = re.compile("\d\d:\d\d:.*\s+(\d+)\s+\-+\s+\-+$")
+		vlan_pat = re.compile("(\d+)\s+\-+\s+\-+$")
 		for interface in out:
 			result = ip_pat.search(interface)
 			if result:
@@ -47,8 +47,8 @@ class Driver(pragma.drivers.Driver):
 		:param repository: repository with xml in/out objects
 		:return:
 		"""
-                vc_in = repository.getXmlInputObject(repository.cluster)
-                vc_out = repository.getXmlOutputObject()
+		vc_in = repository.getXmlInputObject(repository.cluster)
+		vc_out = repository.getXmlOutputObject()
 
 		# Load network configuration and import values:
 		# public_ips, netmask, gw, dns, fqdn, vlans, diskdir, container_hosts, ent
@@ -66,6 +66,13 @@ class Driver(pragma.drivers.Driver):
 		except:
 			pass
 
+		networks = ['public', 'private']
+		try:
+			networks = cluster_networks
+		except:
+			print "No networks in config file"
+			pass
+
 		containers_needed = self.calculate_num_nodes(cpus, container_hosts, leave_processors)
 		pragma_ent = None
 		try:
@@ -78,7 +85,7 @@ class Driver(pragma.drivers.Driver):
 		# get free ip and vlan
 		(our_ip, our_fqdn) = self.find_free_ip(public_ips)
 		if (our_ip is None):
-			 return 0
+			return 0
 
 		fe_name = our_fqdn.split(".")[0]
 		our_vlan = self.find_free_vlan(vlans)
@@ -98,7 +105,7 @@ class Driver(pragma.drivers.Driver):
 			result = cnode_pat.search(line)
 			if result:
 				cnodes.append(result.group(1))
-		if enable_ent and pragma_ent != None:
+		if enable_ent and pragma_ent is not None:
 			self.configure_ent(pragma_ent, [fe_name] + cnodes)
 			
 		phy_hosts = self.get_physical_hosts(fe_name)
@@ -110,10 +117,11 @@ class Driver(pragma.drivers.Driver):
 
 		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 
-		(macs,ips, priv_ip, priv_netmask) = self.get_network(fe_name, our_ip, cnodes)
-		vc_out.set_frontend(fe_name, our_ip, priv_ip, our_fqdn)
+		cluster_network = self.get_network(networks, fe_name, our_fqdn)
+		if cluster_network is None:
+			return 0
+		vc_out.set_network(cluster_network, dns)
 		vc_out.set_compute_nodes(cnodes, cpus_per_node)
-                vc_out.set_network(macs, ips, netmask, priv_netmask, gw, priv_ip, "8.8.8.8")
 
 		try:
 			vc_out.set_kvm_diskdir(diskdir)
@@ -138,6 +146,7 @@ class Driver(pragma.drivers.Driver):
 			self.logger.error("Error setting boot on %s: %s" % (
 				node, "\n".join(out)))
 			return
+		time.sleep(15)
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"start host vm %s" % node)
 		if exitcode != 0:
@@ -391,7 +400,7 @@ class Driver(pragma.drivers.Driver):
 				nodes[result.group(1)] = result.group(2)
 		return nodes
 
-	def get_network(self, frontend, fe_publicip, compute_nodes ):
+	def get_network(self, networks, frontend, fqdn):
 		"""
 		Get network information for newly instantiated virtual cluster
 
@@ -399,32 +408,41 @@ class Driver(pragma.drivers.Driver):
 		:param compute_nodes: Array of virtual cluster compute nodes
 		:return:  Array of mac and ip addresses
 		"""
-		(out, exitcode) = pragma.utils.getOutputAsList(
-			"rocks list host interface")
-		macs = {frontend:{}}
-		ips = {frontend:{'public': fe_publicip, 'private': '10.1.1.1'}}
-		fe_priv_netmask = "255.255.0.0"
+		cluster_network = pragma.utils.ClusterNetwork(frontend, fqdn)
 
-		# simple private IP distribution algorithm
-		ip_pat = "10.1.%d.%d"
-		(i, j) = (255,254)
-		for node in compute_nodes:
-			macs[node] = {}
-			ips[node] = {'private': ip_pat % (i,j)}
-			(i,j) = (i,j-1) if j > 2 else (i-1, 254)
-
-		# get mac addresses
-		mac_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+\S+\s+(\S+)" % frontend)
+		# get network info
+		(out, exitcode) = pragma.utils.getOutputAsList("rocks list network")
+		net_pat = re.compile("^(\S+):\s+(\S+)\s+(\S+)\s+(\S+)")
 		for line in out:
-			result = mac_pat.search(line)
+			result = net_pat.search(line)
 			if result:
-				node_name = result.group(1)
-				network_type = result.group(2)
-				if re.search("[\-]+", network_type) is not None: 
-					network_type = 'private'
-				macs[node_name][network_type] = result.group(3)
+				(net_name, subnet, netmask, mtu) = result.groups()
+				if net_name in networks:
+					cluster_network.add_net(net_name, subnet, netmask, mtu)
 
-		return (macs,ips, ips[frontend]['private'], fe_priv_netmask)
+		# get interface info
+		(out, exitcode) = pragma.utils.getOutputAsList("rocks list host interface")
+		iface_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)" % frontend)
+		for line in out:
+			result = iface_pat.search(line)
+			if result:
+				(node_name, net, iface, mac, ip) = result.groups()
+				if net != 'public' and node_name == frontend:
+					# IP is relative to physical cluster if exists -- we reset
+					# for internal vc
+					ip = cluster_network.get_frontend_ip(net)
+				cluster_network.add_iface(node_name, net, ip, mac, iface)
+
+		# get gateways
+		(out, exitcode) = pragma.utils.getOutputAsList("rocks list host route")
+		gw_pat = re.compile("^([^:]*%s[^:]*):\s*0.0.0.0\s+0.0.0.0\s+(\S+)" % frontend)
+		for line in out:
+			result = gw_pat.search(line)
+			if result is not None:
+				(node, gw) = result.groups()
+				cluster_network.add_gw(node, gw)
+
+		return cluster_network
 
 	def get_physical_hosts(self, vcname):
 		"""

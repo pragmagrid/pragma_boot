@@ -3,6 +3,7 @@
 import logging
 import subprocess
 import os
+import re
 import shlex
 import xml.sax
 from xml.sax import handler
@@ -27,22 +28,33 @@ def get_id():
 def getRocksOutputAsList(cmdline, inputString=None):
     return getOutputAsList("/opt/rocks/bin/rocks %s" % cmdline, inputString)
 
+
+def getOutput(cmdline, inputString=None):
+	""" run popen pipe inputString and return a touple of
+  (the stdout as a list of string, return value of the command)
+  """
+	logger.debug("Executing command: '%s'" % cmdline)
+	if isinstance(cmdline, unicode):
+		cmdline = str(cmdline)
+	if isinstance(cmdline, str):
+		# needs to make a list
+		cmdline = shlex.split(cmdline)
+	p = Popen(cmdline, stdin=PIPE, stdout=PIPE, stderr=subprocess.STDOUT)
+	grep_stdout = p.communicate(input=inputString)[0]
+	p.wait()
+	return (grep_stdout, p.returncode)
+
 def getOutputAsList(cmdline, inputString=None):
-    """ run popen pipe inputString and return a touple of
-    (the stdout as a list of string, return value of the command)
-    """
-    logger.debug("Executing command: '%s'" % cmdline)
-    if isinstance(cmdline, unicode):
-        cmdline = str(cmdline)
-    if isinstance(cmdline, str):
-        # needs to make a list
-        cmdline = shlex.split(cmdline)
-    p = Popen(cmdline, stdin=PIPE, stdout=PIPE, stderr=subprocess.STDOUT)
-    grep_stdout = p.communicate(input=inputString)[0]
-    p.wait()
-    return (grep_stdout.split('\n'), p.returncode)
+	(grep_stdout, returncode) = getOutput(cmdline, inputString)
+	return (grep_stdout.split('\n'), returncode)
 
-
+def getPatterns(pattern, astring):
+  pattern_c = re.compile(pattern)
+  result = pattern_c.search(astring)
+  if result:
+    return result.groups()
+  else:
+    return []
 
 # copied from stackoverflow
 # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python/377028
@@ -294,3 +306,145 @@ def getListHeader(strings):
         lineformat = "%%-%ds  %%-%ds  %%-%ds  %%-%ds" % (len_fe,len_compute,len_status, IP_ADDRESS_LEN)
 
 	return lineformat % ('FRONTEND', 'COMPUTE NODES', 'STATUS', 'PUBLIC IP')
+
+
+class Iface:
+	def __init__(self, ip, mac, iface):
+		self.ip = ip
+		self.iface = iface
+		self.mac = mac
+
+	def __str__(self):
+		return "%s, %s, %s" % (self.ip, self.iface, self.mac)
+
+	def get_attrs(self):
+		return {'ip': self.ip, 'mac': self.mac, 'iface': self.iface}
+
+
+class Network:
+	def __init__(self, subnet, netmask, mtu):
+		self.subnet = subnet
+		self.subnet_pat = self.subnet.replace(".0", ".%d")
+		self.netmask = netmask
+		self.counter = [255]*self.subnet.count(".0")
+		self.frontend = [1]*self.subnet.count(".0")
+		self.mtu = mtu
+
+	def __str__(self):
+		return '%s, %s, %s' % (self.subnet, self.netmask, self.mtu)
+
+	def get_free_ip(self):
+		for idx, count in enumerate(self.counter):
+			if count > 1:
+				self.counter[idx] -= 1
+				break
+			elif idx == len(self.counter)-1:
+				raise OverflowError("No free IP addresses left")
+			else:
+				self.counter[idx] = 254
+
+		return self.subnet_pat % tuple(self.counter[::-1])
+
+	def get_frontend_ip(self):
+		return self.subnet_pat % tuple(self.frontend)
+
+	def get_attrs(self):
+		return {'netmask': self.netmask, 'subnet': self.subnet, 'mtu': self.mtu}
+
+
+class Node:
+	def __init__(self, name):
+		self.ifaces = {}
+		self.gw = None
+		self.name = name
+
+	def __str__(self):
+		ifaces = []
+		for name, iface in self.ifaces.items():
+			ifaces.append("%s (%s)" % (name, str(iface)))
+		return "%s\n%s" % (self.gw, ", ".join(ifaces))
+
+	def add_gw(self, gw):
+		self.gw = gw
+
+	def add_iface(self, name, ip, mac, iface):
+		self.ifaces[name] = Iface(ip, mac, iface)
+
+	def get_gw(self):
+		return self.gw
+
+	def get_ifaces(self):
+		return self.ifaces
+
+	def get_name(self):
+		return self.name
+
+
+class ClusterNetwork:
+	def __init__(self, frontend, fqdn):
+		self.nodes = {}
+		self.nets = {}
+		self.frontend = frontend
+		self.fqdn = fqdn
+		self.counter = 0
+		self.computes = []
+
+	def __str__(self):
+		networks = "Networks:\n"
+		for name, net in self.nets.items():
+			networks += "%s: %s\n" % (name, str(net))
+		nodes = "Nodes:\n"
+		for name, node in self.nodes.items():
+			nodes += "%s: %s\n" % (name, str(node))
+		return "Name: %s\nFqdn: %s\n%s\n%s" % (
+			self.frontend, self.fqdn, nodes, networks)
+
+	def add_gw(self, node, gw):
+		self.nodes[node].add_gw(gw)
+
+	def add_net(self, name, subnet, netmask, mtu):
+		if name not in self.nets:
+			self.nets[name] = Network(subnet, netmask, mtu)
+
+	def add_iface(self, node, net, ip, mac, iface):
+		if node not in self.nodes:
+			if node == self.frontend:
+				self.nodes[node] = Node(self.frontend)
+			else:
+				self.computes.append(node)
+				self.nodes[node] = Node('compute-%i' % self.counter)
+				self.counter += 1
+		if re.search("[\-]+", net) is not None:
+			net = 'private'
+		if re.search("[\-]+", ip) is not None:
+			ip = self.nets[net].get_free_ip()
+		self.nodes[node].add_iface(net, ip, mac, iface)
+
+	def get_computes(self):
+		return self.computes
+
+	def get_frontend(self):
+		return self.frontend
+
+	def get_frontend_ip(self, net):
+		return self.nets[net].get_frontend_ip()
+
+	def get_fqdn(self):
+		return self.fqdn
+
+	def get_gw(self, node):
+		return self.nodes[node].get_gw()
+
+	def get_ifaces(self, node):
+		if node == 'frontend':
+			node = self.frontend
+		return self.nodes[node].get_ifaces()
+
+	def get_net_attrs(self, net):
+		return self.nets[net].get_attrs()
+
+	def get_node_name(self, node):
+		return self.nodes[node].get_name()
+
+
+
