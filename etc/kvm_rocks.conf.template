@@ -17,6 +17,11 @@ dns="8.8.8.8"
 # available vlans that can be used for private network
 vlans= range(4,20)
 
+# allow additional interfaces to be specified
+#additional_interfaces = {
+#  'openflow': 'ovs'
+#}
+
 # specify alternate directory for images if using NFS; required (leave empty for default)
 diskdir = ""
 
@@ -26,10 +31,3 @@ diskdir = ""
 
 # reserve number of CPUs on each node for the OS
 num_processors_reserved = 2
-
-# configure PRAGMA_ENT
-#ent = {
-#  'subnet_name': 'openflow',
-#  'interface_name': 'ovs'
-#}
-

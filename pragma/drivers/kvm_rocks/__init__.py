@@ -36,7 +36,38 @@ class Driver(pragma.drivers.Driver):
 				used_vlans[int(result.group(1))] = 1
 		self.used_vlans = used_vlans.keys()
 
-	def allocate(self, cpus, memory, key, enable_ent, repository):
+	def add_interfaces(self, networks, add_ifaces, nodes):
+		"""
+		Add additional interface to specified virtual nodes
+
+		:param networks: hash array of allowed networks for additional interfaces
+		where the key is the network name and the value is the name of the device
+		:param add_ifaces hash array of additional interfaces where the key is the
+		network name and the value is the cidr address if specified
+		:param nodes: array of virtual node names
+		:return: True if successful; otherwise False
+		"""
+		for network_name in add_ifaces:
+			self.logger.info("Adding %s interfaces to nodes" % network_name)
+			for node in nodes:
+				(out, exitcode) = pragma.utils.getRocksOutputAsList(
+					"report vm nextmac")
+				if out == None or len(out) < 1:
+					self.logger.error("Unable to get mac address for %s" % node)
+					return False
+				mac = out[0]
+				(out, exitcode) = pragma.utils.getRocksOutputAsList(
+					"add host interface %s %s subnet=%s mac=%s" % (
+					node, networks[network_name], network_name, mac))
+				if exitcode != 0:
+					self.logger.error("Unable to add interface to %s" % node)
+					return False
+				pragma.utils.getRocksOutputAsList(
+					"sync host network %s" % node)
+				pragma.utils.getRocksOutputAsList(
+					"sync config")
+
+	def allocate(self, cpus, memory, key, add_ifaces_spec, repository):
 		"""
 		Allocate a new virtual cluster from Rocks
 
@@ -66,19 +97,18 @@ class Driver(pragma.drivers.Driver):
 		except:
 			pass
 
-		networks = ['public', 'private']
+		networks = {'public': None, 'private': None}
 		try:
-			networks = cluster_networks
+			networks.update(additional_interfaces)
 		except:
-			print "No networks in config file"
 			pass
+		add_ifaces = self.parse_user_interfaces(add_ifaces_spec)
+		for network_name in add_ifaces:
+			if network_name not in networks:
+				self.logger.error("Interfaces on network %s not allowed, please specify in 'additional_interfaces' in kvm_rocks.conf file" % network_name)
+				return 0
 
 		containers_needed = self.calculate_num_nodes(cpus, container_hosts, leave_processors)
-		pragma_ent = None
-		try:
-			pragma_ent = ent
-		except:
-			pass
 
 		vc_out.set_key(key)
 
@@ -105,8 +135,8 @@ class Driver(pragma.drivers.Driver):
 			result = cnode_pat.search(line)
 			if result:
 				cnodes.append(result.group(1))
-		if enable_ent and pragma_ent is not None:
-			self.configure_ent(pragma_ent, [fe_name] + cnodes)
+		if add_ifaces:
+			self.add_interfaces(networks, add_ifaces, [fe_name] + cnodes)
 			
 		phy_hosts = self.get_physical_hosts(fe_name)
 		cpus_per_node = {}
@@ -117,7 +147,7 @@ class Driver(pragma.drivers.Driver):
 
 		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 
-		cluster_network = self.get_network(networks, fe_name, our_fqdn)
+		cluster_network = self.get_network(networks, fe_name, our_fqdn, add_ifaces)
 		if cluster_network is None:
 			return 0
 		vc_out.set_network(cluster_network, dns)
@@ -132,6 +162,31 @@ class Driver(pragma.drivers.Driver):
 
 		return 1
 
+	def parse_user_interfaces(self, add_ifaces_spec):
+		"""
+		Parse the user specified interfaces from the command line
+
+		:param add_ifaces_spec: string containing comma separated list of net:cidr
+		values
+
+		:return: A dictionary where the network name is the key and the values
+		are an array of Network objects
+		"""
+		add_ifaces = {}
+		if add_ifaces_spec is not None:
+			ifaces = re.split("\s*,", add_ifaces_spec)
+			for iface in ifaces:
+				cidr = None
+				if iface.find(":") >= 0:
+					(network_name, cidr) = re.split(":", iface)
+				else:
+					network_name = iface
+				if network_name not in add_ifaces:
+					add_ifaces[network_name] = []
+				(subnet, netmask) = pragma.utils.parse_cidr(cidr)
+				add_ifaces[network_name].append(
+					pragma.utils.Network(subnet, netmask, None))
+		return add_ifaces
 
 	def boot(self, node):
 		"""
@@ -233,32 +288,6 @@ class Driver(pragma.drivers.Driver):
 		for line in out:
 			print "  %s" % line
 		return True
-
-	def configure_ent(self, ent_info, nodes):
-		"""
-		Add ENT interface to specified virtual nodes
-
-		:param ent_info: config information for PRAGMA-ENT
-		:param nodes: array of virtual node names
-		:return: True if successful; otherwise False
-		"""
-		for node in nodes:
-			(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"report vm nextmac")
-			if out == None or len(out) < 1:
-				self.logger.error("Unable to get mac address for %s" % node)
-				return False
-			mac = out[0]
-			(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"add host interface %s %s subnet=%s mac=%s" % (
-				node, ent_info['interface_name'], ent_info['subnet_name'], mac))
-			if exitcode != 0:
-				self.logger.error("Unable to add interface to %s" % node)
-				return False
-			(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"sync host network %s" % node)
-		(out, exitcode) = pragma.utils.getRocksOutputAsList(
-				"sync config")
 
 	def deploy(self, repository):
 		"""
@@ -400,7 +429,7 @@ class Driver(pragma.drivers.Driver):
 				nodes[result.group(1)] = result.group(2)
 		return nodes
 
-	def get_network(self, networks, frontend, fqdn):
+	def get_network(self, networks, frontend, fqdn, add_ifaces):
 		"""
 		Get network information for newly instantiated virtual cluster
 
@@ -422,16 +451,21 @@ class Driver(pragma.drivers.Driver):
 
 		# get interface info
 		(out, exitcode) = pragma.utils.getOutputAsList("rocks list host interface")
-		iface_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)" % frontend)
+		iface_pat = re.compile("^(\S*%s\S*):\s+(\S+)\s+\S+\s+(\S+)\s+(\S+)" % frontend)
 		for line in out:
 			result = iface_pat.search(line)
 			if result:
-				(node_name, net, iface, mac, ip) = result.groups()
-				if net != 'public' and node_name == frontend:
+				(node_name, net, mac, ip) = result.groups()
+				if net == 'private' and node_name == frontend:
 					# IP is relative to physical cluster if exists -- we reset
 					# for internal vc
 					ip = cluster_network.get_frontend_ip(net)
-				cluster_network.add_iface(node_name, net, ip, mac, iface)
+				if net in add_ifaces:
+					for user_net in add_ifaces[net]:
+						# overwrite with user specified subnet/netmask
+						cluster_network.add_iface(node_name, net, ip, mac, user_net)
+				else:
+					cluster_network.add_iface(node_name, net, ip, mac)
 
 		# get gateways
 		(out, exitcode) = pragma.utils.getOutputAsList("rocks list host route")

@@ -3,6 +3,7 @@ import logging
 import pragma.commands
 import pragma.drivers
 import os
+import re
 
 class Command(pragma.commands.Command):
 	"""
@@ -18,9 +19,18 @@ class Command(pragma.commands.Command):
 	be started)
 	</arg>
 
-	<param type='string' name='enable-ent'>
-	Configure virtual cluster nodes on PRAGMA-ENT using the provided CIDR
-	address.  E.g., 192.168.0.0/16
+	<param type='string' name='add-iface'>
+	Add additional network interfaces to virtual cluster nodes.  Format is a
+	comma separated list of interfaces of the format:
+
+	rocks network name[:cidr]
+
+	The "rocks network name" is any network listed from the "rocks list network"
+	command.  If a "cidr" address is provided, then it is used to configure the
+	network interfaces rather than information listed in the Rocks database.
+	PRAGMA-ENT network interfaces must contain a cidr address space provided by
+	the PRAGMA-ENT administrator.  The cidr address can contain the starting IP
+	address that is available to use.  E.g., 10.102.0.10/24
 	</param>
 
 	<param type='string' name='enable-ipop-client'>
@@ -81,10 +91,10 @@ class Command(pragma.commands.Command):
 			self.abort('Number of CPUs must be an integer')
 
 		# fillParams with the above default values
-		(ent, ipop_clientinfo_file, ipop_serverinfo_url,
+		(add_ifaces, ipop_clientinfo_file, ipop_serverinfo_url,
 			key, logfile, loglevel, memory) = self.fillParams(
 			[
-			 ('enable-ent', ""),
+			 ('add-iface', None),
 			 ('enable-ipop-client', ""),
 			 ('enable-ipop-server', ""),
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
@@ -132,14 +142,14 @@ class Command(pragma.commands.Command):
 		# initialize repository 
 		repository = self.getRepository()
 
-		# process cluster images and xml descirption file:
+		# process cluster images and xml description file:
 		#     create input and output xml objects
 		#     download virtual cluster files image to cache
 		#     process virtual cluster files (decompress, concatenate if needed)
 		repository.processCluster(vcname, temp_directory)
 
 		# allocate cluster (in rocks db)
-		if not(driver.allocate(num_cpus, memory, key, ent, repository)):
+		if not(driver.allocate(num_cpus, memory, key, add_ifaces, repository)):
 		   self.abort("Unable to allocate virtual cluster, please check log")
 		# start cluster
 		driver.deploy(repository)

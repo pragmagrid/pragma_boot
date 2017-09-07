@@ -5,6 +5,8 @@ import subprocess
 import os
 import re
 import shlex
+import socket
+import struct
 import xml.sax
 from xml.sax import handler
 from datetime import datetime
@@ -307,19 +309,46 @@ def getListHeader(strings):
 
 	return lineformat % ('FRONTEND', 'COMPUTE NODES', 'STATUS', 'PUBLIC IP')
 
+def parse_cidr(cidr):
+	"""
+	Parse network and netmask from cidr string.
+	Code from https://stackoverflow.com/questions/33750233/convert-cidr-to-subnet-mask-in-python
+
+	:param cidr: A string containing a cidr address of format xxx.xxx.xxx.xxx/xx
+
+	:return: The subnet and netmask strings
+	"""
+	network, net_bits = cidr.split('/')
+	host_bits = 32 - int(net_bits)
+	netmask = socket.inet_ntoa(struct.pack('!I', (1 << 32) - (1 << host_bits)))
+	return network, netmask
 
 class Iface:
-	def __init__(self, ip, mac, iface):
+	def __init__(self, ip, mac, network, user_net=None):
 		self.ip = ip
-		self.iface = iface
 		self.mac = mac
+		self.network = network
+		self.subnet = None
+		self.netmask = None
+		if user_net is not None:
+			self.subnet = user_net.subnet
+			self.netmask = user_net.netmask
 
 	def __str__(self):
-		return "%s, %s, %s" % (self.ip, self.iface, self.mac)
+		description = "%s, %s, %s" % (self.ip, self.mac, self.network)
+		if self.subnet is not None:
+			description += ", %s" % self.subnet
+		if self.netmask is not None:
+			description += ", %s" % self.netmask
+		return description
 
 	def get_attrs(self):
-		return {'ip': self.ip, 'mac': self.mac, 'iface': self.iface}
-
+		attrs = {'ip': self.ip, 'mac': self.mac}
+		if self.subnet is not None:
+			attrs['subnet'] = self.subnet
+		if self.netmask is not None:
+			attrs['netmask'] = self.netmask
+		return attrs
 
 class Network:
 	def __init__(self, subnet, netmask, mtu):
@@ -354,21 +383,21 @@ class Network:
 
 class Node:
 	def __init__(self, name):
-		self.ifaces = {}
+		self.ifaces = []
 		self.gw = None
 		self.name = name
 
 	def __str__(self):
 		ifaces = []
-		for name, iface in self.ifaces.items():
-			ifaces.append("%s (%s)" % (name, str(iface)))
+		for iface in self.ifaces:
+			ifaces.append("(%s)" % str(iface))
 		return "%s\n%s" % (self.gw, ", ".join(ifaces))
 
 	def add_gw(self, gw):
 		self.gw = gw
 
-	def add_iface(self, name, ip, mac, iface):
-		self.ifaces[name] = Iface(ip, mac, iface)
+	def add_iface(self, name, ip, mac, user_net=None):
+		self.ifaces.append(Iface(ip, mac, name, user_net))
 
 	def get_gw(self):
 		return self.gw
@@ -406,7 +435,8 @@ class ClusterNetwork:
 		if name not in self.nets:
 			self.nets[name] = Network(subnet, netmask, mtu)
 
-	def add_iface(self, node, net, ip, mac, iface):
+	def add_iface(self, node, network_name, ip, mac, user_net=None):
+		logger.debug("Adding interface %s to %s with IP %s" % (network_name, node, ip))
 		if node not in self.nodes:
 			if node == self.frontend:
 				self.nodes[node] = Node(self.frontend)
@@ -414,11 +444,17 @@ class ClusterNetwork:
 				self.computes.append(node)
 				self.nodes[node] = Node('compute-%i' % self.counter)
 				self.counter += 1
-		if re.search("[\-]+", net) is not None:
-			net = 'private'
+		if re.search("[\-]+", network_name) is not None:
+			network_name = 'private'
 		if re.search("[\-]+", ip) is not None:
-			ip = self.nets[net].get_free_ip()
-		self.nodes[node].add_iface(net, ip, mac, iface)
+			net = self.nets[network_name]
+			if user_net is not None:
+				net = user_net
+			if node == self.frontend:
+				ip = net.subnet.replace(".0", ".1")
+			else:
+				ip = net.get_free_ip()
+		self.nodes[node].add_iface(network_name, ip, mac, user_net)
 
 	def get_computes(self):
 		return self.computes

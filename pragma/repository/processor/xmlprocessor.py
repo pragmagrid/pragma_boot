@@ -118,10 +118,10 @@ class XmlOutput:
             'name': self.network.get_frontend(),
             'gw': self.network.get_gw(self.network.get_frontend())
         })
-        for net, iface in self.network.get_ifaces('frontend').items():
-            iface_attrs = iface.get_attrs()
-            iface_attrs.update(self.network.get_net_attrs(net))
-            ET.SubElement(frontend, net, attrib=iface_attrs)
+        for iface in self.network.get_ifaces('frontend'):
+            iface_attrs = self.network.get_net_attrs(iface.network)
+            iface_attrs.update(iface.get_attrs())  # local overrides network
+            ET.SubElement(frontend, iface.network, attrib=iface_attrs)
 
         computes = ET.SubElement(vc, 'compute', attrib={
             'count':str(len(self.network.get_computes()))})
@@ -130,10 +130,10 @@ class XmlOutput:
                 'name':self.network.get_node_name(node),
                 'cpus':str(self.cpus_per_node[node]),
                 'gw': self.network.get_gw(node)})
-            for net, iface in self.network.get_ifaces(node).items():
-                iface_attrs = iface.get_attrs()
-                iface_attrs.update(self.network.get_net_attrs(net))
-                ET.SubElement(compute, net, attrib=iface_attrs)
+            for iface in self.network.get_ifaces(node):
+                iface_attrs = self.network.get_net_attrs(iface.network)
+                iface_attrs.update(iface.get_attrs())  # local overrides network
+                ET.SubElement(compute, iface.network, attrib=iface_attrs)
         self.append_network_key(vc)
         return self.prettify(vc)
 
@@ -162,10 +162,10 @@ class XmlOutput:
             'name': node,
             'gw': self.network.get_gw(node)
         })
-        for net, iface in self.network.get_ifaces(node).items():
-            iface_attrs = iface.get_attrs()
-            iface_attrs.update(self.network.get_net_attrs(net))
-            ET.SubElement(compute, net, attrib=iface_attrs)
+        for iface in self.network.get_ifaces(node):
+            iface_attrs = self.network.get_net_attrs(iface.network)
+            iface_attrs.update(iface.get_attrs())  # local overrides network
+            ET.SubElement(compute, iface.network, attrib=iface_attrs)
         self.append_network_key(vc)
         return self.prettify(vc)
 
