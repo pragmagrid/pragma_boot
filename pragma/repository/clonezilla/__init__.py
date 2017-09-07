@@ -193,10 +193,15 @@ class GdriveObject:
 		except Exception as e:
 			self.logger.error("Unable to read remote repository: %s" % str(e))
 			return []
-		html = html.replace("\\x22", "")
+		# need to parse javascript html for listing.
+		# string beginning with <script>window['_DRIVE_ivd'] contains data
+		# first remove some special chars: \x22 and \x5[a-z]
+		html = re.sub("\\\\x22", "", html)
+		html = re.sub("\\\\x5[a-z]", "", html) 
+		html = re.sub("\\\\n", "", html) 
+		# then find occurrences of gid,pid,name,obj_type,0,0,0,0,0,modified
 		file_info = re.findall(
-			"([^,\[]+),[^,]+,([^,]+),([^,]+),null,null,0,0,0,\d+,(\d+)", html)
-
+			"(\w{28}),\w{28},([^,]+),([^,]+)(?:,0){5},(\d+)", html)
 		gobjects = []
 		for (gid, name, obj_type, modified) in file_info:
 			obj_type = obj_type.replace("\/", "/")
@@ -349,6 +354,11 @@ class CzisoImage:
 		if not re.search("ISO 9660 CD-ROM", out[0]):
 			logger.error("File type '%s' not right for %s" % (
 				out[0], cziso_file))
+			try:
+				os.remove(cziso_file)
+				logger.info("Removed bad file %s so download can be re-tried next time this is run" % cziso_file)
+			except Exception as e:
+				logger.error("Error removing bad file %s: %s" % (cziso_file, str(e)))
 			return None
 		logger.debug("ISO file %s looks good %s" % (out[0], cziso_file))
 

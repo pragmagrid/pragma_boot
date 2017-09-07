@@ -202,51 +202,69 @@ virtualization engine will use for the instantiated virtual images.
 Supported Repositories
 =======================
 
-**pragma** currently supports 4 repository classes which can be configured in the site_conf.conf file,
-which has a python syntax and specifies settings for the physical site configuration. 
+**pragma** currently supports 4 repository classes that are configured in the 
+``<install-dir>/etc/site_conf.conf`` file. This file has a python syntax and 
+specifies settings for the physical site configuration. For a description of the virtual cluster images, please see `REPOSITORY.rst <REPOSITORY.rst>`_.
 
 local
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Virtual images are stored on the local disk.  The following parameters is required:
+Virtual images are stored on the local disk.  The following parameters are required:
 
-* **repository_class** - Should be set to "local".
+* **repository_class** - should be set to "local".
 
-* **repository_dir** - a path to a directory containing a virtual cluster database file (vcdb) and subdirectories of libvirt files.  
+* **repository_dir** - a path to a directory containing a virtual cluster database file (vcdb.txt) and 
+  subdirectories for virtual cluster images. Each subdirectory contains  1 or 2
+  images (only frontend, or frontend and compute) and a xml file (lbivirt style) that describes images.
 
-* **vcdb_filename** - The name of the virtual cluster database file.  It is assumed to be relative to the repository_dir param above.  The format of the vcdb.txt file is::
+* **vcdb_filename** - the name of the virtual cluster database file.  It is assumed to be relative to 
+  the repository_dir param above.  The format of the vcdb.txt file is::
 
-  <virtual cluster name 1>,<path to libvirt xml description of virtual cluster 1>
-  <virtual cluster name 2>,<path to libvirt xml description of virtual cluster 2>
-  ...
-  
-If raw or qcow2 file images are stored in the repository, their location is assumed to be relative to the libvirt xml description of the virtual cluster.  Therefore we recommend the following sub-directory structure for the repository_dir. ::
+      virtualClusterX,/path/to/XmlDescription/virtualClusterX.xml
+      virtualClusterY,/path/to/XmlDescription/virtualClusterY.xml
 
-  vcdb.txt
-  virtualcluster1/
-    virtualcluster1.xml
-    compute.[img,raw,qcow2]
-    frontend.[img,raw,qcow2]
-  virtualcluster2/
-    virtualcluster2.xml
-    compute.[img,raw,qcow2]
-    frontend.[img,raw,qcow2]
-  ...
-  
+  For example, contents of the file describing images for 3 virtual clusters : ::
+
+      airbox,/state/kvmdisks/repository/airbox/airbox.xml
+      centos7,/state/kvmdisks/repository/centos7/centos7.xml
+      rocks-basic,/state/kvmdisks/repository/rocks-basic/rocks-basic.xml
+
+  If raw or qcow2 file images are stored in the repository, their locations are assumed to be 
+  in the same relative directory as the libvirt xml description of the virtual cluster.  
+  Therefore we recommend the following sub-directory structure for the
+  repository_dir which corresponds to the example vcdb.txt  listed above: ::
+
+      vcdb.txt
+      airbox/
+        airbox.xml
+        airbox.raw
+      centos7/
+        centos7.xml
+        centos7-compute.img
+        centos7-frontend.img
+      rocks-basic/
+        rocks-basic.xml
+        rocks-basic-compute.raw
+        rocks-basic-frontend.raw
+      
 http
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Virtual images are hosted on any http/https server including Amazon S3. No authentication is supported.  The following parameters are required:
 
-* **repository_class** - Should be set to "http".
+* **repository_class** - should be set to ``http``.
 
 * **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **vcdb_filename** - the name of the virtual cluster database file. See description in `local`_. 
 
-* **repository_url** - Base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name>.  Note that for Amazon S3, the file must be publicly accessible. Do not omit http:// or https://
+* **repository_url** - base url of the http repository. For Amazon S3, the url is https://s3.amazonaws.com/bucket_name.  
+  Note that for Amazon S3, the file must be publicly accessible. Do not omit ``http://`` or ``https://``
 
 clonezilla
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The Clonezilla repository type is a remote repository similar to `http`_ except that the virtual cluster images are stored in a generic Clonezilla image format and can then be converted to any image type appropriate to your local installation (e.g., zvol, raw, qcow2) using the `Clonezilla tool <http://clonezilla.org/>`_.  The default remote clonezilla repository can be found in `Google Drive <https://drive.google.com/drive/u/0/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
+The Clonezilla repository type is a remote repository similar to `http`_ except that the virtual cluster images are stored in a 
+generic Clonezilla image format and can then be converted to any image type appropriate to your local installation 
+(e.g., zvol, raw, qcow2) using the `Clonezilla tool <http://clonezilla.org/>`_.  The default remote clonezilla 
+repository can be found in `Google Drive <https://drive.google.com/drive/u/0/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU>`_.
 
 To use the Clonezilla repository, the following dependencies must be installed:
 
@@ -254,37 +272,37 @@ To use the Clonezilla repository, the following dependencies must be installed:
 
 The following parameters are required in site_conf.conf:
 
-* **repository_class** - Should be set to "clonezilla".
+* **repository_class** - should be set to "clonezilla".
 
 * **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **vcdb_filename** - the name of the virtual cluster database file. See description in `local`_. 
 
-* **repository_url** - Base url of the Clonezilla repository in Google drive.  Please use the default value specified in the site_conf.conf file.
+* **repository_url** - base url of the Clonezilla repository in Google drive.  Please use the default value specified in the site_conf.conf file.
 
-* **cziso** - Full path to the cziso tool installed on this system.
+* **cziso** - full path to the cziso tool installed on this system.
 
-* **local_image_url** - A cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
+* **local_image_url** - a cziso URL template indicating the desired image format for your local installation (e.g., zvol, raw, qcow2).
+  The value $repository_dir will be replaced by the value specified above and $imagename will be replaced by the virtual cluster image
+  name found in the Clonezilla repository.  Examples of valid local_image_urls are found below: 
 
-  * ZFS volume (Rocks): zfs://nas-0-0/pragma/$imagename-vol
-  * RAW images: 'file://$repository_dir/$imagename.raw' or 'file://$repository_dir/$imagename.img'
-  * QCOW2 images: 'file://$repository_dir/$imagename.qcow2'
+  * for ZFS volume on rocks cluster: ``zfs://nas-0-0/pragma/$imagename-vol``
+  * for RAW images: ``file://$repository_dir/$imagename.raw`` or ``file://$repository_dir/$imagename.img``
+  * for QCOW2 images: ``file://$repository_dir/$imagename.qcow2``
 
 The following parameters are optional for the Clonezilla repository:
 
-* **include_images** - Only sync images from remote repository that match a specified pattern. 
+* **include_images** - only sync images from remote repository that match a specified pattern. 
 
-* **exclude_images** - Sync all images from remote repository except those matching the specified pattern.
+* **exclude_images** - sync all images from remote repository except those matching the specified pattern.
 
-This repository type is intended to be synced regularly (e.g., daily or weekly) with the remote repository.  Copy the following script in a executable file called /etc/cron.daily/pragma-sync.cron or /etc/cron.weekly/pragma-sync.cron depending on how frequent you want the sync to run. ::
+This repository type is intended to be synced regularly (e.g., daily or weekly) with the remote repository.  
+Create an executable cron script and run it at a freqeuncy you want to run sync. For example, on  CentOS
+or Ubuntu it can be ``/etc/cron.daily/pragma-sync.cron`` or ``/etc/cron.weekly/pragma-sync.cron``.
+The content of the executable cron script: ::
 
   #!/bin/bash
-
   /opt/pragma_boot/bin/pragma sync repository
-  
-Remember to run make the file executable.  E.g., ::
-
-  # chmod a+x /etc/cron.daily/pragma-sync.cron
   
 
 cloudfront
@@ -293,30 +311,28 @@ Virtual images are hosted on Amazon CloudFront with automatic signed url creatio
 
 To use the cloudfront repository, the following dependencies will need to be installed:
 
-* boto
-* rsa
+* boto (version 2.25.0 or later)
+* rsa (version 3.1.4 or later)
 
 The following parameters are required in site_conf.conf:
 
-* **repository_class** - Should be set to "cloudfront".
+* **repository_class** - should be set to "cloudfront".
 
 * **repository_dir** - a path to a directory where the vdcb and images can be cached
 
-* **vcdb_filename** - The name of the virtual cluster database file. See description in `local`_. 
+* **vcdb_filename** - the name of the virtual cluster database file. See description in `local`_. 
 
-* **repository_url** - CloudFront `domain name` of the distribution to use. Can be found on AWS CloudFront Console. **Do not omit http:// or https://**
+* **repository_url** - CloudFront ``domain name`` of the distribution to use. Can be found on AWS CloudFront Console. 
+  NOTE: Do not omit ``http://`` or ``https://``
 
-* **keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. See extras section for instruction.
+* **keypair_id** - CloudFront Key Pair. Generated from AWS Security Console. 
 
-* **private_key_file** : Full path to private key file corresponded to keypair_id. Generated from AWS Security Console. 
+* **private_key_file** : Full path to private key file corresponding to keypair_id. Generated from AWS Security Console. 
 
 To generate a CloudFront Key Pair: 
 
 #. Log into AWS Console
-#. Click on account name and select `Security Credentials`
-#. Expand `CloudFront Key Pairs` section and click `Create New Key Pair`
-#. Download public key, private key and take note of access key id (keypair id)
-  
-  
-  
+#. Click on account name and select ``Security Credentials``
+#. Expand ``CloudFront Key Pairs`` section and click ``Create New Key Pair``
+#. Download public key, private key and take note of access key id (keypair_id)
 

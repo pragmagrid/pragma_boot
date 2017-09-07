@@ -28,7 +28,7 @@ repository_settings = {
     # 'repository_url': 'http://calit2-119-121.ucsd.edu',
 
     # The following settings are required for clonezilla repository
-    # 'repository_url': 'https://drive.google.com/drive/u/1/folders/0B3cw7uKWQ3fXcmdfRHBCTV9KaUU',
+    # 'repository_url': 'https://drive.google.com/drive/folders/0B3cw7uKWQ3fXemsxMkJmbk1DdFk',
     # 'cziso': '/opt/cziso/bin/cziso',
     # Please choose one of the local image url formats below
     # 'local_image_url': 'zfs://nas-0-0/pragma/$imagename-vol',

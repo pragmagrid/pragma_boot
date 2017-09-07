@@ -16,9 +16,9 @@ Mapping of pragma_boot functions to CloudStack API:
 pragma_boot        cloudstack API                      Description                    Status
 -------------------------------------------------------------------------------------------------------------
 allocate         deployVirtualMachine (startvm=false)  allocates VC                   done
-deploy           startVirtualMachine                   deploy VC                      in progress
+deploy           startVirtualMachine                   deploy VC                      done
 shutdown VMname  stopVIrtualMachine                    shuts down VC                  done, updated June 19
-clean VMname     destroyVirtualMachine                 deallocate VC, rm disk images  in progress
+clean VMname     destroyVirtualMachine                 deallocate VC, rm disk images  done
 list cluster     listVirtualMachine                    list virtual clusters status   done, updated June 19
 list repository  listRepository                        list avail virtual images      done, July 8
 -------------------------------------------------------------------------------------------------------------
@@ -27,25 +27,51 @@ Basic funciotonality of pragma_boot  using CloudStack API is completed.
 
 The remaining issues are:
 
-A. UCSD todo list
+A. UCSD todo list 
+1. Test deploying rocks-based virtual cluster (will test the networking)
+2. Error checking for boundary conditions
+3. Commenting code and making documentation
+4. Special mode of clonezilla
+  Upload virtual cluster -> create iso images -> move to google drive
+  But would need a clonezilla instance on AIST resources to convert between
+  clonezilla iso to qcawt. A better option will be to download a specific
+  image (template) form the drive. Assumes that we can put pointer to GD url to pull template
+5. Is it ok to snapshot the Biolinux VM now?
+   How much of VM depends on IP of VM?
+6. VM with data service on it that is bootable by pragmaboot
+7. Finish, integrate method to get new images
 
-1. Finalize functions "in progress" using REST API
-2. Finalize implementation of deploy, shutdown and clean functions of pragma_boot.
+
+UCSD DONE
+1. Finalize functions "in progress" using REST API DONE
+2. Finalize implementation of deploy, shutdown and clean functions of pragma_boot. DONE
 3. vc-out.xml file propagation using userdata field and corresponding changes 
    to dynip roll and vm-out parser (debug authentication error.)
 4. Test upload of templates from local repository and google drive. 
 5. Test dual NIC configuration on the frontend
-6. Test deploying rocks-based virtual cluster (will test the networking)
-7. Error checking for boundary conditions
-8. Commenting code and making documentation
-9. Test email from git
+6. Test email from git
+7. Nadya dual network interfaces 
+8. Shava trying to pass network info through user data interface
+9. Modifying Tarm's code 
+10. Refactor code for better usability of new drivers and repositorires
+11. Update networking interfaces, how to ask for public networking, upload new templates/VM
+  New templates in cloudstack GUI, Community, MyISOs, Shared
+12. Clean up of VC
+13. Integrate/test cloud scheduler, demo prep
+
 
 B. AIST todo list
-
+1. Review CloudStack driver once UCSD complestes the code
+2. Enable DNS entriesfor VM frontend
+3. Enable templates reporitories
+4. Jason - ask Gabriel about receipe for installing data service
+   
+AIST DONE
 1. Access to CloudStack from one of pragma hosts. 
-2. Review CloudStack driver once UCSD complestes the code
-   and enable public IP access to the VM's launched via CloudStack 
-
+2. Enable public IP access to the VM's launched via CloudStack 
+3. Jason to ASK: CS 4.8 api call - stopvirtualmachine, only returns jobID,
+  complete list of info is not there. Why? Access control of user compared to
+  admin? Is some functionality missing in GUI based on ACL.
 
 Assumptions
 
@@ -53,54 +79,12 @@ Assumptions
     It lists cluster images (templates names have to be the same).
 
 
-==============================================================
-June 9, 2016 UCSD: Jason, Shava, Nadya
-==============================================================
 
-Work in progress:
+Info links
+-----------
 
-- Nadya dual network interfaces 
-- Shava trying to pass network info through user data interface
-- Modifying Tarm's code 
-- Special mode of clonezilla
-  Upload virtual cluster -> create iso images -> move to google drive
-  But would need a clonezilla instance on AIST resources to convert between
-  clonezilla iso to qcawt. A better option will be to download a specific
-  image (template) form the drive. Assumes that we can put pointer to GD url to pull template
- 
-Planned work:
-
-- Need more public real ip addresses to truly test
-- Is it ok to snapshot the Biolinux VM now?
-  How much of VM depends on IP of VM?
-- VM with data service on it that is bootable by pragmaboot
- 
-- End of June
-  work out propagation of new network config to user VM
-  Change, simplify and improve commands:
-      "list clusters"   - done
-      "list repository" - done
-      "shutdown VM"     - done
-      "delete VM" 
-  Jason - ask Gabriel about receipe for installing data service
- 
-- Mid July
-  Update networking interfaces, how to ask for public networking, upload new templates/VM
-  New templates in cloudstack GUI, Community, MyISOs, Shared?
- 
-- End of July
-  Finish, integrate method to get new images, cleanup
- 
-- Mid Aug
-  Integrate/test cloud scheduler, demo prep
-  Need public access at this time, otherwise no demo
- 
-+ As soon as possible  DONE
-  Jason to ASK: CS 4.8 api call - stopvirtualmachine, only returns jobID,
-  complete list of info is not there. Why? Access control of user compared to
-  admin? Is some functionality missing in GUI based on ACL.
-
-  Answer: need to use functions that deal with Async jobs
-          Wrote
-              queryAsyncJobResult(id)
-              listAsyncJobs()
+CLI https://cwiki.apache.org/confluence/display/CLOUDSTACK/CloudStack+cloudmonkey+CLI
+OpenStack vs. CloudStack http://searchnetworking.techtarget.com/tip/OpenStack-vs-CloudStack-Whats-the-best-approach
+Network example http://shankerbalan.net/blog/cloudstack-simple-advanced-network-example/
+OpenNebula vs. CloudStack vs. OpenStack http://www.geektantra.com/2014/10/opennebula-vs-openstack-vs-cloudstack/
+Physical networking architecture http://www.shapeblue.com/understanding-cloudstacks-physical-networking-architecture/
