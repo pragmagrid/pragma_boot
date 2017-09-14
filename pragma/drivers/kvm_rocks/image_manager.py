@@ -14,6 +14,7 @@ logger = logging.getLogger('pragma.drivers.kvm_rocks.image_manager')
 class ImageManager:
 	LIST_VM_PATTERN = "^(\S*%s\S*?)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+file:(\S+),vda,virtio"
 	LIST_DISK_PATTERN = "^(\S*%s\S*?)?:?\s*\d+\s+\d+\s+\d+\s+\S+\s+(\S+)\s+\S+\s+(\S+),vda,virtio"
+	SLEEP_FOR_UMOUNT = 10
 
 	def __init__(self, fe_name):
 		"""
@@ -85,7 +86,7 @@ class ImageManager:
 				frontend_disk['file'], compute_disk['file'], 
 				vc_in.dir, vc_out.get_kvm_diskdir())
 		elif 'volume' in frontend_disk and 'volume' in compute_disk:
-			manager = ZfsImageManager(frontend['name'], frontend_disk, compute_disk)
+			manager = ZfsImageManager(frontend, frontend_disk, compute_disk)
 		else:
 			logger.error("Unknown disk type in %s" % str(frontend_disk))
 			return None
@@ -156,16 +157,21 @@ class ImageManager:
 		"""
 		image_name = os.path.basename(path)
 		temp_mnt_dir = os.path.join(self.temp_dir, "mnt-%s" % image_name)
+		guestmount_pid_file = os.path.join(self.temp_dir, "mnt-%s.pid" % image_name)
 		if not os.path.exists(temp_mnt_dir):
 			logger.info("Making mount dir %s" % temp_mnt_dir)
 			os.mkdir(temp_mnt_dir)
 		(out, ec) = pragma.utils.getOutputAsList( 
-			"guestmount -a %s -i %s" % (path, temp_mnt_dir))
-		if ec != 0:
+			"guestmount --pid-file %s -a %s -i %s" % (guestmount_pid_file, path, temp_mnt_dir))
+		pid = None
+		with open(guestmount_pid_file, 'r') as f:
+			pid = int(f.read())
+		if ec != 0 or pid is None:
 			logger.error("Problem mounting %s: %s" % (
 				path, "\n".join(out)))
 			os.remove(temp_mnt_dir)
-		return temp_mnt_dir
+		logger.debug("Pid for guestmount process is %s" % pid) 
+		return pid, temp_mnt_dir
 
 	def prepare_compute(self, node, delete_spec, install_spec):
 		"""
@@ -207,17 +213,29 @@ class ImageManager:
 				logger.info("Moving %s to %s" % (filename, oldfile))
 				os.rename(filename, oldfile)
 
-	def umount_image(self, path):
+	def umount_image(self, pid, path):
 		"""
 		Unmount image at specified path
 
 		:param path: Path to mounted image
 		:return:
 		"""
-		(out, ec) = pragma.utils.getOutputAsList("umount %s" % path)
+		(out, ec) = pragma.utils.getOutputAsList("fusermount -u %s" % path)
 		if ec != 0:
 			logger.error("Unable to umount %s" % path)
 			return 0
+
+		while True:
+			logger.info("Waiting for guestmount process %s to exit" % pid)
+			time.sleep(ImageManager.SLEEP_FOR_UMOUNT)
+			try:
+				os.kill(pid, 0)
+			except OSError:
+				logger.info("Verified guestmount process %s has completed" % pid)
+        			break
+		logger.info("Waiting another %i secs for good measure" % ImageManager.SLEEP_FOR_UMOUNT)
+		time.sleep(ImageManager.SLEEP_FOR_UMOUNT)
+
 		os.rmdir(path)
 		
 
@@ -247,6 +265,9 @@ class ZfsImageManager(ImageManager):
 		:return: True if disk is cleaned, otherwise false
 		"""
 		status = ZfsImageManager.get_disk_status(node, disk_spec)
+		if status is None:
+			print "Volume %s is already removed" % disk_spec
+			return True
 		if status != 'unmapped': 
 			sys.stderr.write("Volume %s is still mapped, cannot be removed yet\n" % disk_spec)
 			return False
@@ -402,10 +423,10 @@ class ZfsImageManager(ImageManager):
 		:return:
 		"""
 		self.clone_and_set_zfs_image(node, self.compute)
-		compute_mnt = self.mount_from_nas(node, self.compute)
+		pid, compute_mnt = self.mount_from_nas(node, self.compute)
 		self.safe_remove_from_image(compute_mnt, delete_spec)
 		self.install_to_image(compute_mnt, install_spec)
-		self.umount_from_nas(compute_mnt, node, self.compute)
+		self.umount_from_nas(pid, compute_mnt, node, self.compute)
 
 	def prepare_frontend(self, delete_spec, install_spec):
 		"""
@@ -417,12 +438,12 @@ class ZfsImageManager(ImageManager):
 		:return:
 		"""
 		self.clone_and_set_zfs_image(self.fe_name, self.frontend)
-		fe_mnt = self.mount_from_nas(self.fe_name, self.frontend)
+		pid, fe_mnt = self.mount_from_nas(self.fe_name, self.frontend)
 		self.safe_remove_from_image(fe_mnt, delete_spec)
 		self.install_to_image(fe_mnt, install_spec)
-		self.umount_from_nas(fe_mnt, self.fe_name, self.frontend)
+		self.umount_from_nas(pid, fe_mnt, self.fe_name, self.frontend)
 
-	def umount_from_nas(self, mnt, name, zfs_spec):
+	def umount_from_nas(self, pid, mnt, name, zfs_spec):
 		"""
 		Unmount volume from local temp directory and unmount volume from NAS
 
@@ -432,7 +453,7 @@ class ZfsImageManager(ImageManager):
 		:return:
 		"""
 		# unmount volume
-		self.umount_image(mnt)
+		self.umount_image(pid, mnt)
 
 		# unmount from nas
 		(out, ec) = pragma.utils.getRocksOutputAsList(
@@ -544,10 +565,10 @@ class NfsImageManager(ImageManager):
 		"""
 		if self.tmp_compute_img is None:
 			self.create_tmp_compute()
-		compute_mnt = self.mount_image(self.tmp_compute_img)
+		pid, compute_mnt = self.mount_image(self.tmp_compute_img)
 		self.safe_remove_from_image(compute_mnt, delete_spec)
 		self.install_to_image(compute_mnt, install_spec)
-		self.umount_image(compute_mnt)
+		self.umount_image(pid, compute_mnt)
 		(out, ec) = pragma.utils.getOutputAsList("sh -c -o pipefail \"tar -Scf - -C '%s' '%s' | ssh %s tar -C '%s' --xform=s/.*/%s/ -xf -\"" % (
 			os.path.dirname(self.tmp_compute_img),
 			os.path.basename(self.tmp_compute_img),
@@ -573,10 +594,10 @@ class NfsImageManager(ImageManager):
 			logger.error("Problem copying frontend image: %s" % (
 				"\n".join(out)))
 			return 0
-		fe_mnt = self.mount_image(self.disks[self.fe_name])
+		pid, fe_mnt = self.mount_image(self.disks[self.fe_name])
 		self.safe_remove_from_image(fe_mnt, delete_spec)
 		self.install_to_image(fe_mnt, install_spec)
-		self.umount_image(fe_mnt)
+		self.umount_image(pid, fe_mnt)
 
 	def set_rocks_disk_paths(self):
 		"""
