@@ -155,11 +155,12 @@ class XmlOutput:
         return sorted(self.compute_filenames.keys())
 
     def get_compute_vc_out(self, node):
+        print node
         vc = ET.Element('vc')
         ET.SubElement(vc, 'frontend', attrib={
             'fqdn': self.network.get_fqdn()})
         compute = ET.SubElement(vc, 'compute', attrib={
-            'name': node,
+            'name':self.network.get_node_name(node),
             'gw': self.network.get_gw(node)
         })
         for iface in self.network.get_ifaces(node):
