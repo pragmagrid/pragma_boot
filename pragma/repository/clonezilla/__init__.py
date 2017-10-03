@@ -199,9 +199,9 @@ class GdriveObject:
 		html = re.sub("\\\\x22", "", html)
 		html = re.sub("\\\\x5[a-z]", "", html) 
 		html = re.sub("\\\\n", "", html) 
-		# then find occurrences of gid,pid,name,obj_type,0,0,0,0,0,modified
+		# then find occurrences of gid,pid,name,obj_type,0,0,0,0,0,created,modified
 		file_info = re.findall(
-			"(\w{28}),\w{28},([^,]+),([^,]+)(?:,0){5},(\d+)", html)
+			"(\w{28}),\w{28},([^,]+),([^,]+)(?:,0){5},\d+,(\d+)", html)
 		gobjects = []
 		for (gid, name, obj_type, modified) in file_info:
 			obj_type = obj_type.replace("\/", "/")
@@ -227,9 +227,9 @@ class GdriveObject:
 			self.download()
 			return True
 		local_file_age = os.path.getmtime(self.get_local_file())
+		self.logger.debug("    %s age = %i" % (self.name, self.last_modified))
+		self.logger.debug("    %s age = %i" % (self.get_local_file(), os.path.getmtime(self.get_local_file())))
 		if self.last_modified > local_file_age:
-			self.logger.debug("    %s age = %i" % (self.name, self.last_modified))
-			self.logger.debug("    %s age = %i" % (self.get_local_file(), os.path.getmtime(self.get_local_file())))
 			self.logger.info("    Newer version of %s found" % self.name)
 			self.download()
 			return True
