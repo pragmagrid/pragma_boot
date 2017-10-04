@@ -424,12 +424,12 @@ class CzisoImageZfs(CzisoImage):
 		:return: An integer representing the last modified time in secs or 0
 		if file does not exist
 		"""
-		(out, rc) = pragma.utils.getOutputAsList(
+		(out, rc) = pragma.utils.getOutput(
 			"ssh %s zfs get creation %s/%s" % (self.nas, self.pool, self.volume)
 		)
 		if rc != 0:
 			return 0
-		matcher = re.search("(\w+\s+\w+\s+\d+\s+\d+:\d+\s+\d+)", out[1])
+		matcher = re.search("(\w+\s+\w+\s+\d+\s+\d+:\d+\s+\d+)", out)
 		if matcher is not None:
 			creation_time_string = matcher.group(1)
 			creation_time = datetime.datetime.strptime(creation_time_string, "%a %b  %d %H:%M %Y")
