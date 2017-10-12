@@ -82,7 +82,7 @@ class ImageManager:
 			compute_disk = frontend_disk
 		manager = None
 		if 'file' in frontend_disk and 'file' in compute_disk:
-			manager = NfsImageManager(frontend['name'],
+			manager = NfsImageManager(frontend,
 				frontend_disk['file'], compute_disk['file'], 
 				vc_in.dir, vc_out.get_kvm_diskdir())
 		elif 'volume' in frontend_disk and 'volume' in compute_disk:
