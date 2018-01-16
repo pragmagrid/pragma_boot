@@ -30,6 +30,8 @@ def get_id():
 def getRocksOutputAsList(cmdline, inputString=None):
     return getOutputAsList("/opt/rocks/bin/rocks %s" % cmdline, inputString)
 
+def getRocksOutput(cmdline, inputString=None):
+    return getOutput("/opt/rocks/bin/rocks %s" % cmdline, inputString)
 
 def getOutput(cmdline, inputString=None):
 	""" run popen pipe inputString and return a touple of

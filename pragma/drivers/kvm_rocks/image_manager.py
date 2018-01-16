@@ -142,7 +142,7 @@ class ImageManager:
 		"""
 		if re.search("^file", disk):
 			pass
-		elif re.search("^phy:/dev/mapper/", disk):
+		elif re.search("^phy:/dev/", disk):
 			return ZfsImageManager.wait_for_disk(node, disk)
 		else:
 			sys.stderr.write("Unable to wait for disk of type %s\n" % disk)
@@ -380,7 +380,7 @@ class ZfsImageManager(ImageManager):
 				host, "\n".join(out)))
 			return False
 		out.pop(0) # pop off header
-		(nas, pool) = re.split("\s+", out[0])
+		(nas, pool) = re.split("\s+", out[0].strip())
 		vol = "%s-vol" % node
 
 		return (vol, pool, nas)
@@ -394,20 +394,16 @@ class ZfsImageManager(ImageManager):
 		:return:
 		"""
 		# remote mount image to our phy frontend
-		(out, ec) = pragma.utils.getRocksOutputAsList(
+		(out, ec) = pragma.utils.getRocksOutput(
 			"add host storagemap %s %s %s-vol %s 10 img_sync=false" % (
 			zfs_spec['host'], zfs_spec['pool'], vol, self.our_phy_frontend))
 		if ec != 0:
 			logger.error("Unable to map for %s" % vol)
-
-		# get local mount
-		(out, ec) = pragma.utils.getRocksOutputAsList(
-			"list host storagedev %s" % self.our_phy_frontend)
-		storagedev_pat = re.compile("^vol\S+\s+\S+\s+\S+%s-%s-vol\s+(\S+)" % (zfs_spec['host'], vol))
-		for line in out:
-			result = storagedev_pat.search(line)
-			if result:
-				self.disks[vol] = "/dev/%s" % result.group(1)
+			return None
+		storagedev_pat = re.compile("(\/dev\S+)")
+		result = storagedev_pat.search(out)
+		if result:
+			self.disks[vol] = result.group(1)
 
 		# mount volume
 		return self.mount_image(self.disks[vol])
