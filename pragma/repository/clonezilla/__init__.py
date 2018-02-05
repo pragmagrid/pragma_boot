@@ -530,8 +530,8 @@ class LocalLibvirtXml:
 		Write the expanded libvirt file to disk
 		"""
 		local_xml = ET.parse(self.remote_file)
-		self.frontend.setLibvirtDisk(local_xml, "//frontend//disk")
+		self.frontend.setLibvirtDisk(local_xml, ".//frontend//disk")
 		if self.compute:
-			self.compute.setLibvirtDisk(local_xml, "//compute//disk")
+			self.compute.setLibvirtDisk(local_xml, ".//compute//disk")
 		self.logger.info("Writing local xml file to %s" % self.file)
 		local_xml.write(self.file)
