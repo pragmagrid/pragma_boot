@@ -57,7 +57,7 @@ class ImageManager:
 		"""
 		if re.search("^file", disk_spec):
 			return NfsImageManager.clean_disk(node, disk_spec, host)
-		elif re.search("^phy:/dev/mapper/", disk_spec):
+		elif re.search("^phy:/dev/", disk_spec):
 			return ZfsImageManager.clean_disk(node, disk_spec, host)
 		else:
 			sys.stderr.write("Unable to clean disks of type %s\n" % disk_spec)
