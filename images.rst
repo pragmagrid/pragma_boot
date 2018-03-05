@@ -17,6 +17,8 @@ Original kernel :  ::
 	3.13.0-139-generic
 
 This kernel is vulnerable to spectre/meltdown vulnerabilities.
+Info on `SpectreAndMeltdown <https://wiki.ubuntu.com/SecurityTeam/KnowledgeBase/SpectreAndMeltdown#Kernel_Mitigations>`_
+General Ubuntu `How to do Server Upgrades <https://wiki.ubuntu.com/Security/Upgrades>`_
 Use the following steps to update kernel
 
 #. check for updates  
