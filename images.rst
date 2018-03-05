@@ -8,8 +8,8 @@ The following is a description of edits for the images/instances.
 
 biolinux  - spectre/meltdown vulenrabilities update
 =====================================================
-Virtual cluster image based on `Bio-Linux <http://environmentalomics.org/bio-linux/>`_, a bioinformatics workstation platform that 
-adds more than 250 bioinformatics packages to an Ubuntu Linux 14.04 LTS base.
+Virtual cluster image based on `Bio-Linux <http://environmentalomics.org/bio-linux/>`_
+an Ubuntu Linux 14.04 LTS base.
 
 Original kernel :  ::
 
@@ -19,7 +19,10 @@ Original kernel :  ::
 This kernel is vulnerable to spectre/meltdown vulnerabilities.
 Use the following steps to update kernel
 
-#. check for updates  ::
+#. check for updates  
+
+   The number of wrrors/warnings may be different depending on  specific
+   Ubuntu version or kernel distro. Here is a sample of possible fixes.  ::
 
      # apt-get update
      ...
