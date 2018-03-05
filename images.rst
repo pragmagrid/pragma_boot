@@ -1,19 +1,16 @@
 
 Virtual Images Edits
 ----------------------
+The following is a description of edits for the images/instances.
+
 .. contents::
 
 
-The following is a description of edits for the images/instances.
-
-biolinux 
-==============
+biolinux  - spectre/meltdown vulenrabilities update
+=====================================================
 Virtual cluster image based on `Bio-Linux <http://environmentalomics.org/bio-linux/>`_, a bioinformatics workstation platform that 
 adds more than 250 bioinformatics packages to an Ubuntu Linux 14.04 LTS base.
 
-
-spectre/meltdown vulenrabilities update
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Original kernel :  ::
 
     uname -r
