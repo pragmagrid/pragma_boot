@@ -6,7 +6,7 @@ The following is a description of edits for the images/instances.
 .. contents::
 
 
-biolinux  - spectre/meltdown vulenrabilities update
+biolinux  - spectre/meltdown vulnerabilities update
 =====================================================
 Virtual cluster image based on `Bio-Linux <http://environmentalomics.org/bio-linux/>`_
 an Ubuntu Linux 14.04 LTS base.
