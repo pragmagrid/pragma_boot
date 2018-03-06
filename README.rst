@@ -204,7 +204,11 @@ Supported Repositories
 
 **pragma** currently supports 4 repository classes that are configured in the 
 ``<install-dir>/etc/site_conf.conf`` file. This file has a python syntax and 
-specifies settings for the physical site configuration. For a description of the virtual cluster images, please see `REPOSITORY.rst <REPOSITORY.rst>`_.
+specifies settings for the physical site configuration. For a description of
+the virtual cluster images, please see `images-repository.rst <images-repository.rst>`_.
+
+For a description of imags modifications see `images-edits.rst
+<images-edits.rst>`_
 
 local
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
