@@ -186,7 +186,9 @@ class GdriveObject:
 		:return: An array of Gobjects
 		"""
 		html = None
-		url = "https://drive.google.com/drive/u/1/folders/%s" % id
+		url = id
+		if not re.search("^http", url):
+			url = "https://drive.google.com/drive/u/1/folders/%s" % id
 		try:
 			response = urllib2.urlopen(url)
 			html = response.read()
@@ -199,9 +201,10 @@ class GdriveObject:
 		html = re.sub("\\\\x22", "", html)
 		html = re.sub("\\\\x5[a-z]", "", html) 
 		html = re.sub("\\\\n", "", html) 
+
 		# then find occurrences of gid,pid,name,obj_type,0,0,0,0,0,created,modified
 		file_info = re.findall(
-			"(\w{28}),\w{28},([^,]+),([^,]+)(?:,0){5},\d+,(\d+)", html)
+			"([^,']{28,34}),[^,']{28,34},([^,]+),([^,]+)(?:,0){5},\d+,(\d+)", html)
 		gobjects = []
 		for (gid, name, obj_type, modified) in file_info:
 			obj_type = obj_type.replace("\/", "/")
