@@ -72,7 +72,8 @@ class Driver(pragma.drivers.Driver):
 		Allocate a new virtual cluster from Rocks
 
 		:param cpus: Number of CPUs to instantiate
-		:param memory: Amount of memory per compute node
+		:param memory: Either numeric applying to both frontend and compute
+			or 2 numbers separated by a colon <frontend>:<compute>
 		:param key: Path to SSH Key to install
 		:param enable_ent: Boolean to add ENT interfaces to nodes
 		:param repository: repository with xml in/out objects
@@ -122,11 +123,17 @@ class Driver(pragma.drivers.Driver):
 		if our_vlan is None:
 			return 0
 
+		fe_mem, compute_mem = (0, 0)
 		if not memory:
 			memory = self.default_memory
+		if memory.isdigit():
+			fe_mem = memory
+			compute_mem = memory
+		else:
+			(fe_mem, compute_mem) = memory.split(":")
 		
 		container_hosts_string = "container-hosts=\"%s\"" % " ".join(containers_needed.keys())
-		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=1 mem-per-compute=%i fe-name=%s cluster-naming=true vlan=%i %s" % (our_ip, len(containers_needed), memory, fe_name, our_vlan, container_hosts_string)
+		cmd = "/opt/rocks/bin/rocks add cluster %s %i cpus-per-compute=1 mem-per-compute=%s fe-name=%s cluster-naming=true vlan=%i %s" % (our_ip, len(containers_needed), compute_mem, fe_name, our_vlan, container_hosts_string)
 		self.logger.debug("Executing rocks command '%s'" % cmd)
 		(out, exitcode) = pragma.utils.getOutputAsList(cmd)
 		cnodes = []
@@ -144,6 +151,8 @@ class Driver(pragma.drivers.Driver):
 			(out, exitcode) = pragma.utils.getRocksOutputAsList(
 				"set host cpus %s %d" % (node, containers_needed[phy_hosts[node]]))
 			cpus_per_node[node] = containers_needed[phy_hosts[node]]
+		(out, exitcode) = pragma.utils.getRocksOutputAsList(
+			"set host vm %s mem=%s" % (fe_name, fe_mem))
 
 		self.logger.info("Allocated cluster %s with compute nodes: %s" % (fe_name, ", ".join(cnodes)))
 

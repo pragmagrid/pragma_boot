@@ -61,6 +61,13 @@ class Command(pragma.commands.Command):
 	(default is /root/.ssh/id_rsa.pub).
 	</param>
 
+	<param type='string' name='mem'>
+	Amount of memory to allocate to nodes.  If single number specified,
+	it will be applied to the frontend and each compute.  If two 
+	numbers are specified and separated by a colon, the first will
+	be for the frontend and the second for each compute.
+	</param>
+
 	<example cmd='boot myPragmaCluster 8'>
 	Will create a virtual cluster named myPragmaCluster with one or more
 	compute nodes adding up to 8 CPUs.
@@ -100,7 +107,7 @@ class Command(pragma.commands.Command):
 			 ('key', os.path.expanduser('~/.ssh/id_rsa.pub')),
 			 ('logfile', None),
 			 ('loglevel', 'ERROR'),
-			 ('memory', None)
+			 ('mem', None)
 			])
 
 		if ipop_serverinfo_url != "" or ipop_clientinfo_file != "":
