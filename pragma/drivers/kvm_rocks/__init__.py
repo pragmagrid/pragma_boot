@@ -16,7 +16,7 @@ class Driver(pragma.drivers.Driver):
 		pragma.drivers.Driver.__init__(self, basepath)
 		self.setModuleVals()
 
-		self.default_memory = 2048
+		self.default_memory = "2048"
 		self.logger.debug("Loaded driver %s" % self.__class__.__module__)
 		(out, exitcode) = pragma.utils.getRocksOutputAsList(
 			"list host interface")
